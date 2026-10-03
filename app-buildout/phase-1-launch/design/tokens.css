@@ -1,0 +1,326 @@
+/* Hermi design tokens.
+ *
+ * Mirrors 05-ui-ux-spec.md section 2 (colors, type, spacing, radii, elevation, motion). Change both together.
+ * Values for paper, sheet, sunken and rule in light mode (the warm surfaces) date from 2026-10-03; every other
+ * value, light and dark, is exactly section 2.
+ *
+ * Dark mode: put the class `dark` on any element (the root for the app, a wrapper for a demo). Without a class the
+ * system setting applies, and `light` on an element forces light inside a dark context. This is the same
+ * convention as shadcn and 05 section 12.
+ *
+ * Components use the semantic aliases (--background, --card, --primary) and the Hermi names (--tp-*).
+ * Never hard-code a hex value in a component.
+ *
+ * Not defined in 05 yet, so not defined here: --heat-ink-1 to --heat-ink-5 (text on each heat step) and
+ * --viz-band (the typical-price band). Define them in 05 first, then here.
+ */
+
+/* ------------------------------------------------------------------ Fonts, type, space, radii, motion (05 2.4 to 2.8) */
+:root {
+  /* Bundled families in the app (@fontsource-variable, Latin subset). The kit pages load them from Google Fonts. */
+  --tp-font-display: 'Fredoka', 'Nunito', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --tp-font-body: 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --tp-font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Type roles as `font` shorthands: font: var(--tp-type-title). Sizes are rem so Dynamic Type and zoom work.
+     Sentence case in the DOM; --tp-type-label and --tp-type-code are uppercased by CSS only. */
+  --tp-type-display:     700 2.5rem/1 var(--tp-font-display);        /* 40 px, up to 56 px on splash and paywall */
+  --tp-type-title:       600 1.875rem/1.1 var(--tp-font-display);    /* 30 px screen title */
+  --tp-type-heading:     600 1.25rem/1.2 var(--tp-font-display);     /* 20 px section and card heading */
+  --tp-type-code:        700 2rem/1 var(--tp-font-display);          /* 24 to 48 px airport codes (36 to 48 on tickets and passes), uppercase */
+  --tp-type-label:       700 0.6875rem/1.2 var(--tp-font-body);      /* 11 px eyebrows, chip labels, table heads, uppercase */
+  --tp-type-body-lg:     400 1.0625rem/1.5 var(--tp-font-body);      /* 17 px lead paragraphs */
+  --tp-type-body:        400 0.9375rem/1.55 var(--tp-font-body);     /* 15 px default text */
+  --tp-type-body-strong: 600 0.9375rem/1.55 var(--tp-font-body);     /* 15 px row titles */
+  --tp-type-small:       400 0.8125rem/1.45 var(--tp-font-body);     /* 13 px captions, disclosure lines, timestamps */
+  --tp-type-data:        400 0.8125rem/1.45 var(--tp-font-mono);     /* 13 to 15 px prices, credits, times, counts (tabular) */
+  --tp-type-figure:      700 2rem/1 var(--tp-font-mono);             /* 32 to 48 px fare on a fare detail, credit balance */
+  --tp-track-display: -0.01em;
+  --tp-track-title:   -0.005em;
+  --tp-track-code:    0.06em;
+  --tp-track-label:   0.08em;
+  --tp-track-figure:  -0.03em;
+
+  /* Spacing, 4 px base (Tailwind 1, 2, 3, 4, 5, 6, 8, 10, 12, 16) */
+  --tp-space-1: 0.25rem;   /*  4 px */
+  --tp-space-2: 0.5rem;    /*  8 px */
+  --tp-space-3: 0.75rem;   /* 12 px */
+  --tp-space-4: 1rem;      /* 16 px screen gutter on phones */
+  --tp-space-5: 1.25rem;   /* 20 px */
+  --tp-space-6: 1.5rem;    /* 24 px gutter from 768 px, gap between sections */
+  --tp-space-8: 2rem;      /* 32 px */
+  --tp-space-10: 2.5rem;   /* 40 px */
+  --tp-space-12: 3rem;     /* 48 px */
+  --tp-space-16: 4rem;     /* 64 px */
+
+  /* Radii. Buttons are pills, inputs lg, cards xl, bottom sheets 2xl on the top corners, chips and avatars full round. */
+  --radius: 0.75rem;                       /* 12 px */
+  --radius-sm: calc(var(--radius) - 4px);  /*  8 px */
+  --radius-md: calc(var(--radius) - 2px);  /* 10 px */
+  --radius-lg: var(--radius);              /* 12 px */
+  --radius-xl: calc(var(--radius) + 4px);  /* 16 px */
+  --radius-2xl: calc(var(--radius) + 8px); /* 20 px */
+  --radius-3xl: calc(var(--radius) + 12px);/* 24 px */
+  --radius-4xl: calc(var(--radius) + 16px);/* 28 px */
+
+  /* Motion. Reduced motion: see the media query in hermi.css. */
+  --motion-fast: 120ms;   /* press, hover, pin scale, toggle */
+  --motion-base: 200ms;   /* fades, chip state, tab underline */
+  --motion-slow: 320ms;   /* sheets, page transitions */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-touchdown: cubic-bezier(0.2, 0.9, 0.3, 1.2);  /* touchdown only */
+}
+
+/* ------------------------------------------------------------------ Light (default) */
+:root,
+.light {
+  color-scheme: light;
+
+  /* 2.1 surfaces and ink */
+  --tp-paper:          #FBF5EA;
+  --tp-sheet:          #FFFDF8;
+  --tp-sunken:         #F5ECDA;
+  --tp-ink:            #17324A;
+  --tp-ink-soft:       #4A6580;
+  --tp-rule:           #E3D6BC;
+  --tp-edge:           #6A86A0;
+  --tp-brand:          #0B6BC0;
+  --tp-brand-ink:      #FFFFFF;
+  --tp-brand-soft:     #DCEFFF;
+  --tp-success:        #1d7a52;
+  --tp-warning:        #a86a12;
+  --tp-warning-ink:    #8a5a10;
+  --tp-danger:         #b42318;
+
+  /* 2.2 sky and routes */
+  --tp-sky:            #2AA5FF;
+  --tp-sky-ink:        #17324A;
+  --tp-sky-soft:       #17324A;
+  --tp-sky-raised:     #E8F5FF;
+  --tp-sky-rule:       #1B8EE6;
+  --tp-cream:          #FFF8EC;
+  --tp-route-a:        #FF5E7E;
+  --tp-route-a-ink:    #C4264D;
+  --tp-route-b:        #FFCB2E;
+  --tp-route-b-ink:    #8A5A00;
+
+  /* 2.2 travelers, one color per person in join order (same in dark) */
+  --tp-traveler-1:     #FF5E7E;
+  --tp-traveler-2:     #FFCB2E;
+  --tp-traveler-3:     #2BBFAD;
+  --tp-traveler-4:     #6A45F2;
+  --tp-traveler-5:     #FF8A3D;
+  --tp-traveler-6:     #3DBE6B;
+  --tp-traveler-7:     #0B6BC0;
+  --tp-traveler-8:     #B92E86;
+  --tp-traveler-ink-1: #10283D;
+  --tp-traveler-ink-2: #17324A;
+  --tp-traveler-ink-3: #17324A;
+  --tp-traveler-ink-4: #FFFFFF;
+  --tp-traveler-ink-5: #17324A;
+  --tp-traveler-ink-6: #17324A;
+  --tp-traveler-ink-7: #FFFFFF;
+  --tp-traveler-ink-8: #FFFFFF;
+
+  /* 2.2 chart series: follow the price source, never its rank */
+  --viz-live:          #00909a;
+  --viz-cached:        #a86a12;
+  --viz-agent:         #5b47b0;
+  --viz-google:        #c24472;
+
+  /* 2.2 date-grid price steps, one hue; the most prominent step is the cheapest */
+  --heat-1:            #ceeff1;
+  --heat-2:            #93d9dc;
+  --heat-3:            #4fbec4;
+  --heat-4:            #009da3;
+  --heat-5:            #007980;
+
+  /* 2.2 activity groups over the itinerary categories */
+  --cat-culture:       #5b47b0;
+  --cat-food:          #e0621e;
+  --cat-outdoors:      #0f9f76;
+  --cat-shopping:      #2f86d8;
+  --cat-neutral:       #55607a;
+
+  /* 2.7 elevation 2 and 3 */
+  --tp-shadow-2:       0 4px 16px rgb(23 50 74 / 12%);
+  --tp-shadow-3:       0 -8px 32px rgb(23 50 74 / 18%);
+  --tp-scrim:          rgb(23 50 74 / 45%);
+}
+
+/* ------------------------------------------------------------------ Dark: the `dark` class on any element */
+.dark {
+  color-scheme: dark;
+
+  /* 2.1 surfaces and ink */
+  --tp-paper:          #0B1A2A;
+  --tp-sheet:          #12263A;
+  --tp-sunken:         #1A3149;
+  --tp-ink:            #E6F2FF;
+  --tp-ink-soft:       #9DB5CC;
+  --tp-rule:           #27405A;
+  --tp-edge:           #6C88A3;
+  --tp-brand:          #6CC4FF;
+  --tp-brand-ink:      #0B1A2A;
+  --tp-brand-soft:     #123A5C;
+  --tp-success:        #4cc38a;
+  --tp-warning:        #e0a44a;
+  --tp-warning-ink:    #e0a44a;
+  --tp-danger:         #f07167;
+
+  /* 2.2 sky and routes */
+  --tp-sky:            #0E3F66;
+  --tp-sky-ink:        #E6F2FF;
+  --tp-sky-soft:       #B9D3EA;
+  --tp-sky-raised:     #155487;
+  --tp-sky-rule:       #1A5A8C;
+  --tp-cream:          #FFF8EC;
+  --tp-route-a:        #FF7A93;
+  --tp-route-a-ink:    #FF8FA5;
+  --tp-route-b:        #FFD45C;
+  --tp-route-b-ink:    #FFD45C;
+
+  /* 2.2 travelers, one color per person in join order (same in dark) */
+  --tp-traveler-1:     #FF5E7E;
+  --tp-traveler-2:     #FFCB2E;
+  --tp-traveler-3:     #2BBFAD;
+  --tp-traveler-4:     #6A45F2;
+  --tp-traveler-5:     #FF8A3D;
+  --tp-traveler-6:     #3DBE6B;
+  --tp-traveler-7:     #0B6BC0;
+  --tp-traveler-8:     #B92E86;
+  --tp-traveler-ink-1: #10283D;
+  --tp-traveler-ink-2: #17324A;
+  --tp-traveler-ink-3: #17324A;
+  --tp-traveler-ink-4: #FFFFFF;
+  --tp-traveler-ink-5: #17324A;
+  --tp-traveler-ink-6: #17324A;
+  --tp-traveler-ink-7: #FFFFFF;
+  --tp-traveler-ink-8: #FFFFFF;
+
+  /* 2.2 chart series: follow the price source, never its rank */
+  --viz-live:          #0f9aa2;
+  --viz-cached:        #c2851f;
+  --viz-agent:         #8a76e4;
+  --viz-google:        #d9598a;
+
+  /* 2.2 date-grid price steps, one hue; the most prominent step is the cheapest */
+  --heat-1:            #083a3d;
+  --heat-2:            #00565a;
+  --heat-3:            #007378;
+  --heat-4:            #00a0a6;
+  --heat-5:            #5ac8cd;
+
+  /* 2.2 activity groups over the itinerary categories */
+  --cat-culture:       #a07fe0;
+  --cat-food:          #d95926;
+  --cat-outdoors:      #1a9f71;
+  --cat-shopping:      #2869cc;
+  --cat-neutral:       #9ba7be;
+
+  /* 2.7 elevation 2 and 3 */
+  --tp-shadow-2:       0 4px 16px rgb(0 0 0 / 40%);
+  --tp-shadow-3:       inset 0 1px 0 var(--tp-sunken);
+  --tp-scrim:          rgb(0 0 0 / 60%);
+}
+
+/* Dark by system setting, unless the root says `light`. Same values as .dark; keep the two in step. */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    color-scheme: dark;
+
+    /* 2.1 surfaces and ink */
+    --tp-paper:          #0B1A2A;
+    --tp-sheet:          #12263A;
+    --tp-sunken:         #1A3149;
+    --tp-ink:            #E6F2FF;
+    --tp-ink-soft:       #9DB5CC;
+    --tp-rule:           #27405A;
+    --tp-edge:           #6C88A3;
+    --tp-brand:          #6CC4FF;
+    --tp-brand-ink:      #0B1A2A;
+    --tp-brand-soft:     #123A5C;
+    --tp-success:        #4cc38a;
+    --tp-warning:        #e0a44a;
+    --tp-warning-ink:    #e0a44a;
+    --tp-danger:         #f07167;
+
+    /* 2.2 sky and routes */
+    --tp-sky:            #0E3F66;
+    --tp-sky-ink:        #E6F2FF;
+    --tp-sky-soft:       #B9D3EA;
+    --tp-sky-raised:     #155487;
+    --tp-sky-rule:       #1A5A8C;
+    --tp-cream:          #FFF8EC;
+    --tp-route-a:        #FF7A93;
+    --tp-route-a-ink:    #FF8FA5;
+    --tp-route-b:        #FFD45C;
+    --tp-route-b-ink:    #FFD45C;
+
+    /* 2.2 travelers, one color per person in join order (same in dark) */
+    --tp-traveler-1:     #FF5E7E;
+    --tp-traveler-2:     #FFCB2E;
+    --tp-traveler-3:     #2BBFAD;
+    --tp-traveler-4:     #6A45F2;
+    --tp-traveler-5:     #FF8A3D;
+    --tp-traveler-6:     #3DBE6B;
+    --tp-traveler-7:     #0B6BC0;
+    --tp-traveler-8:     #B92E86;
+    --tp-traveler-ink-1: #10283D;
+    --tp-traveler-ink-2: #17324A;
+    --tp-traveler-ink-3: #17324A;
+    --tp-traveler-ink-4: #FFFFFF;
+    --tp-traveler-ink-5: #17324A;
+    --tp-traveler-ink-6: #17324A;
+    --tp-traveler-ink-7: #FFFFFF;
+    --tp-traveler-ink-8: #FFFFFF;
+
+    /* 2.2 chart series: follow the price source, never its rank */
+    --viz-live:          #0f9aa2;
+    --viz-cached:        #c2851f;
+    --viz-agent:         #8a76e4;
+    --viz-google:        #d9598a;
+
+    /* 2.2 date-grid price steps, one hue; the most prominent step is the cheapest */
+    --heat-1:            #083a3d;
+    --heat-2:            #00565a;
+    --heat-3:            #007378;
+    --heat-4:            #00a0a6;
+    --heat-5:            #5ac8cd;
+
+    /* 2.2 activity groups over the itinerary categories */
+    --cat-culture:       #a07fe0;
+    --cat-food:          #d95926;
+    --cat-outdoors:      #1a9f71;
+    --cat-shopping:      #2869cc;
+    --cat-neutral:       #9ba7be;
+
+    /* 2.7 elevation 2 and 3 */
+    --tp-shadow-2:       0 4px 16px rgb(0 0 0 / 40%);
+    --tp-shadow-3:       inset 0 1px 0 var(--tp-sunken);
+    --tp-scrim:          rgb(0 0 0 / 60%);
+  }
+}
+
+/* ------------------------------------------------------------------ Semantic aliases (shadcn names)
+   Declared on every themed scope, so each scope resolves them against its own --tp-* values. */
+:root,
+.light,
+.dark {
+  --background: var(--tp-paper);
+  --foreground: var(--tp-ink);
+  --card: var(--tp-sheet);
+  --popover: var(--tp-sheet);
+  --secondary: var(--tp-sunken);
+  --muted: var(--tp-sunken);
+  --accent: var(--tp-sunken);
+  --muted-foreground: var(--tp-ink-soft);
+  --border: var(--tp-rule);
+  --input: var(--tp-rule);
+  --primary: var(--tp-brand);
+  --ring: var(--tp-brand);
+  --primary-foreground: var(--tp-brand-ink);
+  --destructive: var(--tp-danger);
+  --sidebar: var(--tp-sky);
+}

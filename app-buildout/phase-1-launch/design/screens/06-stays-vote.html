@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=390, initial-scale=1">
+    <title>Hermi: Stays</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500;600&family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&family=Fredoka:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="../tokens.css">
+    <link rel="stylesheet" href="../hermi.css">
+    <script>if(location.hash==='#dark')document.documentElement.classList.add('dark')</script>
+  </head>
+  <body>
+    <main class="h-screen">
+      <svg class="h-sprite" aria-hidden="true" focusable="false">
+        <defs><path id="h-plane-path" d="M50 2C54 2 57 10 57 18L57 36L96 63L96 70L57 58L56 78L75 89L75 95L54 90L52 98L48 98L46 90L25 95L25 89L44 78L43 58L4 70L4 63L43 36L43 18C43 10 46 2 50 2Z"></path></defs>
+        <symbol id="hermi-mark" viewBox="0 0 1024 1024">
+          <rect width="1024" height="1024" rx="228" fill="#2AA5FF"></rect>
+          <circle cx="236" cy="192" r="46" fill="#FF5E7E"></circle>
+          <circle cx="236" cy="292" r="46" fill="#FF5E7E"></circle>
+          <circle cx="236" cy="392" r="46" fill="#FF5E7E"></circle>
+          <circle cx="236" cy="492" r="46" fill="#FF5E7E"></circle>
+          <circle cx="236" cy="592" r="46" fill="#FF5E7E"></circle>
+          <circle cx="236" cy="692" r="46" fill="#FF5E7E"></circle>
+          <circle cx="236" cy="809" r="70" fill="#FF5E7E"></circle>
+          <circle cx="788" cy="192" r="46" fill="#FFCB2E"></circle>
+          <circle cx="788" cy="292" r="46" fill="#FFCB2E"></circle>
+          <circle cx="788" cy="392" r="46" fill="#FFCB2E"></circle>
+          <circle cx="788" cy="492" r="46" fill="#FFCB2E"></circle>
+          <circle cx="788" cy="592" r="46" fill="#FFCB2E"></circle>
+          <circle cx="788" cy="692" r="46" fill="#FFCB2E"></circle>
+          <circle cx="788" cy="809" r="70" fill="#FFCB2E"></circle>
+          <circle cx="328" cy="500" r="22" fill="#FFF8EC"></circle>
+          <circle cx="696" cy="500" r="22" fill="#FFF8EC"></circle>
+          <path transform="translate(512 500) rotate(90) scale(3) translate(-50 -50)" d="M50 2C54 2 57 10 57 18L57 36L96 63L96 70L57 58L56 78L75 89L75 95L54 90L52 98L48 98L46 90L25 95L25 89L44 78L43 58L4 70L4 63L43 36L43 18C43 10 46 2 50 2Z" fill="#FFF8EC" stroke="#FFF8EC" stroke-width="3" stroke-linejoin="round"></path>
+        </symbol>
+        <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></symbol>
+        <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="M12 5v14"></path></symbol>
+        <symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></symbol>
+        <symbol id="i-luggage" viewBox="0 0 24 24"><path d="M6 20a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2"></path><path d="M8 18V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v14"></path><path d="M10 20v2"></path><path d="M14 20v2"></path></symbol>
+        <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"></path></symbol>
+        <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></symbol>
+        <symbol id="i-circle-user" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="10" r="3"></circle><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"></path></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path></symbol>
+        <symbol id="i-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></symbol>
+        <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path><path d="m15 5 4 4"></path></symbol>
+        <symbol id="i-heart" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></symbol>
+        <symbol id="i-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></symbol>
+        <symbol id="i-star" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></symbol>
+        <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></symbol>
+        <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></symbol>
+        <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path></symbol>
+        <symbol id="i-external-link" viewBox="0 0 24 24"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></symbol>
+        <symbol id="i-coins" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6"></circle><path d="M18.09 10.37A6 6 0 1 1 10.34 18"></path><path d="M7 6h1v4"></path><path d="m16.71 13.88.7.71-2.82 2.82"></path></symbol>
+        <symbol id="i-cloud-rain" viewBox="0 0 24 24"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M16 14v6"></path><path d="M8 14v6"></path><path d="M12 16v6"></path></symbol>
+        <symbol id="i-car" viewBox="0 0 24 24"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path><circle cx="7" cy="17" r="2"></circle><path d="M9 17h6"></path><circle cx="17" cy="17" r="2"></circle></symbol>
+        <symbol id="i-mountain" viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z"></path></symbol>
+        <symbol id="i-utensils" viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></symbol>
+        <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle></symbol>
+        <symbol id="i-chevrons-up-down" viewBox="0 0 24 24"><path d="m7 15 5 5 5-5"></path><path d="m7 9 5-5 5 5"></path></symbol>
+        <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></symbol>
+        <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></symbol>
+        <symbol id="i-bed" viewBox="0 0 24 24"><path d="M2 4v16"></path><path d="M2 8h18a2 2 0 0 1 2 2v10"></path><path d="M2 17h20"></path><path d="M6 8v9"></path></symbol>
+        <symbol id="i-shopping-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><path d="M3 6h18"></path><path d="M16 10a4 4 0 0 1-8 0"></path></symbol>
+        <symbol id="i-landmark" viewBox="0 0 24 24"><path d="M3 22h18"></path><path d="M6 18v-7"></path><path d="M10 18v-7"></path><path d="M14 18v-7"></path><path d="M18 18v-7"></path><path d="M12 2 3 7v4h18V7z"></path></symbol>
+      </svg>
+      <div class="h-map" role="img" aria-label="Illustrated map of La Fortuna, with Lake Arenal to the northwest and the Arenal volcano to the east.">
+        <svg class="h-map__svg" viewBox="0 0 390 194" aria-hidden="true" focusable="false">
+          <rect class="h-map__ground" width="390" height="194"></rect>
+          <g transform="translate(0 -44)">
+            <path class="h-map__halo" d="M-30 132C-18.3 92 15 121 40 120C65 119 95 122.3 120 126C145 129.7 168.3 135 190 142C211.7 149 226.7 162.3 250 168C273.3 173.7 301.7 176 330 176C358.3 176 403.3 137.3 420 168C436.7 198.7 505 328 430 360C355 392 46.7 398 -30 360C-106.7 322 -41.7 172 -30 132Z"></path>
+            <path class="h-map__land h-map__land--bare" d="M-30 132C-18.3 92 15 121 40 120C65 119 95 122.3 120 126C145 129.7 168.3 135 190 142C211.7 149 226.7 162.3 250 168C273.3 173.7 301.7 176 330 176C358.3 176 403.3 137.3 420 168C436.7 198.7 505 328 430 360C355 392 46.7 398 -30 360C-106.7 322 -41.7 172 -30 132Z"></path>
+            <ellipse class="h-map__relief" cx="288" cy="118" rx="112" ry="84" transform="rotate(-18 288 118)"></ellipse>
+            <ellipse class="h-map__relief h-map__relief--fill" cx="288" cy="118" rx="80" ry="58" transform="rotate(-18 288 118)" fill-opacity="0.1"></ellipse>
+            <ellipse class="h-map__relief h-map__relief--fill" cx="288" cy="118" rx="52" ry="37" transform="rotate(-18 288 118)" fill-opacity="0.14"></ellipse>
+            <ellipse class="h-map__relief h-map__relief--fill" cx="288" cy="118" rx="26" ry="18" transform="rotate(-18 288 118)" fill-opacity="0.2"></ellipse>
+            <path class="h-map__river" d="M262 146C259.3 151 253 168.3 246 176C239 183.7 228.3 185.7 220 192C211.7 198.3 207.7 208 196 214C184.3 220 164.3 221.7 150 228C135.7 234.3 116.7 248 110 252"></path>
+            <path class="h-map__halo" d="M-20 66C-11.7 59.3 15 61.3 30 62C45 62.7 56.3 69.7 70 70C83.7 70.3 100 62.7 112 64C124 65.3 140.3 72.3 142 78C143.7 83.7 131 93.7 122 98C113 102.3 99 103.7 88 104C77 104.3 67.3 99.3 56 100C44.7 100.7 32.7 107.7 20 108C7.3 108.3 -13.3 109 -20 102C-26.7 95 -28.3 72.7 -20 66Z"></path>
+            <path class="h-map__lake" d="M-20 66C-11.7 59.3 15 61.3 30 62C45 62.7 56.3 69.7 70 70C83.7 70.3 100 62.7 112 64C124 65.3 140.3 72.3 142 78C143.7 83.7 131 93.7 122 98C113 102.3 99 103.7 88 104C77 104.3 67.3 99.3 56 100C44.7 100.7 32.7 107.7 20 108C7.3 108.3 -13.3 109 -20 102C-26.7 95 -28.3 72.7 -20 66Z"></path>
+            <path class="h-map__peak" d="M281 121L288 110L295 121Z"></path>
+          </g>
+        </svg>
+        <span class="h-pin h-pin--price-active" style="left:268px;top:126px">$142</span>
+        <span class="h-pin h-pin--price" style="left:176px;top:140px">$188</span>
+        <span class="h-pin h-pin--price" style="left:100px;top:120px">$121</span>
+      </div>
+      <a class="h-navbtn h-navbtn--back" href="02-trips-home.html" aria-label="Back to Trips"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-chevron-left"></use></svg></a>
+      <button class="h-navbtn h-navbtn--menu" type="button" aria-haspopup="menu" aria-label="Trip menu: share, settings, export"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-ellipsis"></use></svg></button>
+      <div class="h-sheet">
+        <div class="h-sheet__grabber" aria-hidden="true"></div>
+        <div class="h-sheet__body">
+          <h1 class="h-sr-only">Stays in La Fortuna</h1>
+          <div class="h-strip" role="tablist" aria-label="Trip sections">
+            <a class="h-strip__tab" role="tab" aria-selected="false" href="03-trip-overview.html">Overview</a>
+            <a class="h-strip__tab" role="tab" aria-selected="false" href="05-fare-detail.html">Flights</a>
+            <a class="h-strip__tab" role="tab" aria-selected="true" aria-current="page" href="06-stays-vote.html">Stays</a>
+            <a class="h-strip__tab" role="tab" aria-selected="false" href="04-plan-day.html">Plan</a>
+            <a class="h-strip__tab" role="tab" aria-selected="false" href="#group">Group</a>
+            <a class="h-strip__tab" role="tab" aria-selected="false" href="#present">Present</a>
+          </div>
+          <div class="h-row"><div class="h-seg h-seg--narrow" role="tablist" aria-label="Stays view">
+              <button class="h-seg__item" type="button" role="tab" aria-selected="true">List</button>
+              <button class="h-seg__item" type="button" role="tab" aria-selected="false">Compare</button>
+            </div><button class="h-btn h-btn--primary h-btn--lead" type="button"><svg class="h-icon" width="20" height="20" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>Add a stay</button></div>
+          <div class="h-row h-row--sort"><span class="h-stay__where"><span class="h-stay__where-name">La Fortuna</span><span class="h-stay__where-dates">27 Nov to 1 Dec, 4 nights</span></span><button class="h-btn h-btn--text" type="button" aria-label="Sort by hearts, change sort">Sort: Hearts<svg class="h-icon" width="18" height="18" aria-hidden="true" focusable="false"><use href="#i-chevrons-up-down"></use></svg></button></div>
+          <div class="h-stack">
+            <div class="h-ticket h-ticket--actions">
+              <article class="h-ticket__card" aria-label="Casita with volcano view, Airbnb, 142 dollars a night, 568 dollars total, rating 4.9, Ana and Leo like this">
+                <div class="h-ticket__body h-ticket__body--row">
+                  <div class="h-photo-ph" role="img" aria-label="Listing photo placeholder"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-image"></use></svg><span>Listing photo</span></div>
+                  <a class="h-stay__main" href="#stay" aria-label="Open Casita with volcano view">
+                    <h2 class="h-stay__name">Casita with volcano view</h2>
+                    <span class="h-stay__meta"><span class="h-label">Airbnb</span><span class="h-stay__rating"><svg class="h-icon" width="14" height="14" aria-hidden="true" focusable="false"><use href="#i-star"></use></svg>4.9</span></span>
+                    <span class="h-soft">Price from 30 Sep</span>
+                  </a>
+                  <div class="h-stay__price">
+                    <span class="h-stay__night-row"><span class="h-stay__night">$142</span><span class="h-soft">a night</span></span>
+                    <span class="h-stay__total">$568 total</span>
+                    <span class="h-stay__each">$284 each</span>
+                  </div>
+                </div>
+                <div class="h-ticket__stub">
+                  <span class="h-ticket__tear" aria-hidden="true"></span>
+                  <span class="h-stub h-stub--votes"><svg class="h-icon h-icon--bold" width="14" height="14" aria-hidden="true" focusable="false"><use href="#i-heart"></use></svg>Both like this</span>
+                  <div class="h-stay__votes">
+                    <button class="h-vote h-vote--t1" type="button" aria-pressed="true" aria-label="Ana likes Casita with volcano view"><span class="h-avatar h-avatar--sm h-avatar--t1" aria-hidden="true">AN</span><svg class="h-vote__heart" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-heart"></use></svg></button>
+                    <button class="h-vote h-vote--t2" type="button" aria-pressed="true" aria-label="Leo likes Casita with volcano view"><span class="h-avatar h-avatar--sm h-avatar--t2" aria-hidden="true">LE</span><svg class="h-vote__heart" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-heart"></use></svg></button>
+                  </div>
+                </div>
+              </article>
+            </div>
+            <div class="h-ticket h-ticket--actions">
+              <article class="h-ticket__card" aria-label="Hotel near the hot springs, Booking.com, 188 dollars a night, 752 dollars total, rating 4.6, Ana likes this">
+                <div class="h-ticket__body h-ticket__body--row">
+                  <div class="h-photo-ph" role="img" aria-label="Listing photo placeholder"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-image"></use></svg><span>Listing photo</span></div>
+                  <a class="h-stay__main" href="#stay" aria-label="Open Hotel near the hot springs">
+                    <h2 class="h-stay__name">Hotel near the hot springs</h2>
+                    <span class="h-stay__meta"><span class="h-label">Booking.com</span><span class="h-stay__rating"><svg class="h-icon" width="14" height="14" aria-hidden="true" focusable="false"><use href="#i-star"></use></svg>4.6</span></span>
+                    <span class="h-soft">Price from 2 Oct</span>
+                  </a>
+                  <div class="h-stay__price">
+                    <span class="h-stay__night-row"><span class="h-stay__night">$188</span><span class="h-soft">a night</span></span>
+                    <span class="h-stay__total">$752 total</span>
+                    <span class="h-stay__each">$376 each</span>
+                  </div>
+                </div>
+                <div class="h-ticket__stub">
+                  <span class="h-ticket__tear" aria-hidden="true"></span>
+                  <span class="h-stay__count"><span><span class="h-stay__count-n">1 of 2</span> like this</span><span class="h-soft">Ana hearted it</span></span>
+                  <div class="h-stay__votes">
+                    <button class="h-vote h-vote--t1" type="button" aria-pressed="true" aria-label="Ana likes Hotel near the hot springs"><span class="h-avatar h-avatar--sm h-avatar--t1" aria-hidden="true">AN</span><svg class="h-vote__heart" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-heart"></use></svg></button>
+                    <button class="h-vote h-vote--t2" type="button" aria-pressed="false" aria-label="Leo has not liked Hotel near the hot springs"><span class="h-avatar h-avatar--sm h-avatar--t2" aria-hidden="true">LE</span><svg class="h-vote__heart" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-heart"></use></svg></button>
+                  </div>
+                </div>
+              </article>
+            </div>
+            <div class="h-ticket h-ticket--actions">
+              <article class="h-ticket__card" aria-label="Treehouse lodge, Vrbo, 121 dollars a night, 484 dollars total, rating 4.7, no hearts, Leo has not voted">
+                <div class="h-ticket__body h-ticket__body--row">
+                  <div class="h-photo-ph" role="img" aria-label="Listing photo placeholder"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-image"></use></svg><span>Listing photo</span></div>
+                  <a class="h-stay__main" href="#stay" aria-label="Open Treehouse lodge">
+                    <h2 class="h-stay__name">Treehouse lodge</h2>
+                    <span class="h-stay__meta"><span class="h-label">Vrbo</span><span class="h-stay__rating"><svg class="h-icon" width="14" height="14" aria-hidden="true" focusable="false"><use href="#i-star"></use></svg>4.7</span></span>
+                    <span class="h-soft">Price from 28 Sep</span>
+                  </a>
+                  <div class="h-stay__price">
+                    <span class="h-stay__night-row"><span class="h-stay__night">$121</span><span class="h-soft">a night</span></span>
+                    <span class="h-stay__total">$484 total</span>
+                    <span class="h-stay__each">$242 each</span>
+                  </div>
+                </div>
+                <div class="h-ticket__stub">
+                  <span class="h-ticket__tear" aria-hidden="true"></span>
+                  <span class="h-stay__count"><span><span class="h-stay__count-n">0 of 2</span> like this</span><span class="h-soft">Leo has not voted</span></span>
+                  <div class="h-stay__votes">
+                    <button class="h-vote h-vote--t1" type="button" aria-pressed="false" aria-label="Ana has not liked Treehouse lodge"><span class="h-avatar h-avatar--sm h-avatar--t1" aria-hidden="true">AN</span><svg class="h-vote__heart" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-heart"></use></svg></button>
+                    <button class="h-vote h-vote--t2" type="button" aria-pressed="false" aria-label="Leo has not liked Treehouse lodge"><span class="h-avatar h-avatar--sm h-avatar--t2" aria-hidden="true">LE</span><svg class="h-vote__heart" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#i-heart"></use></svg></button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </div>
+      <nav class="h-tabbar" aria-label="Main">
+        <div class="h-tabbar__bar">
+          <a class="h-tabbar__item h-tabbar__item--active" href="02-trips-home.html" aria-current="page"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-luggage"></use></svg><span>Trips</span></a>
+          <a class="h-tabbar__item" href="#discover"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-compass"></use></svg><span>Discover</span></a>
+          <a class="h-tabbar__item" href="#activity"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span>Activity</span></a>
+          <a class="h-tabbar__item" href="#account"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-circle-user"></use></svg><span>Account</span></a>
+        </div>
+      </nav>
+    </main>
+  </body>
+</html>

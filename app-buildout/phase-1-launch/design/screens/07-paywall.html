@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=390, initial-scale=1">
+    <title>Hermi: Paywall</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500;600&family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&family=Fredoka:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="../tokens.css">
+    <link rel="stylesheet" href="../hermi.css">
+    <script>if(location.hash==='#dark')document.documentElement.classList.add('dark')</script>
+  </head>
+  <body>
+    <main class="h-screen">
+      <svg class="h-sprite" aria-hidden="true" focusable="false">
+        <defs><path id="h-plane-path" d="M50 2C54 2 57 10 57 18L57 36L96 63L96 70L57 58L56 78L75 89L75 95L54 90L52 98L48 98L46 90L25 95L25 89L44 78L43 58L4 70L4 63L43 36L43 18C43 10 46 2 50 2Z"></path></defs>
+        <symbol id="hermi-mark" viewBox="0 0 1024 1024">
+          <rect width="1024" height="1024" rx="228" fill="#2AA5FF"></rect>
+          <circle cx="236" cy="192" r="46" fill="#FF5E7E"></circle>
+          <circle cx="236" cy="292" r="46" fill="#FF5E7E"></circle>
+          <circle cx="236" cy="392" r="46" fill="#FF5E7E"></circle>
+          <circle cx="236" cy="492" r="46" fill="#FF5E7E"></circle>
+          <circle cx="236" cy="592" r="46" fill="#FF5E7E"></circle>
+          <circle cx="236" cy="692" r="46" fill="#FF5E7E"></circle>
+          <circle cx="236" cy="809" r="70" fill="#FF5E7E"></circle>
+          <circle cx="788" cy="192" r="46" fill="#FFCB2E"></circle>
+          <circle cx="788" cy="292" r="46" fill="#FFCB2E"></circle>
+          <circle cx="788" cy="392" r="46" fill="#FFCB2E"></circle>
+          <circle cx="788" cy="492" r="46" fill="#FFCB2E"></circle>
+          <circle cx="788" cy="592" r="46" fill="#FFCB2E"></circle>
+          <circle cx="788" cy="692" r="46" fill="#FFCB2E"></circle>
+          <circle cx="788" cy="809" r="70" fill="#FFCB2E"></circle>
+          <circle cx="328" cy="500" r="22" fill="#FFF8EC"></circle>
+          <circle cx="696" cy="500" r="22" fill="#FFF8EC"></circle>
+          <path transform="translate(512 500) rotate(90) scale(3) translate(-50 -50)" d="M50 2C54 2 57 10 57 18L57 36L96 63L96 70L57 58L56 78L75 89L75 95L54 90L52 98L48 98L46 90L25 95L25 89L44 78L43 58L4 70L4 63L43 36L43 18C43 10 46 2 50 2Z" fill="#FFF8EC" stroke="#FFF8EC" stroke-width="3" stroke-linejoin="round"></path>
+        </symbol>
+        <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></symbol>
+        <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="M12 5v14"></path></symbol>
+        <symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></symbol>
+        <symbol id="i-luggage" viewBox="0 0 24 24"><path d="M6 20a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2"></path><path d="M8 18V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v14"></path><path d="M10 20v2"></path><path d="M14 20v2"></path></symbol>
+        <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"></path></symbol>
+        <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></symbol>
+        <symbol id="i-circle-user" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="10" r="3"></circle><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"></path></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path></symbol>
+        <symbol id="i-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></symbol>
+        <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path><path d="m15 5 4 4"></path></symbol>
+        <symbol id="i-heart" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></symbol>
+        <symbol id="i-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect><circle cx="9" cy="9" r="2"></circle><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path></symbol>
+        <symbol id="i-star" viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></symbol>
+        <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></symbol>
+        <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></symbol>
+        <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path></symbol>
+        <symbol id="i-external-link" viewBox="0 0 24 24"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></symbol>
+        <symbol id="i-coins" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6"></circle><path d="M18.09 10.37A6 6 0 1 1 10.34 18"></path><path d="M7 6h1v4"></path><path d="m16.71 13.88.7.71-2.82 2.82"></path></symbol>
+        <symbol id="i-cloud-rain" viewBox="0 0 24 24"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M16 14v6"></path><path d="M8 14v6"></path><path d="M12 16v6"></path></symbol>
+        <symbol id="i-car" viewBox="0 0 24 24"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path><circle cx="7" cy="17" r="2"></circle><path d="M9 17h6"></path><circle cx="17" cy="17" r="2"></circle></symbol>
+        <symbol id="i-mountain" viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z"></path></symbol>
+        <symbol id="i-utensils" viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></symbol>
+        <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle></symbol>
+        <symbol id="i-chevrons-up-down" viewBox="0 0 24 24"><path d="m7 15 5 5 5-5"></path><path d="m7 9 5-5 5 5"></path></symbol>
+        <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></symbol>
+        <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></symbol>
+        <symbol id="i-bed" viewBox="0 0 24 24"><path d="M2 4v16"></path><path d="M2 8h18a2 2 0 0 1 2 2v10"></path><path d="M2 17h20"></path><path d="M6 8v9"></path></symbol>
+        <symbol id="i-shopping-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><path d="M3 6h18"></path><path d="M16 10a4 4 0 0 1-8 0"></path></symbol>
+        <symbol id="i-landmark" viewBox="0 0 24 24"><path d="M3 22h18"></path><path d="M6 18v-7"></path><path d="M10 18v-7"></path><path d="M14 18v-7"></path><path d="M18 18v-7"></path><path d="M12 2 3 7v4h18V7z"></path></symbol>
+      </svg>
+      <div class="h-dim" aria-hidden="true" inert>
+        <div class="h-map" role="img" aria-label="Map of the Costa Rica route. Dotted routes join the flight stop in Panama City, then San José, La Fortuna and Manuel Antonio.">
+          <svg class="h-map__svg" viewBox="0 0 390 194" aria-hidden="true" focusable="false">
+            <defs><clipPath id="cr-band"><path d="M-20 48C-10 34.7 20 46.3 40 46C60 45.7 81.7 45.3 100 46C118.3 46.7 133.3 48.3 150 50C166.7 51.7 183.3 53.7 200 56C216.7 58.3 233.3 60.3 250 64C266.7 67.7 283.3 73 300 78C316.7 83 331.7 89.3 350 94C368.3 98.7 400 92.3 410 106C420 119.7 421.7 165.3 410 176C398.3 186.7 360 170 340 170C320 170 306.7 174.3 290 176C273.3 177.7 256.7 180.3 240 180C223.3 179.7 206.7 176.7 190 174C173.3 171.3 155 167.7 140 164C125 160.3 113.3 156.3 100 152C86.7 147.7 73.3 142 60 138C46.7 134 33.3 130 20 128C6.7 126 -13.3 139.3 -20 126C-26.7 112.7 -30 61.3 -20 48Z"></path></clipPath></defs>
+            <rect class="h-map__water" width="390" height="194"></rect>
+            <path class="h-map__halo" d="M-20 48C-10 34.7 20 46.3 40 46C60 45.7 81.7 45.3 100 46C118.3 46.7 133.3 48.3 150 50C166.7 51.7 183.3 53.7 200 56C216.7 58.3 233.3 60.3 250 64C266.7 67.7 283.3 73 300 78C316.7 83 331.7 89.3 350 94C368.3 98.7 400 92.3 410 106C420 119.7 421.7 165.3 410 176C398.3 186.7 360 170 340 170C320 170 306.7 174.3 290 176C273.3 177.7 256.7 180.3 240 180C223.3 179.7 206.7 176.7 190 174C173.3 171.3 155 167.7 140 164C125 160.3 113.3 156.3 100 152C86.7 147.7 73.3 142 60 138C46.7 134 33.3 130 20 128C6.7 126 -13.3 139.3 -20 126C-26.7 112.7 -30 61.3 -20 48Z"></path>
+            <path class="h-map__land h-map__land--bare" d="M-20 48C-10 34.7 20 46.3 40 46C60 45.7 81.7 45.3 100 46C118.3 46.7 133.3 48.3 150 50C166.7 51.7 183.3 53.7 200 56C216.7 58.3 233.3 60.3 250 64C266.7 67.7 283.3 73 300 78C316.7 83 331.7 89.3 350 94C368.3 98.7 400 92.3 410 106C420 119.7 421.7 165.3 410 176C398.3 186.7 360 170 340 170C320 170 306.7 174.3 290 176C273.3 177.7 256.7 180.3 240 180C223.3 179.7 206.7 176.7 190 174C173.3 171.3 155 167.7 140 164C125 160.3 113.3 156.3 100 152C86.7 147.7 73.3 142 60 138C46.7 134 33.3 130 20 128C6.7 126 -13.3 139.3 -20 126C-26.7 112.7 -30 61.3 -20 48Z"></path>
+            <g clip-path="url(#cr-band)">
+              <path class="h-map__land h-map__land--alt" d="M-40 0L58 0L56 96L64 190L-40 190Z"></path>
+              <path class="h-map__land h-map__land--alt" d="M334 96L430 96L430 300L342 300Z"></path>
+              <path class="h-map__hill" d="M150 112C159.3 107 179.3 103.7 196 104C212.7 104.3 239 108 250 114C261 120 266.7 132.3 262 140C257.3 147.7 237.3 158 222 160C206.7 162 183.7 156.3 170 152C156.3 147.7 143.3 140.7 140 134C136.7 127.3 140.7 117 150 112Z"></path>
+            </g>
+            <path class="h-map__coast" d="M-20 48C-10 34.7 20 46.3 40 46C60 45.7 81.7 45.3 100 46C118.3 46.7 133.3 48.3 150 50C166.7 51.7 183.3 53.7 200 56C216.7 58.3 233.3 60.3 250 64C266.7 67.7 283.3 73 300 78C316.7 83 331.7 89.3 350 94C368.3 98.7 400 92.3 410 106C420 119.7 421.7 165.3 410 176C398.3 186.7 360 170 340 170C320 170 306.7 174.3 290 176C273.3 177.7 256.7 180.3 240 180C223.3 179.7 206.7 176.7 190 174C173.3 171.3 155 167.7 140 164C125 160.3 113.3 156.3 100 152C86.7 147.7 73.3 142 60 138C46.7 134 33.3 130 20 128C6.7 126 -13.3 139.3 -20 126C-26.7 112.7 -30 61.3 -20 48Z"></path>
+            <path class="h-route h-route--a" d="M403.6 142.5C398.9 142.1 384.3 141.3 375.4 140.4C366.5 139.6 358.5 138.6 350.1 137.4C341.7 136.1 333 134.4 324.9 132.9C316.8 131.4 305.2 129.2 301.2 128.4" pathLength="99"></path>
+            <path class="h-route h-route--b" d="M404.4 133.5C399.7 133.2 385 132.3 376.2 131.4C367.4 130.6 359.8 129.7 351.5 128.5C343.2 127.2 334.7 125.6 326.6 124.1C318.4 122.6 306.8 120.3 302.8 119.6" pathLength="99"></path>
+            <path class="h-route h-route--a" d="M302.3 128.5C297.2 128.9 282 132.4 272 130.8C262.1 129.2 252.1 122.1 242.6 119C233.1 115.9 219.6 113.5 215 112.4" pathLength="88"></path>
+            <path class="h-route h-route--b" d="M301.7 119.5C296.6 119.9 280.5 123.2 270.7 121.6C261 119.9 252.4 112.7 243.4 109.7C234.5 106.7 221.4 104.6 217 103.6" pathLength="88"></path>
+            <path class="h-route h-route--a" d="M214.8 112.3C212.4 111.6 204.5 109.4 200.2 108.2C196 107 193.2 106.2 189.2 105.1C185.2 104 180.5 102.9 176.3 101.7C172.1 100.5 168.3 99 164 97.9C159.7 96.7 155 95.1 150.3 94.8C145.7 94.4 140.4 95.1 136.2 95.8C132.1 96.4 129.4 97.5 125.5 98.6C121.6 99.7 115.1 101.8 113 102.4" pathLength="110"></path>
+            <path class="h-route h-route--b" d="M217.2 103.7C214.8 103 207.4 100.9 202.7 99.6C198 98.2 193.2 96.9 188.8 95.7C184.4 94.5 180.4 93.5 176.3 92.3C172.2 91.1 168.7 89.7 164.1 88.6C159.5 87.4 153.2 85.9 148.7 85.6C144.2 85.2 141.6 85.6 137.3 86.4C133 87.1 127.3 88.8 122.9 90C118.5 91.2 113 93 111 93.6" pathLength="110"></path>
+            <path class="h-route h-route--a" d="M116.5 98.4C116 100.8 112.6 108.3 113.5 112.7C114.4 117.2 118.5 121.8 121.9 125.2C125.3 128.5 129.8 131 134 132.9C138.2 134.8 142.7 135.6 147.2 136.7C151.8 137.9 158.8 139.2 161.2 139.7" pathLength="77"></path>
+            <path class="h-route h-route--b" d="M107.5 97.6C107 100.1 104.1 107.8 104.5 112.6C104.9 117.4 107.5 122.4 110.2 126.3C112.9 130.1 116.8 132.9 120.6 135.5C124.5 138.2 129.2 140.6 133.3 142.3C137.4 143.9 141 144.5 145.3 145.5C149.5 146.5 156.6 147.9 158.8 148.3" pathLength="88"></path>
+          </svg>
+          <span class="h-plane-disc" style="left:258.2px;top:121.8px"><svg viewBox="-50 -50 100 100" aria-hidden="true" focusable="false"><use href="#h-plane-path" transform="rotate(-65.4) translate(-50 -50)"></use></svg></span>
+          <span class="h-pin h-pin--stop" style="left:302px;top:124px"></span>
+          <span class="h-pin h-pin--num" style="left:216px;top:108px">1</span>
+          <span class="h-pin h-pin--num" style="left:112px;top:98px">2</span>
+          <span class="h-pin h-pin--num" style="left:160px;top:144px">3</span>
+          <span class="h-map__chip" style="left:306px;top:94px">PTY</span>
+          <span class="h-map__chip" style="left:210px;top:78px">San José</span>
+          <span class="h-map__chip h-map__chip--start" style="left:86px;top:64px">La Fortuna</span>
+          <span class="h-map__chip h-map__chip--start" style="left:182px;top:148px">Manuel Antonio</span>
+          <span class="h-map__badge"><svg class="h-mark" width="28" height="28" aria-hidden="true" focusable="false"><use href="#hermi-mark"></use></svg></span>
+        </div>
+        <a class="h-navbtn h-navbtn--back" href="#" aria-label="Back to Trips"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-chevron-left"></use></svg></a>
+        <button class="h-navbtn h-navbtn--menu" type="button" aria-haspopup="menu" aria-label="Trip menu"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-ellipsis"></use></svg></button>
+        <div class="h-sheet">
+          <div class="h-sheet__grabber" aria-hidden="true"></div>
+          <div class="h-sheet__body h-sheet__body--tight">
+            <div class="h-strip" role="tablist" aria-label="Trip sections">
+              <a class="h-strip__tab" role="tab" aria-selected="true" aria-current="page" href="03-trip-overview.html">Overview</a>
+              <a class="h-strip__tab" role="tab" aria-selected="false" href="05-fare-detail.html">Flights</a>
+              <a class="h-strip__tab" role="tab" aria-selected="false" href="06-stays-vote.html">Stays</a>
+              <a class="h-strip__tab" role="tab" aria-selected="false" href="04-plan-day.html">Plan</a>
+              <a class="h-strip__tab" role="tab" aria-selected="false" href="#group">Group</a>
+              <a class="h-strip__tab" role="tab" aria-selected="false" href="#present">Present</a>
+            </div>
+            <div class="h-ticket h-ticket--sky">
+              <a class="h-ticket__card" href="05-fare-detail.html" aria-label="Costa Rica, 25 November to 6 December 2026. Flights: RDU to PTY to SJO on Copa, booked, departs in 53 days">
+                <div class="h-ticket__head h-ticket__head--sky">
+                  <div class="h-ticket__top"><h2 class="h-ticket__name h-ticket__name--lg">Costa Rica</h2><span class="h-ticket__dates">25 Nov to 6 Dec 2026</span></div>
+                  <div class="h-codes h-codes--lg">
+                    <span class="h-codes__code">RDU</span>
+                    <svg class="h-codes__route" viewBox="0 0 140 34" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
+                      <path class="h-route h-route--a h-route--sm" d="M5 27C26 27 42 11 61 11"></path>
+                      <path class="h-route h-route--b h-route--sm" d="M79 11C98 11 114 27 135 27"></path>
+                      <circle class="h-codes__start--a" cx="5" cy="27" r="3.4"></circle>
+                      <circle class="h-codes__start--b" cx="135" cy="27" r="3.4"></circle>
+                      <use class="h-codes__plane" href="#h-plane-path" transform="translate(70 11) rotate(90) scale(.3) translate(-50 -50)"></use>
+                    </svg>
+                    <span class="h-codes__code">SJO</span>
+                  </div>
+                </div>
+                <div class="h-ticket__body">
+                  <dl class="h-ticket__fields">
+                    <div class="h-field"><dt class="h-field__label">Nights</dt><dd class="h-field__value">11</dd></div>
+                    <div class="h-field h-field--text"><dt class="h-field__label">Travelers</dt><dd class="h-field__value"><span class="h-avatars"><span class="h-avatar h-avatar--t1" role="img" aria-label="Ana">AN</span><span class="h-avatar h-avatar--t2" role="img" aria-label="Leo">LE</span></span></dd></div>
+                    <div class="h-field"><dt class="h-field__label">Flight</dt><dd class="h-field__value">Copa</dd></div>
+                    <div class="h-field"><dt class="h-field__label">Via</dt><dd class="h-field__value">PTY</dd></div>
+                  </dl>
+                </div>
+                <div class="h-ticket__stub">
+                  <span class="h-ticket__tear" aria-hidden="true"></span>
+                  <span class="h-stub h-stub--booked"><svg class="h-icon h-icon--bold" width="14" height="14" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg>Booked</span>
+                  <span class="h-ticket__note">Departs in <span class="h-mono">53</span> days</span>
+                  <svg class="h-icon h-ticket__go" width="20" height="20" aria-hidden="true" focusable="false"><use href="#i-chevron-right"></use></svg>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="h-scrim" aria-hidden="true"></div>
+      <div class="h-sheet h-sheet--paywall" role="dialog" aria-modal="true" aria-labelledby="pw-h">
+        <div class="h-sheet__head h-sheet__head--sky">
+          <div class="h-sheet__grabber" aria-hidden="true"></div>
+          <svg class="h-sheet__route" viewBox="0 0 390 62" aria-hidden="true" focusable="false">
+            <path class="h-route h-route--a h-route--lg" d="M36 50C40.2 50.3 52.4 51.7 61 51.9C69.6 52.1 79.4 52.1 87.6 51.2C95.7 50.4 102.1 48.5 110 46.8C117.9 45.1 126.7 42.9 134.7 40.9C142.7 38.8 150.2 36.5 158.1 34.5C166 32.5 178 29.9 182 29" pathLength="144"></path>
+            <path class="h-route h-route--b h-route--lg" d="M354 50C349.8 50.3 337.6 51.7 329 51.9C320.4 52.1 310.6 52.1 302.4 51.2C294.3 50.4 287.9 48.5 280 46.8C272.1 45.1 263.3 42.9 255.3 40.9C247.3 38.8 239.8 36.5 231.9 34.5C224 32.5 212 29.9 208 29" pathLength="144"></path>
+            <circle class="h-sheet__ring" cx="36" cy="50" r="9"></circle><circle class="h-sheet__dot--a" cx="36" cy="50" r="6.5"></circle>
+            <circle class="h-sheet__ring" cx="354" cy="50" r="9"></circle><circle class="h-sheet__dot--b" cx="354" cy="50" r="6.5"></circle>
+          </svg>
+          <span class="h-plane-disc" style="left:195px;top:41px"><svg viewBox="-50 -50 100 100" aria-hidden="true" focusable="false"><use href="#h-plane-path" transform="rotate(0) translate(-50 -50)"></use></svg></span>
+          <h2 class="h-display" id="pw-h"><span class="h-display__line">Plan together.</span><span class="h-display__line">They join free.</span></h2>
+          <p class="h-sheet__lead">Add up to <span class="h-num">6</span> people to Costa Rica. Only you pay.</p>
+        </div>
+        <div class="h-sheet__body h-sheet__body--roomy">
+          <div class="h-stack h-stack--roomy" role="radiogroup" aria-label="Choose a plan">
+            <div class="h-ticket h-ticket--side h-ticket--plan">
+              <label class="h-ticket__card">
+                <input class="h-plan__input" type="radio" name="plan" value="trip_pass" checked>
+                <span class="h-ticket__body">
+                  <span class="h-plan__radio" aria-hidden="true"><svg class="h-icon h-icon--heavy" width="16" height="16" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg></span>
+                  <span class="h-plan__text"><span class="h-plan__name">Trip Pass</span><span class="h-plan__line">One trip, 90 days</span><span class="h-plan__line">6 people, 40 credits</span><span class="h-plan__line">Does not renew</span></span>
+                </span>
+                <span class="h-ticket__stub">
+                  <span class="h-ticket__tear" aria-hidden="true"></span>
+                  <span class="h-plan__price">$9.99</span><span class="h-plan__unit">once</span>
+                </span>
+              </label>
+            </div>
+            <div class="h-ticket h-ticket--side h-ticket--plan">
+              <label class="h-ticket__card">
+                <input class="h-plan__input" type="radio" name="plan" value="plus_annual">
+                <span class="h-ticket__body">
+                  <span class="h-plan__radio" aria-hidden="true"><svg class="h-icon h-icon--heavy" width="16" height="16" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg></span>
+                  <span class="h-plan__text"><span class="h-plan__name">Plus annual</span><span class="h-plan__line">6 people, 60 credits a month</span><span class="h-plan__line">About $3.33 a month</span><span class="h-plan__line">Save $31.89 a year</span></span>
+                </span>
+                <span class="h-ticket__stub">
+                  <span class="h-ticket__tear" aria-hidden="true"></span>
+                  <span class="h-plan__price">$39.99</span><span class="h-plan__unit">a year</span>
+                </span>
+              </label>
+            </div>
+          </div>
+          <button class="h-more" type="button" aria-expanded="false" aria-controls="more-plans"><span class="h-more__label">More options</span><span class="h-more__value">Plus monthly <span class="h-num h-num--ink">$5.99</span> a month<svg class="h-icon" width="18" height="18" aria-hidden="true" focusable="false"><use href="#i-chevron-down"></use></svg></span></button>
+          <button class="h-btn h-btn--primary" type="button">Get Trip Pass, <span class="h-btn__price">$9.99</span></button>
+          <div class="h-btnpair"><button class="h-btn h-btn--secondary" type="button">Keep my one collaborator</button><button class="h-btn h-btn--secondary" type="button">Not now</button></div>
+          <p class="h-disclosure h-disclosure--legal">Trip Pass is <span class="h-num h-num--ink">$9.99</span> once, for Costa Rica. It lasts 90 days from the day you apply it and does not renew. Plus renews until you cancel in Settings.</p>
+          <div class="h-linkrow"><a class="h-linkrow__item" href="#billing">How billing works</a><a class="h-linkrow__item" href="#terms">Terms</a><a class="h-linkrow__item" href="#privacy">Privacy</a><button class="h-linkrow__item" type="button">Restore purchases</button></div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

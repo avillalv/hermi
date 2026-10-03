@@ -1,0 +1,952 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermi vs the field</title>
+<meta name="description" content="Competitive analysis of Hermi against TripIt, Trippy, Tripsy, Wanderlog, AI planners and big platforms. 2026-09-30.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #F2FAFF;
+  --sheet: #FFFFFF;
+  --sunken: #E3F1FC;
+  --ink: #17324A;
+  --ink-soft: #4A6580;
+  --rule: #D3E4F2;
+  --brand: #0B6BC0;
+  --brand-soft: #DCEFFF;
+  --on-brand: #FFFFFF;
+  --sky: #2AA5FF;
+  --success: #1d7a52;
+  --warning: #a86a12;
+  --danger: #b42318;
+  --route-a: #FF5E7E;
+  --route-b: #FFCB2E;
+  --cream: #FFF8EC;
+  --font-head: "Fredoka", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0B1A2A;
+    --sheet: #12263A;
+    --sunken: #1A3149;
+    --ink: #E6F2FF;
+    --ink-soft: #9DB5CC;
+    --rule: #27405A;
+    --brand: #6CC4FF;
+    --brand-soft: #123A5C;
+    --on-brand: #0B1A2A;
+    --sky: #0E3F66;
+    --success: #4cc38a;
+    --warning: #e0a44a;
+    --danger: #f07167;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0B1A2A;
+  --sheet: #12263A;
+  --sunken: #1A3149;
+  --ink: #E6F2FF;
+  --ink-soft: #9DB5CC;
+  --rule: #27405A;
+  --brand: #6CC4FF;
+  --brand-soft: #123A5C;
+  --on-brand: #0B1A2A;
+  --sky: #0E3F66;
+  --success: #4cc38a;
+  --warning: #e0a44a;
+  --danger: #f07167;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+h1, h2, h3 { font-family: var(--font-head); line-height: 1.12; margin: 0; letter-spacing: -0.01em; }
+h2 { font-size: clamp(1.6rem, 3.4vw, 2.6rem); font-weight: 700; max-width: 26ch; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; }
+a { color: var(--brand); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+
+.slide {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(24px, 4vw, 48px) clamp(16px, 5vw, 72px) 96px;
+  border-bottom: 1px solid var(--rule);
+  position: relative;
+}
+.inner { width: 100%; max-width: 1180px; margin: 0 auto; }
+.eyebrow {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brand);
+  margin-bottom: 10px;
+}
+.lede { color: var(--ink-soft); font-size: clamp(1rem, 1.6vw, 1.2rem); max-width: 62ch; margin-top: 12px; }
+.head { margin-bottom: clamp(16px, 2.6vh, 28px); }
+.rv {
+  display: inline-block;
+  font-family: var(--font-head);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--warning);
+  border: 1px solid var(--warning);
+  border-radius: 999px;
+  padding: 2px 10px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.foot { margin-top: 16px; font-size: 0.9rem; color: var(--ink-soft); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* cards and columns */
+.cols { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cols.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cols.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.card {
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 18px 20px;
+  min-width: 0;
+}
+.card h3 { margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.card h3 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.card.good { border-top: 4px solid var(--success); }
+.card.bad { border-top: 4px solid var(--danger); }
+.card.hermi { border-top: 4px solid var(--brand); background: var(--brand-soft); }
+.card.plain { border-top: 4px solid var(--ink-soft); }
+ul.tight { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+ul.tight li { padding-left: 18px; position: relative; font-size: 0.97rem; }
+ul.tight li::before { content: ""; position: absolute; left: 0; top: 0.6em; width: 7px; height: 7px; border-radius: 2px; background: var(--ink-soft); }
+.good ul.tight li::before { background: var(--success); }
+.bad ul.tight li::before { background: var(--danger); }
+.hermi ul.tight li::before { background: var(--brand); }
+.stat { font-family: var(--font-head); font-weight: 700; font-size: clamp(1.8rem, 4vw, 3rem); color: var(--brand); line-height: 1; }
+.tagline {
+  display: inline-block; font-family: var(--font-head); font-weight: 600; font-size: 0.85rem;
+  background: var(--brand-soft); color: var(--brand); padding: 3px 12px; border-radius: 999px; margin-bottom: 10px;
+}
+.bottom {
+  margin-top: 16px; padding: 12px 18px; border-left: 4px solid var(--brand); background: var(--sheet);
+  border-radius: 0 10px 10px 0; font-weight: 700; font-size: 1rem;
+}
+.meta { display: flex; gap: 10px 18px; flex-wrap: wrap; margin-top: 12px; }
+.meta span { font-size: 0.9rem; color: var(--ink-soft); }
+.meta b { color: var(--ink); }
+
+/* title slide: a sky slide (ink on sky; deep sky with light text in dark mode) */
+.skyslide { background: var(--sky); color: var(--ink); overflow: hidden; }
+.skyslide .inner { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: clamp(20px, 5vw, 64px); align-items: center; position: relative; z-index: 1; }
+.skyslide h1 { font-size: clamp(2.4rem, 7vw, 5.2rem); font-weight: 700; letter-spacing: -0.01em; }
+.skyslide .lede, .skyslide .eyebrow { color: var(--ink); }
+.skyslide .date { font-family: var(--font-head); font-weight: 600; margin-top: 28px; color: var(--ink); letter-spacing: 0.04em; }
+.skyslide .hint { margin-top: 12px; color: var(--ink); font-size: 0.9rem; }
+.logo { width: clamp(120px, 22vw, 300px); height: auto; display: block; }
+.route { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); width: min(94%, 1100px); height: 15vh; pointer-events: none; }
+@media (max-height: 560px) { .route { display: none; } }
+
+/* question slide */
+.qa { display: grid; gap: 16px; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: stretch; }
+.q, .a { border-radius: 14px; padding: 22px 24px; }
+.q { background: var(--sunken); border: 1px solid var(--rule); }
+.a { background: var(--brand); color: var(--on-brand); }
+.q .k, .a .k { font-family: var(--font-body); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85; margin-bottom: 8px; }
+.q p, .a p { font-family: var(--font-head); font-weight: 700; font-size: clamp(1.25rem, 2.4vw, 1.8rem); line-height: 1.2; }
+.a .sub { font-family: var(--font-body); font-weight: 400; font-size: 1rem; margin-top: 10px; opacity: 0.95; }
+
+/* market map */
+.map-wrap { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.ylab { writing-mode: vertical-rl; transform: rotate(180deg); display: flex; justify-content: space-between; font-family: var(--font-body); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); padding: 4px 0; }
+.xlab { display: flex; justify-content: space-between; font-family: var(--font-body); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); margin-top: 8px; }
+.map {
+  position: relative; height: clamp(380px, 56vh, 520px); background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden;
+  background-image: linear-gradient(var(--rule), var(--rule)), linear-gradient(var(--rule), var(--rule));
+  background-size: 1px 100%, 100% 1px; background-position: 50% 0, 0 50%; background-repeat: no-repeat;
+}
+.chip {
+  position: absolute; transform: translate(-50%, -50%);
+  background: var(--sunken); border: 1px solid var(--rule); border-radius: 12px; padding: 6px 12px; text-align: center; line-height: 1.2; max-width: 44%;
+}
+.chip b { font-family: var(--font-head); font-size: 0.95rem; display: block; }
+.chip small { display: block; font-size: 0.74rem; color: var(--ink-soft); }
+.chip.me { background: var(--brand); color: var(--on-brand); border-color: var(--brand); box-shadow: 0 6px 18px rgba(11, 107, 192, 0.30); }
+.chip.me small { color: var(--on-brand); opacity: 0.9; }
+.chip.big { background: var(--sheet); border-style: dashed; }
+.quad { position: absolute; font-size: 0.72rem; color: var(--ink-soft); opacity: 0.8; font-family: var(--font-body); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* matrix and tables */
+.scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 12px; background: var(--sheet); -webkit-overflow-scrolling: touch; max-width: 100%; }
+table { border-collapse: collapse; width: 100%; }
+.matrix { min-width: 820px; font-size: 0.88rem; }
+.matrix th, .matrix td { padding: 6px 10px; border-bottom: 1px solid var(--rule); text-align: center; vertical-align: middle; }
+.matrix thead th { font-family: var(--font-head); font-size: 0.8rem; background: var(--sunken); position: sticky; top: 0; }
+.matrix th[scope="row"] { text-align: left; font-weight: 700; position: sticky; left: 0; background: var(--sheet); white-space: nowrap; z-index: 1; }
+.matrix thead th:first-child { text-align: left; left: 0; z-index: 2; }
+.matrix .hermi { background: var(--brand-soft); }
+.matrix thead th.hermi { color: var(--brand); }
+.matrix tr:last-child > * { border-bottom: 0; }
+.matrix td.t { font-size: 0.78rem; color: var(--ink-soft); line-height: 1.25; min-width: 96px; }
+.matrix td.t.hermi { color: var(--ink); font-weight: 700; }
+.mk { width: 20px; height: 20px; display: inline-block; vertical-align: middle; }
+.mk.y { color: var(--success); }
+.mk.p { color: var(--warning); }
+.mk.n { color: var(--ink-soft); opacity: 0.7; }
+.note { display: block; font-size: 0.68rem; color: var(--ink-soft); line-height: 1.2; margin-top: 2px; }
+.legend { display: flex; gap: 6px 18px; flex-wrap: wrap; align-items: center; font-size: 0.85rem; color: var(--ink-soft); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+table.plain { font-size: 0.95rem; }
+table.plain th, table.plain td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+table.plain thead th { font-family: var(--font-head); font-size: 0.8rem; background: var(--sunken); }
+table.plain tr:last-child td { border-bottom: 0; }
+
+.dense { padding-top: 20px; }
+.dense h2 { font-size: clamp(1.4rem, 2.6vw, 2rem); max-width: none; }
+.dense .head { margin-bottom: 12px; }
+.dense .matrix th, .dense .matrix td { padding: 4px 10px; }
+@media (max-width: 640px) { .dense .matrix { font-size: 0.82rem; } }
+
+/* weaknesses, numbered lists */
+.grid { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.item { background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.item .n { font-family: var(--font-head); font-weight: 700; color: var(--brand); font-size: 1.05rem; }
+.item h3 { font-size: 1rem; margin: 2px 0 4px; }
+.item p { font-size: 0.9rem; color: var(--ink-soft); }
+.item p.ans { color: var(--ink); margin-top: 6px; font-size: 0.9rem; }
+.item p.ans b { color: var(--brand); }
+.item.win { border-left: 4px solid var(--brand); }
+
+/* pricing bars */
+.bars { display: grid; gap: 10px; }
+.bar-row { display: grid; grid-template-columns: minmax(150px, 250px) minmax(0, 1fr); gap: 4px 16px; align-items: center; }
+.bar-row .lbl { font-weight: 700; font-size: 0.95rem; line-height: 1.2; }
+.bar-row .lbl small { display: block; font-weight: 400; color: var(--ink-soft); font-size: 0.78rem; }
+.bar { display: flex; align-items: center; gap: 10px; }
+.track { flex: 1; min-width: 0; height: 24px; background: var(--sunken); border-radius: 6px; overflow: hidden; }
+.fill { height: 100%; width: var(--w); background: var(--ink-soft); border-radius: 6px; }
+.bar-row.me .fill { background: var(--brand); }
+.val { font-family: var(--font-head); font-weight: 700; width: 74px; flex: none; font-size: 1rem; }
+.bar-row.me .val { color: var(--brand); }
+.axis { font-size: 0.8rem; color: var(--ink-soft); margin-top: 8px; }
+
+/* phase 1 */
+.pill { display: inline-block; font-size: 0.72rem; font-family: var(--font-head); font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--sunken); color: var(--ink-soft); margin-left: 6px; white-space: nowrap; }
+
+ol.steps { counter-reset: s; list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+ol.steps li { counter-increment: s; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; align-items: start; background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; padding: 12px 16px; }
+ol.steps li::before { content: counter(s); font-family: var(--font-head); font-weight: 700; background: var(--brand); color: var(--on-brand); width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; }
+ol.steps b { display: block; }
+ol.steps span { color: var(--ink-soft); font-size: 0.92rem; }
+ol.steps.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* metrics */
+.metric .big { font-family: var(--font-head); font-weight: 700; font-size: clamp(1.4rem, 2.6vw, 2rem); color: var(--brand); line-height: 1.1; }
+.metric h3 { margin-bottom: 4px; font-size: 0.98rem; }
+.metric p { font-size: 0.88rem; color: var(--ink-soft); }
+.metric .src { margin-top: 6px; font-size: 0.74rem; font-family: var(--font-body); font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* navigation */
+.nav {
+  position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px; padding: 6px; z-index: 20;
+  background: color-mix(in srgb, var(--sheet) 92%, transparent); backdrop-filter: blur(8px);
+  border: 1px solid var(--rule); border-radius: 999px; box-shadow: 0 8px 28px rgba(23, 50, 74, 0.18);
+}
+.nav button {
+  width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer; font: inherit; font-size: 1.2rem; line-height: 1;
+  background: var(--brand); color: var(--on-brand); display: grid; place-items: center;
+}
+.nav button:disabled { opacity: 0.35; cursor: default; }
+.count { font-family: var(--font-head); font-weight: 700; min-width: 76px; text-align: center; font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+.progress { position: fixed; top: 0; left: 0; height: 4px; background: var(--brand); width: 0; z-index: 30; transition: width 0.25s; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* responsive */
+@media (max-width: 900px) {
+  .cols, .cols.four, .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .qa { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .cols, .cols.two, .cols.four, .grid, ol.steps.two { grid-template-columns: minmax(0, 1fr); }
+  .skyslide .inner { grid-template-columns: minmax(0, 1fr); }
+  .skyslide .logo { width: 96px; order: -1; }
+  .bar-row { grid-template-columns: minmax(0, 1fr); }
+  .chip { padding: 4px 8px; }
+  .chip small { display: none; }
+  .chip b { font-size: 0.82rem; }
+  .map { height: 440px; }
+  .slide { padding-bottom: 92px; }
+}
+
+/* print: one slide per page, always light */
+@page { size: 11in 8.5in; margin: 0; }
+@media print {
+  :root, :root:not([data-theme="light"]), :root[data-theme="dark"] {
+    --paper: #F2FAFF; --sheet: #FFFFFF; --sunken: #E3F1FC; --ink: #17324A; --ink-soft: #4A6580; --rule: #D3E4F2;
+    --brand: #0B6BC0; --brand-soft: #DCEFFF; --on-brand: #FFFFFF; --sky: #2AA5FF; --success: #1d7a52; --warning: #a86a12; --danger: #b42318;
+  }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html { scroll-behavior: auto; font-size: 12px; }
+  body { background: var(--paper); font-size: 12px; overflow: visible; }
+  .nav, .progress { display: none !important; }
+  .slide {
+    height: 8.5in; min-height: 0; overflow: hidden; padding: 0.4in 0.55in; border: 0;
+    break-after: page; page-break-after: always; break-inside: avoid; justify-content: center;
+  }
+  .slide:last-of-type { break-after: auto; page-break-after: auto; }
+  .matrix { min-width: 0; font-size: 10px; }
+  .scroll { overflow: visible; }
+  .map { height: 4.6in; }
+  .skyslide .inner { grid-template-columns: minmax(0, 1fr) auto; }
+  .skyslide .logo { width: 2.4in; }
+  .skyslide .route { bottom: 0.45in; height: 1in; display: block; }
+  h2 { font-size: 26px; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-yes" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="currentColor"/><path d="M5.5 10.5l3 3 6-7" fill="none" stroke="var(--sheet)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-part" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 1.8a8.2 8.2 0 0 0 0 16.4z" fill="currentColor"/></symbol>
+    <symbol id="i-no" viewBox="0 0 20 20"><path d="M5 10h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+<div class="progress" id="progress" aria-hidden="true"></div>
+
+<main id="deck">
+
+<!-- 1 Title -->
+<section class="slide skyslide" id="slide-1" aria-label="Slide 1: Title">
+  <div class="inner">
+    <div>
+      <div class="eyebrow">Competitive analysis</div>
+      <h1>Hermi vs the&nbsp;field</h1>
+      <p class="lede">Plan together. Know the fare. Where Hermi wins, where it loses, and what to do about it.</p>
+      <p class="date">2026-09-30</p>
+      <p class="hint">Use the arrow keys, space or the buttons below to move through the slides.</p>
+    </div>
+    <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Hermi">
+  <title>Hermi</title>
+  <rect width="1024" height="1024" rx="228" fill="#2AA5FF"/><circle cx="236" cy="192" r="46" fill="#FF5E7E"/><circle cx="236" cy="292" r="46" fill="#FF5E7E"/><circle cx="236" cy="392" r="46" fill="#FF5E7E"/><circle cx="236" cy="492" r="46" fill="#FF5E7E"/><circle cx="236" cy="592" r="46" fill="#FF5E7E"/><circle cx="236" cy="692" r="46" fill="#FF5E7E"/><circle cx="236" cy="809" r="70" fill="#FF5E7E"/><circle cx="788" cy="192" r="46" fill="#FFCB2E"/><circle cx="788" cy="292" r="46" fill="#FFCB2E"/><circle cx="788" cy="392" r="46" fill="#FFCB2E"/><circle cx="788" cy="492" r="46" fill="#FFCB2E"/><circle cx="788" cy="592" r="46" fill="#FFCB2E"/><circle cx="788" cy="692" r="46" fill="#FFCB2E"/><circle cx="788" cy="809" r="70" fill="#FFCB2E"/><circle cx="328" cy="500" r="22" fill="#FFF8EC"/><circle cx="696" cy="500" r="22" fill="#FFF8EC"/><path transform="translate(512 500) rotate(90) scale(3) translate(-50 -50)" d="M50 2C54 2 57 10 57 18L57 36L96 63L96 70L57 58L56 78L75 89L75 95L54 90L52 98L48 98L46 90L25 95L25 89L44 78L43 58L4 70L4 63L43 36L43 18C43 10 46 2 50 2Z" fill="#FFF8EC" stroke="#FFF8EC" stroke-width="3" stroke-linejoin="round"/>
+</svg>
+  </div>
+  <svg class="route" viewBox="0 0 1200 150" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><circle cx="46.0" cy="116.0" r="7.5" fill="var(--route-a)"/><circle cx="65.7" cy="106.1" r="5" fill="var(--route-a)"/><circle cx="86.3" cy="98.0" r="5" fill="var(--route-a)"/><circle cx="107.6" cy="91.7" r="5" fill="var(--route-a)"/><circle cx="129.3" cy="87.3" r="5" fill="var(--route-a)"/><circle cx="151.2" cy="84.6" r="5" fill="var(--route-a)"/><circle cx="173.2" cy="83.5" r="5" fill="var(--route-a)"/><circle cx="195.3" cy="83.5" r="5" fill="var(--route-a)"/><circle cx="217.3" cy="84.6" r="5" fill="var(--route-a)"/><circle cx="239.4" cy="86.4" r="5" fill="var(--route-a)"/><circle cx="261.4" cy="88.7" r="5" fill="var(--route-a)"/><circle cx="283.2" cy="91.3" r="5" fill="var(--route-a)"/><circle cx="305.2" cy="93.9" r="5" fill="var(--route-a)"/><circle cx="327.1" cy="96.4" r="5" fill="var(--route-a)"/><circle cx="349.2" cy="98.4" r="5" fill="var(--route-a)"/><circle cx="371.4" cy="99.9" r="5" fill="var(--route-a)"/><circle cx="393.5" cy="100.6" r="5" fill="var(--route-a)"/><circle cx="415.7" cy="100.3" r="5" fill="var(--route-a)"/><circle cx="437.9" cy="98.8" r="5" fill="var(--route-a)"/><circle cx="459.9" cy="96.0" r="5" fill="var(--route-a)"/><circle cx="481.6" cy="91.8" r="5" fill="var(--route-a)"/><circle cx="502.9" cy="86.1" r="5" fill="var(--route-a)"/><circle cx="523.9" cy="78.9" r="5" fill="var(--route-a)"/><circle cx="1154.0" cy="116.0" r="7.5" fill="var(--route-b)"/><circle cx="1134.3" cy="106.1" r="5" fill="var(--route-b)"/><circle cx="1113.7" cy="98.0" r="5" fill="var(--route-b)"/><circle cx="1092.4" cy="91.7" r="5" fill="var(--route-b)"/><circle cx="1070.7" cy="87.3" r="5" fill="var(--route-b)"/><circle cx="1048.8" cy="84.6" r="5" fill="var(--route-b)"/><circle cx="1026.8" cy="83.5" r="5" fill="var(--route-b)"/><circle cx="1004.7" cy="83.5" r="5" fill="var(--route-b)"/><circle cx="982.7" cy="84.6" r="5" fill="var(--route-b)"/><circle cx="960.6" cy="86.4" r="5" fill="var(--route-b)"/><circle cx="938.6" cy="88.7" r="5" fill="var(--route-b)"/><circle cx="916.8" cy="91.3" r="5" fill="var(--route-b)"/><circle cx="894.8" cy="93.9" r="5" fill="var(--route-b)"/><circle cx="872.9" cy="96.4" r="5" fill="var(--route-b)"/><circle cx="850.8" cy="98.4" r="5" fill="var(--route-b)"/><circle cx="828.6" cy="99.9" r="5" fill="var(--route-b)"/><circle cx="806.5" cy="100.6" r="5" fill="var(--route-b)"/><circle cx="784.3" cy="100.3" r="5" fill="var(--route-b)"/><circle cx="762.1" cy="98.8" r="5" fill="var(--route-b)"/><circle cx="740.1" cy="96.0" r="5" fill="var(--route-b)"/><circle cx="718.4" cy="91.8" r="5" fill="var(--route-b)"/><circle cx="697.1" cy="86.1" r="5" fill="var(--route-b)"/><circle cx="676.1" cy="78.9" r="5" fill="var(--route-b)"/><path transform="translate(600 74) rotate(90) scale(0.62) translate(-50 -50)" d="M50 2C54 2 57 10 57 18L57 36L96 63L96 70L57 58L56 78L75 89L75 95L54 90L52 98L48 98L46 90L25 95L25 89L44 78L43 58L4 70L4 63L43 36L43 18C43 10 46 2 50 2Z" fill="var(--cream)" stroke="var(--cream)" stroke-width="3" stroke-linejoin="round"/></svg>
+</section>
+
+<!-- 2 Question -->
+<section class="slide" id="slide-2" aria-label="Slide 2: The Trippy question">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">The question</div>
+      <h2>Is there a huge app called Trippy that already does this?</h2>
+    </div>
+    <div class="qa">
+      <div class="q">
+        <div class="k">The question</div>
+        <p>"A huge app called Trippy already does something very similar."</p>
+      </div>
+      <div class="a">
+        <div class="k">The answer</div>
+        <p>No. There is no large, active app called Trippy.</p>
+        <p class="sub">The big app is TripIt. The small new one is Trippy. The closest planner is Wanderlog.</p>
+      </div>
+    </div>
+    <div class="cols" style="margin-top:16px">
+      <div class="card plain">
+        <h3>TripIt</h3>
+        <div class="stat">22M</div>
+        <ul class="tight" style="margin-top:10px">
+          <li>About 22M travelers, founded 2006, owned by SAP Concur</li>
+          <li>Post-booking organizer</li>
+          <li>Pro is $49 a year</li>
+        </ul>
+      </div>
+      <div class="card plain">
+        <h3>Trippy (letsgetrippy.com)</h3>
+        <div class="stat">Small</div>
+        <ul class="tight" style="margin-top:10px">
+          <li>New group-trip app: chat, votes, splits</li>
+          <li>Android confirmed, no ratings or press found</li>
+          <li>Older "Trippy" apps are defunct or tiny</li>
+        </ul>
+      </div>
+      <div class="card hermi">
+        <h3>Wanderlog</h3>
+        <div class="stat">Closest</div>
+        <ul class="tight" style="margin-top:10px">
+          <li>Closest true planner: map, itinerary, live collaboration</li>
+          <li>Pro is about $40 a year</li>
+          <li>The head-on rival</li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot"><span class="rv">Reported, verify</span><span>Sizes and prices come from search snippets.</span></div>
+  </div>
+</section>
+
+<!-- 3 Map -->
+<section class="slide" id="slide-3" aria-label="Slide 3: Market map">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Market map</div>
+      <h2>Hermi sits where planning meets groups</h2>
+    </div>
+    <div class="map-wrap">
+      <div class="ylab"><span>Post-booking organizing</span><span>Pre-booking planning</span></div>
+      <div>
+        <div class="map" role="img" aria-label="Two by two map. Vertical axis: pre-booking planning at the top, post-booking organizing at the bottom. Horizontal axis: solo on the left, group on the right. Hermi is top right. Wanderlog is upper middle right. Trippy is right of center. AI planners are top left. Big platforms are left of center near the middle. Tripsy is lower left of center. TripIt is bottom left.">
+          <span class="quad" style="left:12px;top:10px">Plan alone</span>
+          <span class="quad" style="right:12px;top:10px">Plan together</span>
+          <span class="quad" style="left:12px;bottom:10px">Organize alone</span>
+          <span class="quad" style="right:12px;bottom:10px">Organize together</span>
+          <div class="chip me" style="left:74%;top:20%"><b>Hermi</b><small>plan, vote, track fares</small></div>
+          <div class="chip" style="left:56%;top:40%"><b>Wanderlog</b><small>map planner</small></div>
+          <div class="chip" style="left:87%;top:45%"><b>Trippy</b><small>group chat, votes</small></div>
+          <div class="chip" style="left:19%;top:26%"><b>AI planners</b><small>Layla, Mindtrip, Wanderboat</small></div>
+          <div class="chip big" style="left:32%;top:48%"><b>Big platforms</b><small>Google, ChatGPT, Expedia</small></div>
+          <div class="chip" style="left:42%;top:72%"><b>Tripsy</b><small>Apple-only organizer</small></div>
+          <div class="chip" style="left:17%;top:84%"><b>TripIt</b><small>booked-trip organizer</small></div>
+        </div>
+        <div class="xlab"><span>Solo</span><span>Group</span></div>
+      </div>
+    </div>
+    <div class="foot"><span class="rv">Reported, verify</span><span>Placement is a judgement from reported features. Big platforms span planning and booking.</span></div>
+  </div>
+</section>
+
+<!-- 4 TripIt -->
+<section class="slide" id="slide-4" aria-label="Slide 4: TripIt">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Competitor 1 of 5</div>
+      <h2>TripIt: the huge post-booking organizer</h2>
+      <div class="meta"><span><b>About 22M</b> travelers</span><span><b>Pro $49</b> a year</span><span>iOS, Android, web</span><span class="rv">Reported, verify</span></div>
+    </div>
+    <div class="cols">
+      <div class="card good"><h3>Excels at</h3><ul class="tight">
+        <li>Forward an email, get a master itinerary</li>
+        <li>Pro flight alerts, often before the airline</li>
+        <li>Fare-drop and refund alerts users say pay for Pro</li>
+        <li>SAP Concur distribution and brand trust</li>
+      </ul></div>
+      <div class="card bad"><h3>Lacks</h3><ul class="tight">
+        <li>Sharing is view-only, no co-editing</li>
+        <li>No AI planner, lodging shortlist or voting</li>
+        <li>Price tracking only after you book</li>
+        <li>Alerts and offline sit behind Pro; UI feels dated</li>
+      </ul></div>
+      <div class="card hermi"><h3>Hermi does better</h3><ul class="tight">
+        <li>Plan together before booking, free for couples</li>
+        <li>Fare tracking tied to the plan, with sources</li>
+        <li>Stays shortlist with voting; presentation mode</li>
+        <li>Imports TripIt trips for a smooth switch</li>
+      </ul></div>
+    </div>
+    <p class="bottom">Adjacent giant, not a head-on rival. Pitch the stage before booking; do not claim to replace TripIt.</p>
+  </div>
+</section>
+
+<!-- 5 Trippy -->
+<section class="slide" id="slide-5" aria-label="Slide 5: Trippy">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Competitor 2 of 5</div>
+      <h2>Trippy: a small new group-trip app</h2>
+      <div class="meta"><span>letsgetrippy.com</span><span><b>Android</b> confirmed</span><span>Free to download</span><span class="rv">Reported, verify</span></div>
+    </div>
+    <div class="cols">
+      <div class="card good"><h3>Excels at</h3><ul class="tight">
+        <li>In-app group chat</li>
+        <li>Voting and expense splitting bundled</li>
+        <li>"Trippy Spark" turns a chat into a plan</li>
+        <li>Group tools free to try</li>
+      </ul></div>
+      <div class="card bad"><h3>Lacks (not found)</h3><ul class="tight">
+        <li>Fare tracking or price intelligence</li>
+        <li>Lodging compare, cited AI, presentation mode</li>
+        <li>Maps and offline not seen</li>
+        <li>Proof of scale: no ratings, reviews or press found</li>
+      </ul></div>
+      <div class="card hermi"><h3>Hermi does better</h3><ul class="tight">
+        <li>Know the fare: tracking tied to the plan</li>
+        <li>Every AI fact shows its source and date</li>
+        <li>Full itinerary, map and presentation mode</li>
+        <li>Works on the web, so one Android friend does not block the group</li>
+      </ul></div>
+    </div>
+    <p class="bottom">Check monthly. Its chat-to-plan AI is the gap Hermi does not cover yet.</p>
+  </div>
+</section>
+
+<!-- 6 Tripsy -->
+<section class="slide" id="slide-6" aria-label="Slide 6: Tripsy">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Competitor 3 of 5</div>
+      <h2>Tripsy: the polished Apple-only organizer</h2>
+      <div class="meta"><span><b>4.7</b> stars, about 5.6K ratings</span><span>Pro about <b>$40 to $60</b> a year</span><span>Lifetime $299</span><span class="rv">Reported, verify</span></div>
+    </div>
+    <div class="cols">
+      <div class="card good"><h3>Excels at</h3><ul class="tight">
+        <li>Native polish: widgets, Live Activities, Watch</li>
+        <li>Email forwarding from 700+ providers</li>
+        <li>Smart Import from screenshots and saved lists</li>
+        <li>Flight status, documents, expenses, full offline</li>
+      </ul></div>
+      <div class="card bad"><h3>Lacks</h3><ul class="tight">
+        <li>Android and editable web</li>
+        <li>Free collaboration: sharing needs Pro</li>
+        <li>Voting, fare tracking, stays compare</li>
+        <li>Confusing prices; sync complaints</li>
+      </ul></div>
+      <div class="card hermi"><h3>Hermi does better</h3><ul class="tight">
+        <li>"Your friends are on Android? Plan together anyway."</li>
+        <li>Free collaboration for couples</li>
+        <li>Fares and cited AI research</li>
+        <li>Trip Pass $9.99 beats a year of Pro for one trip</li>
+      </ul></div>
+    </div>
+    <p class="bottom">Do not fight on Apple polish. Win the mixed-device group and the one-trip traveler.</p>
+  </div>
+</section>
+
+<!-- 7 Wanderlog -->
+<section class="slide" id="slide-7" aria-label="Slide 7: Wanderlog">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Competitor 4 of 5</div>
+      <h2>Wanderlog: the closest planner</h2>
+      <div class="meta"><span><b>1M+</b> users (dated figure)</span><span>iOS <b>4.9</b> stars</span><span>Pro <b>$39.99</b> a year (one source says $49.99)</span><span class="rv">Reported, verify</span></div>
+    </div>
+    <div class="cols">
+      <div class="card good"><h3>Excels at</h3><ul class="tight">
+        <li>Map-first itinerary with travel times</li>
+        <li>Free live collaboration</li>
+        <li>Gmail and email import</li>
+        <li>Budget with splitting; strong SEO and ratings</li>
+      </ul></div>
+      <div class="card bad"><h3>Lacks</h3><ul class="tight">
+        <li>Offline is Pro only: the top App Store complaint</li>
+        <li>No structured voting, comments or version history</li>
+        <li>No flight price tracking; free AI is capped</li>
+        <li>Trial and cancellation complaints</li>
+      </ul></div>
+      <div class="card hermi"><h3>Hermi does better</h3><ul class="tight">
+        <li>Offline on every tier</li>
+        <li>A source and date on every AI fact</li>
+        <li>Fare tracking and a stays shortlist with voting</li>
+        <li>Passes instead of a forced annual plan; no ads</li>
+      </ul></div>
+    </div>
+    <p class="bottom">Still ahead of Hermi on polish and live editing. Beat it on trust, offline and fares.</p>
+  </div>
+</section>
+
+<!-- 8 AI planners -->
+<section class="slide" id="slide-8" aria-label="Slide 8: AI planners">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Competitor 5 of 5, group A</div>
+      <h2>AI planners: fast drafts, thin follow-through</h2>
+      <div class="meta"><span><b>Layla</b> (Expedia bought it, July 2026)</span><span><b>Mindtrip</b></span><span><b>Wanderboat</b></span><span>Stippl, iplan.ai, Airial and more</span><span class="rv">Reported, verify</span></div>
+    </div>
+    <div class="cols">
+      <div class="card good"><h3>Excel at</h3><ul class="tight">
+        <li>A full first draft from one chat</li>
+        <li>Live prices and booking hand-off (Mindtrip flights)</li>
+        <li>Free or cheap entry</li>
+        <li>Mainstream destinations</li>
+      </ul></div>
+      <div class="card bad"><h3>Lack</h3><ul class="tight">
+        <li>Invented or stale hotels, hours and places</li>
+        <li>No per-fact sources; one-shot plans</li>
+        <li>Groups: a chat tag or paid sharing</li>
+        <li>No price tracking after the plan; paywall before value</li>
+      </ul></div>
+      <div class="card hermi"><h3>Hermi does better</h3><ul class="tight">
+        <li>"Found on [site], checked [date]" on every AI fact</li>
+        <li>A free first draft before any paywall</li>
+        <li>Fare watch that follows the plan</li>
+        <li>Offline free; AI never edits your plan unasked</li>
+      </ul></div>
+    </div>
+    <p class="bottom">Do not compete on one-shot generation. Be the place to verify and decide.</p>
+  </div>
+</section>
+
+<!-- 9 Big platforms -->
+<section class="slide" id="slide-9" aria-label="Slide 9: Big platforms">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Competitor 5 of 5, group B</div>
+      <h2>Big platforms: they own live inventory</h2>
+      <div class="meta"><span><b>Google</b> AI Mode</span><span><b>ChatGPT</b> with Expedia and Booking apps</span><span><b>Expedia</b> (owns Layla)</span><span><b>Booking.com</b></span><span><b>Kayak</b></span><span class="rv">Reported, verify</span></div>
+    </div>
+    <div class="cols">
+      <div class="card good"><h3>Excel at</h3><ul class="tight">
+        <li>Live inventory and instant booking</li>
+        <li>Billions of users, free to use</li>
+        <li>Flight price tracking (Google) and forecasts (Kayak)</li>
+        <li>Reviews, maps and place data</li>
+      </ul></div>
+      <div class="card bad"><h3>Lack</h3><ul class="tight">
+        <li>A trip workspace you keep and share</li>
+        <li>Structured group decisions: chat or a share link</li>
+        <li>Neutrality: they steer toward their own inventory</li>
+        <li>Dated per-fact evidence inside a saved plan</li>
+      </ul></div>
+      <div class="card hermi"><h3>Hermi does better</h3><ul class="tight">
+        <li>No ads, no ranking by commission</li>
+        <li>The place to verify and decide on AI drafts</li>
+        <li>Fare watch on your plan, over months</li>
+        <li>Useful without any one assistant</li>
+      </ul></div>
+    </div>
+    <p class="bottom">Do not build a booking engine. Hand off through labeled links and stay neutral.</p>
+  </div>
+</section>
+
+<!-- 10 Matrix -->
+<section class="slide dense" id="slide-10" aria-label="Slide 10: Feature matrix">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Feature matrix</div>
+      <h2>Only Hermi combines cited AI, fares and group planning</h2>
+    </div>
+    <div class="scroll" tabindex="0" role="region" aria-label="Feature matrix, scrolls sideways on small screens"><table class="matrix"><thead><tr><th scope="col">Feature</th><th scope="col" class="hermi">Hermi</th><th scope="col">TripIt</th><th scope="col">Trippy</th><th scope="col">Tripsy</th><th scope="col">Wanderlog</th><th scope="col">AI planners</th><th scope="col">Big platforms</th></tr></thead><tbody><tr><th scope="row">Collaboration</th><td class="c hermi"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg><span class="note">free for couples</span></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td></tr><tr><th scope="row">Voting</th><td class="c hermi"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg><span class="note">polls in phase 2</span></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td></tr><tr><th scope="row">Fare tracking</th><td class="c hermi"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td></tr><tr><th scope="row">Cited AI</th><td class="c hermi"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg><span class="note">source and date</span></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td></tr><tr><th scope="row">Lodging compare</th><td class="c hermi"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td></tr><tr><th scope="row">Itinerary with map</th><td class="c hermi"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td></tr><tr><th scope="row">Offline</th><td class="c hermi"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg><span class="note">every tier</span></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td></tr><tr><th scope="row">Email or file import</th><td class="c hermi"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg><span class="note">email in phase 2</span></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td></tr><tr><th scope="row">Flight status alerts</th><td class="c hermi"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg><span class="note">phase 2</span></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td></tr><tr><th scope="row">Presentation mode</th><td class="c hermi"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td></tr><tr><th scope="row">Android</th><td class="c hermi"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg><span class="note">app in phase 2</span></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td></tr><tr><th scope="row">Free tier strength</th><td class="c hermi"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td><td class="c"><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg></td><td class="c"><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg></td></tr><tr class="price"><th scope="row">Price</th><td class="t hermi">Free; Plus $39.99 a year; Trip Pass $9.99</td><td class="t">Pro $49 a year</td><td class="t">Free to download</td><td class="t">About $40 to $60 a year; $299 lifetime</td><td class="t">$39.99 to $49.99 a year</td><td class="t">Free to about $49 a year</td><td class="t">Mostly free</td></tr></tbody></table></div>
+    <div class="foot">
+      <div class="legend">
+        <span><svg class="mk y" role="img" aria-label="Yes"><use href="#i-yes"/></svg> Yes</span>
+        <span><svg class="mk p" role="img" aria-label="Partial"><use href="#i-part"/></svg> Partial</span>
+        <span><svg class="mk n" role="img" aria-label="No or not found"><use href="#i-no"/></svg> No or not found</span>
+      </div>
+      <span class="rv">Reported, verify</span>
+      <span>Hermi column is the plan, not shipped product.</span>
+    </div>
+  </div>
+</section>
+
+<!-- 11 AI weaknesses -->
+<section class="slide" id="slide-11" aria-label="Slide 11: AI planner weaknesses">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Category weaknesses</div>
+      <h2>Seven things AI planners keep getting wrong</h2>
+    </div>
+    <div class="grid">
+      <div class="item"><span class="n">1</span><h3>Invented or stale places</h3><p>Closed restaurants, hotels that do not exist.</p><p class="ans"><b>Hermi:</b> ungrounded places are dropped.</p></div>
+      <div class="item"><span class="n">2</span><h3>No per-fact sources</h3><p>Place cards, not "where from, and when".</p><p class="ans"><b>Hermi:</b> source and date on every fact.</p></div>
+      <div class="item"><span class="n">3</span><h3>One-shot itineraries</h3><p>Plans do not adapt and can reshuffle.</p><p class="ans"><b>Hermi:</b> drafts are previews; you accept.</p></div>
+      <div class="item"><span class="n">4</span><h3>Weak groups</h3><p>A chat tag or a paid share link.</p><p class="ans"><b>Hermi:</b> shortlist, hearts, free for couples.</p></div>
+      <div class="item"><span class="n">5</span><h3>No price tracking after the plan</h3><p>A price is shown once, then forgotten.</p><p class="ans"><b>Hermi:</b> fare history and alerts on the trip.</p></div>
+      <div class="item"><span class="n">6</span><h3>Paywall before value</h3><p>The useful part is locked until you pay.</p><p class="ans"><b>Hermi:</b> a free first draft and 12 credits a month.</p></div>
+      <div class="item"><span class="n">7</span><h3>Offline gated or missing</h3><p>Pro only, limited, or absent.</p><p class="ans"><b>Hermi:</b> offline reading on every tier.</p></div>
+    </div>
+    <div class="foot"><span class="rv">Reported, verify</span><span>Invented-venue rates in blogs are weak evidence and not quoted here.</span></div>
+  </div>
+</section>
+
+<!-- 12 Wins -->
+<section class="slide" id="slide-12" aria-label="Slide 12: Where Hermi wins">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Where Hermi wins</div>
+      <h2>Nine edges rivals will find hard to copy together</h2>
+    </div>
+    <div class="grid">
+      <div class="item win"><h3>Evidence labels</h3><p>Every AI fact shows its source and date.</p></div>
+      <div class="item win"><h3>Fare tracking tied to the plan</h3><p>History, alerts and a booked-fare drop alert.</p></div>
+      <div class="item win"><h3>Free collaboration for couples</h3><p>Invitees always join free.</p></div>
+      <div class="item win"><h3>Stays shortlist with voting</h3><p>Hearts and compare, per-night math.</p></div>
+      <div class="item win"><h3>Presentation mode</h3><p>Full screen, read-only link, PDF.</p></div>
+      <div class="item win"><h3>Passes, not forced annual plans</h3><p>Trip Pass $9.99 for one trip.</p></div>
+      <div class="item win"><h3>No ads</h3><p>No ranking by commission.</p></div>
+      <div class="item win"><h3>Offline on every tier</h3><p>Edits queue and sync.</p></div>
+      <div class="item win"><h3>Switching imports</h3><p>TripIt calendar file and pasted bookings.</p></div>
+    </div>
+    <div class="foot"><span>These are design intent until built. Execution and speed decide whether they register.</span></div>
+  </div>
+</section>
+
+<!-- 13 Loses -->
+<section class="slide" id="slide-13" aria-label="Slide 13: Where Hermi loses">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Where Hermi loses</div>
+      <h2>Be candid about the gaps and skip the wrong fights</h2>
+    </div>
+    <div class="cols two">
+      <div class="card bad"><h3>Where we trail</h3><ul class="tight">
+        <li><b>Email forwarding and flight status:</b> TripIt and Tripsy lead; both land in phase 2</li>
+        <li><b>Group chat and chat-to-plan AI:</b> Trippy</li>
+        <li><b>Android app and Apple polish:</b> Tripsy, Wanderlog, TripIt</li>
+        <li><b>Live co-editing:</b> Wanderlog feels live; Hermi polls every 15 to 30 seconds</li>
+        <li><b>Brand and reach:</b> Hermi has zero users</li>
+      </ul></div>
+      <div class="card plain"><h3>Fights to avoid</h3><ul class="tight">
+        <li><b>Live inventory and booking:</b> Google, Expedia, Booking win</li>
+        <li><b>One-shot "plan me a trip" chat:</b> ChatGPT and Google win</li>
+        <li><b>Place and review data:</b> do not build a database</li>
+        <li><b>Paid search on "AI trip planner":</b> they out-spend us</li>
+        <li><b>Lifetime-price wars:</b> never offer lifetime</li>
+      </ul></div>
+    </div>
+    <p class="bottom">Stay where trust, collaboration and follow-through matter more than inventory or reach.</p>
+  </div>
+</section>
+
+<!-- 14 Pricing -->
+<section class="slide" id="slide-14" aria-label="Slide 14: Pricing comparison">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Pricing comparison</div>
+      <h2>Hermi sits at the low end, with a pass for one trip</h2>
+    </div>
+    <div class="bars" role="list">
+      <div class="bar-row me" role="listitem"><div class="lbl">Hermi Trip Pass<small>one trip, 90 days, paid once</small></div><div class="bar"><div class="track"><div class="fill" style="--w:16.7%"></div></div><span class="val">$9.99</span></div></div>
+      <div class="bar-row" role="listitem"><div class="lbl">Stippl Pro<small>AI planner</small></div><div class="bar"><div class="track"><div class="fill" style="--w:41.7%"></div></div><span class="val">$24.99</span></div></div>
+      <div class="bar-row me" role="listitem"><div class="lbl">Hermi Plus<small>annual, 7-day trial</small></div><div class="bar"><div class="track"><div class="fill" style="--w:66.7%"></div></div><span class="val">$39.99</span></div></div>
+      <div class="bar-row" role="listitem"><div class="lbl">Wanderlog Pro<small>one source says $49.99</small></div><div class="bar"><div class="track"><div class="fill" style="--w:66.7%"></div></div><span class="val">$39.99</span></div></div>
+      <div class="bar-row" role="listitem"><div class="lbl">TripIt Pro<small>30-day trial</small></div><div class="bar"><div class="track"><div class="fill" style="--w:81.7%"></div></div><span class="val">$49</span></div></div>
+      <div class="bar-row" role="listitem"><div class="lbl">Layla premium<small>$49 to $49.99</small></div><div class="bar"><div class="track"><div class="fill" style="--w:81.7%"></div></div><span class="val">$49</span></div></div>
+      <div class="bar-row" role="listitem"><div class="lbl">Tripsy Pro<small>sources range $39.99 to $59.99</small></div><div class="bar"><div class="track"><div class="fill" style="--w:100%"></div></div><span class="val">$59.99</span></div></div>
+      <div class="bar-row me" role="listitem"><div class="lbl">Hermi Family<small>annual, up to 6 people</small></div><div class="bar"><div class="track"><div class="fill" style="--w:100%"></div></div><span class="val">$59.99</span></div></div>
+    </div>
+    <p class="axis">Annual price in US dollars, scale $0 to $60. The Trip Pass is a one-time price. Tripsy also sells a $299 lifetime plan. Free or no subscription: Hermi Free, TripIt Free, Trippy, Google, ChatGPT, Kayak, Mindtrip.</p>
+    <div class="foot"><span class="rv">Reported, verify</span><span>Prices from third-party reviews, checked 2026-09-30. Verify on vendor pages.</span></div>
+  </div>
+</section>
+
+<!-- 15 Gaps -->
+<section class="slide" id="slide-15" aria-label="Slide 15: Top gaps to exploit">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Top gaps to exploit</div>
+      <h2>Six gaps users complain about, ranked</h2>
+    </div>
+    <ol class="steps two">
+      <li><div><b>Paywalled basics</b><span>Offline and alerts are locked at TripIt, Wanderlog and Layla. Offer free offline and honest pricing.</span></div></li>
+      <li><div><b>AI you cannot check</b><span>Invented venues and dates. Show the source and date on every fact.</span></div></li>
+      <li><div><b>Groups cannot decide in one app</b><span>Chat, Splitwise and polls live apart. Shortlist, hearts and, in phase 2, polls and cost splits.</span></div></li>
+      <li><div><b>Fares only after you book</b><span>Only post-booking refund alerts exist at TripIt. Watch the fare from the plan and alert on drops.</span></div></li>
+      <li><div><b>Trial and cancellation traps</b><span>Surprise charges at Wanderlog and Layla. Trial on annual only, clear dates, one-tap cancel.</span></div></li>
+      <li><div><b>Hard to switch</b><span>Import is fragile or Pro only. Calendar file and pasted bookings in, free Trip Pass for the first import.</span></div></li>
+    </ol>
+    <div class="foot"><span class="rv">Reported, verify</span><span>Ranked by how often and how angrily the complaint appears in reviews.</span></div>
+  </div>
+</section>
+
+<!-- 16 Phase 1 -->
+<section class="slide" id="slide-16" aria-label="Slide 16: What Phase 1 adopts">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Phase 1 scope</div>
+      <h2>Phase 1 already adopts most of the edge</h2>
+    </div>
+    <div class="cols two">
+      <div class="card good"><h3>In Phase 1 (launch, month 6)</h3><ul class="tight">
+        <li>Source and date on every AI fact</li>
+        <li>Free owners invite 1 collaborator; hearts and compare on stays</li>
+        <li>Cached and live fares, history, alerts, booked-fare drop alert</li>
+        <li>Offline reading on every tier; edits queue</li>
+        <li>Presentation mode, share link, PDF export</li>
+        <li>TripIt and calendar-file import, pasted bookings, free Trip Pass</li>
+        <li>Live calendar feed, honest <span style="white-space:nowrap">/vs</span> pages, referral credits</li>
+      </ul></div>
+      <div class="card plain"><h3>Waits for phase 2</h3><ul class="tight">
+        <li>Email-forward import <span class="pill">closes the TripIt gap</span></li>
+        <li>Flight status, delay and gate alerts</li>
+        <li>Polls, manual cost splitting, comments</li>
+        <li>Native Android app</li>
+        <li>Family plan and Group Trip Pass</li>
+      </ul></div>
+    </div>
+    <p class="bottom">Every phase 2 item on this list answers a gap a rival leads on today.</p>
+  </div>
+</section>
+
+<!-- 17 Next moves -->
+<section class="slide" id="slide-17" aria-label="Slide 17: Next moves">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Next moves</div>
+      <h2>Six moves to win users</h2>
+      <p class="lede">The full plan is in <a href="win-plan.md">win-plan.md</a>.</p>
+    </div>
+    <ol class="steps two">
+      <li><div><b>Make the evidence label the hero</b><span>Visible on every AI item, tappable, with a stale flag. Demo it first.</span></div></li>
+      <li><div><b>Plan together free on day one</b><span>Lead marketing with couples. Show the partner's heart live.</span></div></li>
+      <li><div><b>Polish switching</b><span>TripIt and calendar import; a free Trip Pass for the first import.</span></div></li>
+      <li><div><b>"Verify this plan"</b><span>Paste a ChatGPT or Gemini itinerary and check each place, with sources.</span></div></li>
+      <li><div><b>Honest comparison pages</b><span>Dated, factual, including where rivals win. Counsel reviews first.</span></div></li>
+      <li><div><b>Pull forward email import and flight status</b><span>Only if interviews show they block switching.</span></div></li>
+    </ol>
+  </div>
+</section>
+
+<!-- 18 Metrics -->
+<section class="slide" id="slide-18" aria-label="Slide 18: 90-day metrics">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">90-day metrics</div>
+      <h2>What to measure in the first 90 days</h2>
+    </div>
+    <div class="cols four">
+      <div class="card metric"><div class="big">Import completion</div><h3>Switching works</h3><p>Share of started imports that finish; Trip Pass redemptions.</p><div class="src">Proposed</div></div>
+      <div class="card metric"><div class="big">Invite to join</div><h3>Groups spread</h3><p>Invites sent, joined, and invitees who make their own trip.</p><div class="src">Proposed</div></div>
+      <div class="card metric"><div class="big">Cost per paid user</div><h3>Payback holds</h3><p>Acquisition cost against Trip Pass and Plus revenue. Pause what fails.</p><div class="src">Proposed</div></div>
+      <div class="card metric"><div class="big">&le; $0.60 a run</div><h3>Agent cost</h3><p>Measured over 200 runs before Pro goes live.</p><div class="src">From the business plan</div></div>
+      <div class="card metric"><div class="big">&gt; 99.5%</div><h3>Crash-free sessions</h3><p>Reliability bar at TestFlight; small rivals lose on bugs.</p><div class="src">From the Phase 1 plan</div></div>
+      <div class="card metric"><div class="big">1% pay</div><h3>Paid conversion</h3><p>Under 1% of monthly users paying at month 9 triggers the kill rule.</p><div class="src">From the business plan</div></div>
+      <div class="card metric"><div class="big">$0.20</div><h3>Affiliate per user</h3><p>Per monthly user per year, annualized, at month 9.</p><div class="src">From the business plan</div></div>
+      <div class="card metric"><div class="big">Fact checks</div><h3>Comparison accuracy</h3><p>Every competitor claim dated and verified on a vendor page.</p><div class="src">Proposed</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 19 Sources -->
+<section class="slide" id="slide-19" aria-label="Slide 19: Sources and caveats">
+  <div class="inner">
+    <div class="head">
+      <div class="eyebrow">Sources and caveats</div>
+      <h2>Every competitor fact here is reported, verify</h2>
+    </div>
+    <div class="cols two">
+      <div class="card bad"><h3>Caveats</h3><ul class="tight">
+        <li>All competitor facts come from search snippets; vendor pages and app stores were blocked</li>
+        <li>Verify before any public use, especially prices and user counts</li>
+        <li>Conflicts: Wanderlog $39.99 or $49.99; Layla $49 or $49.99; Tripsy $39.99 to $59.99; Wanderboat 2M or 3.5M users</li>
+        <li>Hermi is a plan, not shipped product</li>
+        <li>Public comparisons must be dated, factual and reviewed by counsel</li>
+      </ul></div>
+      <div class="card plain"><h3>Sources, searched 2026-09-30</h3><ul class="tight">
+        <li>Research: TripIt and Trippy profile; Trippy (letsgetrippy.com); Tripsy</li>
+        <li>Research: AI travel planners; landscape and growth; user reviews and gaps</li>
+        <li>Hermi business plan README (tiers and prices)</li>
+        <li>Phase 1 launch README (scope)</li>
+        <li>Vendor, news and review URLs are listed in each research file</li>
+      </ul></div>
+    </div>
+    <div class="foot"><span class="rv">Reported, verify</span><span>Checklist: open each vendor page, record the date, then quote.</span></div>
+  </div>
+</section>
+
+</main>
+
+<nav class="nav" aria-label="Slide navigation">
+  <button type="button" id="prev" aria-label="Previous slide">&#8592;</button>
+  <span class="count" id="count" aria-live="polite">1 / 19</span>
+  <button type="button" id="next" aria-label="Next slide">&#8594;</button>
+</nav>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var cur = 0;
+  var countEl = document.getElementById('count');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+  var prog = document.getElementById('progress');
+  var ticking = false;
+
+  function clamp(n) { return Math.max(0, Math.min(total - 1, n)); }
+
+  function render() {
+    countEl.textContent = (cur + 1) + ' / ' + total;
+    prevBtn.disabled = cur === 0;
+    nextBtn.disabled = cur === total - 1;
+    prog.style.width = ((cur + 1) / total * 100) + '%';
+    document.title = (cur === 0 ? 'Hermi vs the field' : 'Slide ' + (cur + 1) + ' - Hermi vs the field');
+  }
+
+  function setHash() {
+    try { history.replaceState(null, '', '#' + (cur + 1)); } catch (e) {}
+  }
+
+  function go(i, instant) {
+    cur = clamp(i);
+    slides[cur].scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'start' });
+    render();
+    setHash();
+  }
+
+  function detect() {
+    ticking = false;
+    var idx = 0;
+    var line = window.innerHeight * 0.4;
+    for (var i = 0; i < total; i++) {
+      if (slides[i].getBoundingClientRect().top <= line) idx = i;
+    }
+    if (idx !== cur) { cur = idx; render(); setHash(); }
+  }
+
+  window.addEventListener('scroll', function () {
+    if (!ticking) { ticking = true; requestAnimationFrame(detect); }
+  }, { passive: true });
+
+  function fromHash() {
+    var n = parseInt((location.hash || '').replace('#', ''), 10);
+    return isNaN(n) ? 0 : clamp(n - 1);
+  }
+
+  window.addEventListener('hashchange', function () {
+    var i = fromHash();
+    if (i !== cur) go(i);
+  });
+
+  prevBtn.addEventListener('click', function () { go(cur - 1); });
+  nextBtn.addEventListener('click', function () { go(cur + 1); });
+
+  function tallBelow() { return slides[cur].getBoundingClientRect().bottom > window.innerHeight + 40; }
+  function tallAbove() { return slides[cur].getBoundingClientRect().top < -40; }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (t && t.classList && t.classList.contains('scroll') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
+    if (t && (t.tagName === 'BUTTON' || t.tagName === 'A') && (e.key === ' ' || e.key === 'Enter')) return;
+    var k = e.key;
+    if (k === 'ArrowRight') { e.preventDefault(); go(cur + 1); }
+    else if (k === 'ArrowLeft') { e.preventDefault(); go(cur - 1); }
+    else if (k === 'ArrowDown' || k === 'PageDown' || (k === ' ' && !e.shiftKey)) {
+      if (tallBelow()) return;
+      e.preventDefault(); go(cur + 1);
+    } else if (k === 'ArrowUp' || k === 'PageUp' || (k === ' ' && e.shiftKey)) {
+      if (tallAbove()) return;
+      e.preventDefault(); go(cur - 1);
+    } else if (k === 'Home') { e.preventDefault(); go(0); }
+    else if (k === 'End') { e.preventDefault(); go(total - 1); }
+  });
+
+  cur = fromHash();
+  render();
+  if (cur > 0) { go(cur, true); } else { setHash(); }
+  window.addEventListener('load', function () { if (fromHash() === cur && cur > 0) slides[cur].scrollIntoView({ behavior: 'auto', block: 'start' }); });
+})();
+</script>
+</body>
+</html>
