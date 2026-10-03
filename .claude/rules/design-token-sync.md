@@ -1,9 +1,10 @@
 ---
-description: Use when editing design tokens, brand colors, component CSS, screen mockups, logo files or the UI spec's token section. Token values live in four places that must agree, and the logo files are generated.
+description: Use when editing design tokens, brand colors, component CSS, screen mockups, logo files or the UI spec's token section. Token values live in five places that must agree, and the logo files are generated.
 paths:
   - "app-buildout/phase-1-launch/05-ui-ux-spec.md"
   - "app-buildout/phase-1-launch/design/**"
   - "app-buildout/brand/**"
+  - "packages/tokens/**"
 ---
 
 # Design token and brand sync
@@ -14,10 +15,11 @@ commit and say why.
 
 ## Keep in sync
 
-- **Token values live in four places:** `05-ui-ux-spec.md` section 2, `design/tokens.css`,
-  `brand/BRAND.md` (Colors) and the color constants at the top of `brand/generate_logo.py`. 05
-  section 2 wins; if `tokens.css` differs from it, `tokens.css` is the one that is wrong. Change
-  all of them in one commit.
+- **Token values live in five places:** `05-ui-ux-spec.md` section 2, `design/tokens.css`,
+  `packages/tokens` (a copy of `design/tokens.css` that must stay equal; the token test in WF-005
+  checks it), `brand/BRAND.md` (Colors) and the color constants at the top of
+  `brand/generate_logo.py`. 05 section 2 wins; if `tokens.css` differs from it, `tokens.css` is the
+  one that is wrong. Change all of them in one commit.
 - **A change to `tokens.css` or `hermi.css` changes the screens.** Update `components.html` and
   every screen that uses the block, then re-render the affected PNGs in `design/png/`. The command
   is in `design/README.md` ("Previewing"). Keep `--blink-settings=preferredColorScheme=1`, or
@@ -32,8 +34,8 @@ commit and say why.
   shadows or rotation (BRAND.md, "Rules").
 - **`hermi-app-icon-1024.png` must be RGB with no alpha channel.** It is the App Store icon. After
   rendering, check `Image.open(...).mode == 'RGB'`.
-- **`--heat-ink-1` to `--heat-ink-5` and `--viz-band` stay out of `tokens.css`.** 05 section 2.2 does
-  not define them. Define them in 05 first (`DESIGN-LANGUAGE.md`, "Known gaps").
+- **`--heat-ink-1` to `--heat-ink-5`, `--viz-band` and `--tp-ticket` are defined in 05 section 2 first,
+  then `tokens.css`, in one commit** (DECISIONS.md, setup, Decision 8).
 
 ## Checkable by grep
 
