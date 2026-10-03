@@ -1,0 +1,70 @@
+---
+description: Use when editing migrations, models, db.py or the database bootstrap. Roles, row-level security, money types and the migration chain have rules that fail silently when broken.
+paths:
+  - "apps/api/hermi/migrations/**"
+  - "apps/api/hermi/**/models*.py"
+  - "apps/api/hermi/db.py"
+  - "infra/db/**"
+---
+
+# Database and migration rules
+
+Authority: `03-database-schema.md` sections 2, 6 and 10 (S1 settles the role and row-level security edits listed
+here) and `02-architecture.md` sections 4.3 and 12. If you need to break one of these, change the document in the
+same commit and say why.
+
+## Names and the migration chain
+
+- Table and column names come only from 03. Do not invent, rename or add one. A change is an edit to 03 and a
+  `DECISIONS.md` row in the same pull request.
+- P04 lands 03's whole chain (migrations 0001 to 0015, section 10) with grants and row-level security. A later
+  ticket that "creates a table" only adds the model; it adds no DDL that 03 already has. There are no Phase 2
+  tables in Phase 1 (`routines` is out; the scheduler scans `flight_routes.next_check_at`).
+- One migration per step, in 03's order, and never two migration steps in parallel: two open revisions make two
+  Alembic heads. CI requires a single head.
+- Write the downgrade and test the round trip (upgrade, downgrade, upgrade) from an empty database and from the
+  last released revision.
+- Tests run against a real PostgreSQL 18 (the native service locally, the `postgres:18` service in CI), through
+  the app login, never as the owner.
+
+## Roles and row-level security
+
+- **Migrations never `CREATE ROLE`.** Roles and the `hermi` and `hermi_test` databases come from
+  `infra/db/bootstrap.sql`, run by `npm run db:init`. The bootstrap is idempotent (`IF NOT EXISTS`, then
+  `ALTER ... PASSWORD`). `hermi_owner` is NOLOGIN, so migrations connect as `hermi_migrate_login`, a member of it
+  (`MIGRATION_DATABASE_URL`).
+- **`FORCE ROW LEVEL SECURITY` on every tenant table**, next to `ENABLE`.
+- **The app connection (the API, the app login used in pytest, startup) is never a superuser, a `BYPASSRLS`
+  role, the table owner or a member of the owner role.** Startup and pytest assert it and refuse to run. Without
+  that, row-level security can be off and every test still passes.
+- Only fixtures use the system login: they write through the system connection (`TEST_DATABASE_URL_SYSTEM`, the
+  worker login on `hermi_test`). Tenant tests read through the app login (`TEST_DATABASE_URL`) with `app.user_id`
+  set.
+- In policies and SQL use `app_user_id()` (03 section 3), never a raw `current_setting('app.user_id')::uuid`.
+- A write the API must do synchronously, and a public read by token, goes through an allowlisted `SystemSession`
+  or a `SECURITY DEFINER` function that checks `app_user_id()`. Test every such route under the real roles.
+
+## Types
+
+- Money is an integer in minor units plus an ISO 4217 currency, never a float. Provider spend is an integer in
+  micro-dollars. Timestamps are `timestamptz` in UTC. Public ids are UUIDv7 (`uuidv7()` in PostgreSQL 18).
+
+## What must not change without a decision
+
+- **The append-only trigger on `credit_ledger`, and no delete on `audit_log` for the worker role.** Tidying them
+  away removes the trail the credit and refund rules rely on.
+- **Grants and policies land with the table**, in the same migration. The app role has DML only.
+- **Who owns what.** Ownership of tables and `SECURITY DEFINER` helpers follows 03 section 6.1. With `FORCE` on,
+  the owner of a helper decides what its queries can see, so do not move ownership to tidy a migration.
+
+## Checkable by grep
+
+```bash
+# roles created in a migration (prints nothing when clean)
+grep -rniE "CREATE ROLE|ALTER ROLE" apps/api/hermi/migrations
+# every ENABLE needs a FORCE: the two counts must match
+grep -rhoE "ENABLE ROW LEVEL SECURITY" apps/api/hermi/migrations | wc -l
+grep -rhoE "FORCE ROW LEVEL SECURITY" apps/api/hermi/migrations | wc -l
+# raw session-variable reads (only the app_user_id() definition may match)
+grep -rn "current_setting('app.user_id'" apps/api/hermi
+```

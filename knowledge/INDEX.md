@@ -8,7 +8,11 @@ This repo is the specification itself, so its reference material lives in `app-b
 
 | File | Read it when |
 |---|---|
-| (none yet) | |
+| `local-dev-windows.md` | You set up, run or debug Hermi on this Windows machine: the PostgreSQL superuser password, the commands, ports, dev sign-in and the Windows hazards. |
+| `env-and-accounts.md` | You add or change an environment variable, or need to know what an account or key is for, whether you need it locally, and where to get it. |
+| `ai-provider-claude-cli.md` | You touch the `AiProvider` seam, run product AI through the owner's own `claude -p`, or move to the Anthropic API for production. |
+| `trip-planner-base.md` | You port code from the old Trip Planner, or build `npm run setup`, `db:init` or the local AI provider from it. |
+| `ios-builds-on-ci.md` | You build, sign or test the iOS app without a Mac: the GitHub macOS jobs, the Apple account steps and TestFlight. |
 
 ## The record: `app-buildout/`
 
@@ -17,11 +21,11 @@ This repo is the specification itself, so its reference material lives in `app-b
 | `app-buildout/README.md` | You need a shared decision: tiers and prices, AI credit costs and ceilings, stack, core table names, the non-negotiable rules, or how Hermi reuses the old Trip Planner code. It wins over every other document. |
 | `app-buildout/phase-1-launch/README.md` | You need Phase 1 scope, the month plan, or the "Settled values" (referrals, booked-fare alert, first-import Trip Pass, calendar polling). |
 | `app-buildout/phase-1-launch/01-product-spec.md` to `10-quality-security-launch.md` | You are building or changing a Phase 1 feature: product, architecture, schema, API, UI, AI, monetization, admin, roadmap, quality and launch, in that order. |
-| `app-buildout/phase-1-launch/09-build-roadmap.md` | You need a ticket (WF-001 to WF-129): dependencies, acceptance criteria, files, tests, and the month exit checklists and cut list. |
+| `app-buildout/phase-1-launch/09-build-roadmap.md` | You need a ticket (every ticket is in it): dependencies, acceptance criteria, files, tests, and the month exit checklists and cut list. |
 | `app-buildout/phase-1-launch/design/README.md` | You are doing any UI work: tokens, component classes, screen mockups and PNGs. |
 | `app-buildout/brand/BRAND.md` | You touch the logo, colors, type or voice, or need to regenerate the logo files. |
 | `app-buildout/prompts/KICKOFF.md` and `00-orchestrator.md` | You start, resume or run the Phase 1 build: setup, the loop, models, stop conditions. |
-| `app-buildout/prompts/PROGRESS.md` | You need to know which of the 28 build prompts are done. Status log, so it stays where it is. |
+| `app-buildout/prompts/PROGRESS.md` | You need to know which of the build prompts are done. Status log, so it stays where it is. |
 | `app-buildout/prompts/HUMAN_TASKS.md` and `DECISIONS.md` | You hit an owner-only step (accounts, keys, Mac builds, App Store) or made a judgement call. Both are status logs. |
 | `app-buildout/context/business-plan/README.md` | A spec says "why" about pricing, AI costs, infrastructure, affiliate revenue or the App Store path. |
 | `app-buildout/context/competitive-analysis/README.md` | You need rival context (TripIt, Trippy, Wanderlog, Tripsy, AI planners) or the win plan. |
