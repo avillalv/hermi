@@ -1,0 +1,46 @@
+# Secrets and local environment (only the example file is committed)
+.env
+.env.*
+!.env.example
+
+# Build and tooling state kept on one machine
+.autopilot/
+.reference/
+.claude/handoff/
+.claude/settings.local.json
+.data/
+
+# Dependencies and caches
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.vite/
+.turbo/
+*.tsbuildinfo
+
+# Build output and test reports
+dist/
+coverage/
+.coverage
+htmlcov/
+test-results/
+playwright-report/
+blob-report/
+
+# iOS
+apps/ios/App/Pods/
+apps/ios/App/build/
+
+# Signing material (never commit)
+*.p8
+*.p12
+*.mobileprovision
+
+# OS noise and logs
+.DS_Store
+Thumbs.db
+*.log

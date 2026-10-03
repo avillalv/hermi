@@ -1,0 +1,32 @@
+# Placeholder pipeline. Prompt 01 (WF-007) replaces the body of this workflow, but it must keep
+# an always-running aggregator job named `ci`: branch protection requires that check name, and
+# a renamed, filtered or skipped job would block every merge.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Spec lint
+        run: node scripts/spec-lint.mjs

@@ -1,0 +1,26 @@
+# Normalise text to LF in the repo and in the working tree.
+* text=auto eol=lf
+
+# ICS golden files keep their CRLF bytes (RFC 5545 line endings).
+*.ics -text
+
+# Windows scripts need CRLF to run.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files: never convert, never diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.zip binary
+*.p8 binary
+*.p12 binary

@@ -1,0 +1,36 @@
+# Knowledge index
+
+One entry per topic, named for what someone would search for. The filename and the folder are the retrieval index; if you cannot find a topic by its name, the name is wrong.
+
+This repo is the specification itself, so its reference material lives in `app-buildout/` and is **not** copied here. This index points at it so there is one place to look. `knowledge/` holds only what the spec does not say.
+
+## In this folder
+
+| File | Read it when |
+|---|---|
+| (none yet) | |
+
+## The record: `app-buildout/`
+
+| File | Read it when |
+|---|---|
+| `app-buildout/README.md` | You need a shared decision: tiers and prices, AI credit costs and ceilings, stack, core table names, the non-negotiable rules, or how Hermi reuses the old Trip Planner code. It wins over every other document. |
+| `app-buildout/phase-1-launch/README.md` | You need Phase 1 scope, the month plan, or the "Settled values" (referrals, booked-fare alert, first-import Trip Pass, calendar polling). |
+| `app-buildout/phase-1-launch/01-product-spec.md` to `10-quality-security-launch.md` | You are building or changing a Phase 1 feature: product, architecture, schema, API, UI, AI, monetization, admin, roadmap, quality and launch, in that order. |
+| `app-buildout/phase-1-launch/09-build-roadmap.md` | You need a ticket (WF-001 to WF-129): dependencies, acceptance criteria, files, tests, and the month exit checklists and cut list. |
+| `app-buildout/phase-1-launch/design/README.md` | You are doing any UI work: tokens, component classes, screen mockups and PNGs. |
+| `app-buildout/brand/BRAND.md` | You touch the logo, colors, type or voice, or need to regenerate the logo files. |
+| `app-buildout/prompts/KICKOFF.md` and `00-orchestrator.md` | You start, resume or run the Phase 1 build: setup, the loop, models, stop conditions. |
+| `app-buildout/prompts/PROGRESS.md` | You need to know which of the 28 build prompts are done. Status log, so it stays where it is. |
+| `app-buildout/prompts/HUMAN_TASKS.md` and `DECISIONS.md` | You hit an owner-only step (accounts, keys, Mac builds, App Store) or made a judgement call. Both are status logs. |
+| `app-buildout/context/business-plan/README.md` | A spec says "why" about pricing, AI costs, infrastructure, affiliate revenue or the App Store path. |
+| `app-buildout/context/competitive-analysis/README.md` | You need rival context (TripIt, Trippy, Wanderlog, Tripsy, AI planners) or the win plan. |
+| `app-buildout/phase-2-growth/README.md`, `phase-3-scale/README.md` | Phase 1 is shipped and you are starting a feature pack. Not before. |
+| `app-buildout/reference-full-spec/` | Never for current behavior. It is the superseded all-phases spec the phase folders were cut from. |
+
+## Conventions for this folder
+
+- **One topic per file.** Named for the words someone would search for.
+- **Split past ~300 lines.** A lookup pulls the whole file, so a long file drags unrelated subtopics along with the one that was wanted.
+- **Every file gets a row above.** A knowledge file missing from this index is a file nobody will find.
+- **Do not quote a total from a register; count it.** Any number written into a summary line goes stale the next time the underlying file changes.
