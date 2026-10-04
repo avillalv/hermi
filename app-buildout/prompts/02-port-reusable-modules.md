@@ -1,6 +1,6 @@
 # Prompt 02: Port reusable code from the old Trip Planner
 
-Phase 1 build, step 2 of 28. Follow `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (branch, models, checks, PR, merge, progress).
+Phase 1 build, step 2 of 28. Follow `app-buildout/prompts/AUTOPILOT.md` and `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (the driver merges).
 
 ## Goal
 
@@ -24,8 +24,9 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 ## Notes
 
 - The base code is the Trip Planner repository, https://github.com/avillalv/trip-planner (backend/ and frontend/). It should already be cloned read-only at `.reference/trip-planner/` (see `00-orchestrator.md`, "Base code"). Port from it with `git log`/blame available for context; never push to it. If it cannot be cloned, write the modules fresh from the specs and note that in PROGRESS.md.
-- Read `knowledge/trip-planner-base.md` first: what to reuse, adapt and drop, and where each piece lives.
-- Never port the Claude Code CLI runner, the MCP bridge, APScheduler, passcode auth or Windows scripts.
+- Read `knowledge/trip-planner-base.md` first: what to reuse, adapt and drop, and where each piece lives. Complete it as you port (a starter exists).
+- WF-005 runs as sub-steps: `WF-005.1` providers, `WF-005.2` tokens (with the fonts and the token test) and `WF-005.3` evidence (with `BLOCKED_HOSTS`).
+- The CLI runner is not ported here (WF-131 adapts it as the dev-only provider). Never port the MCP bridge, APScheduler, passcode auth or Windows scripts.
 
 ## Owner-only steps
 
@@ -39,4 +40,4 @@ Add these to `app-buildout/prompts/HUMAN_TASKS.md` (do not block on them; use fa
 - `npm run lint` and `npm test` pass locally and in CI (and `npm run gen:api` is committed when routes changed, and the e2e smoke test passes when a user flow changed).
 - No secrets, no em dashes in UI copy, no fetching of Airbnb, Vrbo or Booking.com pages.
 - `PROGRESS.md` and `HUMAN_TASKS.md` are updated.
-- The pull request `Phase 1 / P02: Port reusable code from the old Trip Planner` is merged into `main`.
+- The pull request `Phase 1 / P02: Port reusable code from the old Trip Planner` is ready with the `e2e` label and the `PROGRESS.md` row says Done; the driver merges it after `ci` passes.
