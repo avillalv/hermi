@@ -30,7 +30,16 @@ ENV RELEASE_SHA=${RELEASE_SHA} \
     PYTHONDONTWRITEBYTECODE=1 \
     HOME=/tmp \
     TMPDIR=/tmp
-RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin hermi
+# Pick up Debian security fixes newer than the base image (libpcre2 CVE-2026-103111). Drop pip and
+# the packaging tools the runtime never uses: their vendored msgpack, urllib3 and setuptools copies
+# carry HIGH advisories that Trivy reports against the image.
+RUN apt-get update \
+    && apt-get -y --no-install-recommends upgrade \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /usr/local/lib/python3.13/site-packages/pip* /usr/local/lib/python3.13/site-packages/setuptools* \
+        /usr/local/lib/python3.13/site-packages/pkg_resources /usr/local/lib/python3.13/site-packages/wheel* \
+        /usr/local/lib/python3.13/ensurepip/_bundled /usr/local/bin/pip /usr/local/bin/pip3* \
+    && useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin hermi
 WORKDIR /app
 COPY --from=builder /app /app
 COPY --from=web /src/apps/web/dist /app/apps/web/dist
