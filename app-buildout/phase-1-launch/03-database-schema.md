@@ -11,7 +11,7 @@ Target: PostgreSQL 18 (native `uuidv7()`), SQLAlchemy 2 models, Alembic migratio
 - Sections 6 to 12 cover row-level security, key queries, retention, partitioning, the Alembic order, seed data and the mapping from the existing Trip Planner tables.
 - Section 13 lists every table added beyond the build README list, with the reason. Section 14 is "What later phases add".
 - The DDL is the source of truth for names and types. SQLAlchemy models mirror it one to one (same table, column and constraint names; the naming convention in section 2 keeps Alembic stable).
-- Plan numbers (limits, prices, credits, ceilings) come from the build README and from `../../02-pricing-tiers.md`. They live in seed rows (section 11), never in code constants, so a price test needs no migration.
+- Plan numbers (limits, prices, credits, ceilings) come from the build README (`../README.md`) and the entitlement matrix in `01-product-spec.md`. They live in seed rows (section 11), never in code constants, so a price test needs no migration.
 
 ### 1.1 What Phase 1 keeps, drops and adds
 
@@ -35,7 +35,7 @@ Target: PostgreSQL 18 (native `uuidv7()`), SQLAlchemy 2 models, Alembic migratio
 6. **Nullability.** Columns are `NOT NULL` unless null carries a meaning (for example `end_time`, `deleted_at`). Booleans are `NOT NULL DEFAULT false` or `true`. Empty text defaults to `''`, never null, where the UI treats empty and missing the same.
 7. **Soft delete.** Only two things are soft deleted, because the product promises a recovery window: `users` (`deleted_at`, status `pending_deletion` then `deleted`, 30 day grace) and `trips` (`deleted_at`, 30 days in trash). Everything else is hard deleted. Partial indexes filter `WHERE deleted_at IS NULL` so live queries never see trash. Hard purge jobs are in section 8.
 8. **Foreign keys.** Trip children use `ON DELETE CASCADE` on `trip_id`. Attribution columns (`created_by`, `updated_by`, `author_user_id`) use `ON DELETE SET NULL`, which the UI renders as "Former member". Financial records (`store_transactions`, `credit_ledger`, `ai_usage`, `subscriptions`, `affiliate_conversions`) use `SET NULL` on `user_id` so a deleted account keeps an anonymous record for the tax retention period. `trips.owner_user_id` is `RESTRICT`: the deletion job must transfer or delete a user's trips first. A record that must outlive its trip (`trip_imports`, which carries the once-per-user reward flag) uses `SET NULL` on `trip_id`. Partitioned log tables (`run_events`, `provider_calls`, `link_clicks`) carry no foreign keys to users or trips and nothing references them (a partitioned table can only be referenced together with its partition key); `run_events` keeps its cascade foreign key to `runs` and `link_clicks` references `affiliate_programs`. The deletion job scrubs them by `user_id`.
-9. **Constraint and index names.** Follow the existing Trip Planner naming convention in `backend/tripplanner/models/base.py`: `pk_<table>`, `uq_<table>_<col>`, `fk_<table>_<col>_<referred>`, `ck_<table>_<name>`, `ix_<table>_<cols>`. The DDL below uses short explicit names that match.
+9. **Constraint and index names.** Follow the existing Trip Planner naming convention (the `NAMING_CONVENTION` of its base model code): `pk_<table>`, `uq_<table>_<col>`, `fk_<table>_<col>_<referred>`, `ck_<table>_<name>`, `ix_<table>_<cols>`. The DDL below uses short explicit names that match.
 10. **Trip consistency.** A child table that has its own `trip_id` and also points at a row that belongs to a trip (for example `lodging_votes` points at `lodging_options`) uses a composite foreign key `(parent_id, trip_id)` so a child can never point at a parent in another trip. Parents carry `UNIQUE (id, trip_id)` for this. The `trip_id` copy also makes row-level security policies cheap (section 6).
 11. **Optimistic concurrency.** Rows that two people edit (`trips`, `itinerary_days`, `itinerary_items`, `flight_routes`, `lodging_options`, `checklist_items`, `notes`) carry `version integer NOT NULL DEFAULT 1`. The API updates with `WHERE id = :id AND version = :v` and returns 409 with the latest row when zero rows change. The `bump_version()` trigger increments it, and the API returns the value as the strong `ETag` and in the `version` field (04 section 1.7).
 12. **JSONB.** Used for provider payloads, plan limits, flag rules and other shapes that are read whole and never joined. Anything filtered, sorted or constrained is a real column. Provider payloads (`raw`) are short-lived (section 8) because storing them long term is a terms risk.
@@ -292,9 +292,9 @@ CREATE TYPE user_status AS ENUM ('active', 'suspended', 'pending_deletion', 'del
 
 CREATE TABLE users (
   id                  uuid PRIMARY KEY DEFAULT uuidv7(),
-  email               citext,                                   -- may be an Apple relay address
+  email               citext NOT NULL,                          -- may be an Apple relay address
   email_is_relay      boolean NOT NULL DEFAULT false,
-  email_verified_at   timestamptz,                              -- set at sign-in when the provider proved the address (Apple, Google or an email code); null for guests. A condition of the import reward (5.9)
+  email_verified_at   timestamptz,                              -- set at sign-in when the provider proved the address (Apple, Google or an email code); A condition of the import reward (5.9)
   display_name        text NOT NULL DEFAULT '' CHECK (char_length(display_name) <= 80),
   locale              text NOT NULL DEFAULT 'en-US',
   timezone            text NOT NULL DEFAULT 'UTC',
@@ -302,7 +302,6 @@ CREATE TABLE users (
   home_airports       iata_code[] NOT NULL DEFAULT '{}',
   country_code        country_code2,                            -- storefront or detected, drives "Ad" labels
   status              user_status NOT NULL DEFAULT 'active',    -- 'suspended' is an owner decision in the admin console (08 6.12); the API answers 403 account_inactive
-  is_guest            boolean NOT NULL DEFAULT false,           -- server row created lazily for local-first guests; claimed on sign-up by moving the guest's trips and people to the new account (worker job), then the guest row is deleted
   hide_booking_links  boolean NOT NULL DEFAULT false,           -- Settings: "Hide booking links"
   prefs               jsonb NOT NULL DEFAULT '{}'::jsonb,       -- per-user settings (replaces app_settings per-user keys) and the paywall frequency state (07 6.5); never a place for state another user or a job must read
   last_seen_at        timestamptz,
@@ -312,11 +311,10 @@ CREATE TABLE users (
   created_at          timestamptz NOT NULL DEFAULT now(),
   updated_at          timestamptz NOT NULL DEFAULT now(),
   deleted_at          timestamptz,
-  CONSTRAINT ck_users_email_or_guest CHECK (email IS NOT NULL OR is_guest),
   CONSTRAINT ck_users_deleted CHECK (status <> 'deleted' OR deleted_at IS NOT NULL),
   CONSTRAINT ck_users_suspended CHECK (status <> 'suspended' OR suspended_at IS NOT NULL)
 );
-CREATE UNIQUE INDEX uq_users_email ON users (email) WHERE email IS NOT NULL AND deleted_at IS NULL;
+CREATE UNIQUE INDEX uq_users_email ON users (email) WHERE deleted_at IS NULL;
 CREATE INDEX ix_users_status ON users (status) WHERE status <> 'active';
 SELECT add_updated_at_trigger('users');
 
@@ -325,6 +323,7 @@ CREATE TABLE auth_identities (
   user_id                     uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   provider                    text NOT NULL,
   subject                     text NOT NULL,                     -- Supabase user id (JWT sub) or provider subject
+  provider_subject            text,                              -- the upstream Apple or Google subject (the identity's id in the Supabase user object); null for email. Unlike subject it survives deleting and re-creating the account, so it feeds identity_hashes (5.8). Set by bootstrap_user() at sign-in
   email                       citext,
   email_is_relay              boolean NOT NULL DEFAULT false,
   provider_refresh_token_enc  bytea,                             -- Apple refresh token, encrypted, for revoke on deletion
@@ -334,6 +333,45 @@ CREATE TABLE auth_identities (
   CONSTRAINT uq_auth_identities_provider_subject UNIQUE (provider, subject)
 );
 CREATE INDEX ix_auth_identities_user ON auth_identities (user_id);
+
+-- Guests have no users row: a guest's App Attest key lives only here. No direct grant to hermi_app;
+-- the attest endpoints write it through a definer function or an allowlisted SystemSession (04 section 5.1).
+CREATE TABLE device_attestations (
+  key_id        text PRIMARY KEY,                                -- App Attest key id
+  public_key    bytea NOT NULL,
+  counter       bigint NOT NULL DEFAULT 0,                       -- last assertion counter seen
+  environment   text NOT NULL,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ck_device_attestations_env CHECK (environment IN ('development', 'production'))
+);
+
+-- Guest AI under F-ACC-2: one row per attestation key and calendar month (UTC). Written only through a definer function.
+CREATE TABLE guest_allowances (
+  key_id        text NOT NULL REFERENCES device_attestations (key_id) ON DELETE CASCADE,
+  period_key    text NOT NULL CHECK (period_key ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'),   -- YYYY-MM
+  credits_used  integer NOT NULL DEFAULT 0 CHECK (credits_used >= 0),
+  updated_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (key_id, period_key)
+);
+SELECT add_updated_at_trigger('guest_allowances');
+
+-- The only writer of guest_allowances. Spends p_credits from the key's allowance for the current UTC month when the month's total stays within
+-- p_limit (the Free monthly credits for guests, read from plans by the caller); returns false and changes nothing otherwise. A guest has no users row,
+-- so there is no app_user_id() to check: the caller is the allowlisted SystemSession that verified the App Attest assertion (04 section 5.1),
+-- and EXECUTE is granted to hermi_worker only.
+CREATE FUNCTION spend_guest_allowance(p_key_id text, p_credits integer, p_limit integer) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_period text := to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM');
+BEGIN
+  IF p_credits <= 0 OR p_limit < 0 THEN RAISE EXCEPTION 'invalid amount' USING ERRCODE = '22023'; END IF;
+  INSERT INTO guest_allowances (key_id, period_key, credits_used) VALUES (p_key_id, v_period, 0) ON CONFLICT DO NOTHING;
+  UPDATE guest_allowances SET credits_used = credits_used + p_credits
+   WHERE key_id = p_key_id AND period_key = v_period AND credits_used + p_credits <= p_limit;
+  RETURN FOUND;
+END $$;
+ALTER FUNCTION spend_guest_allowance(text, integer, integer) OWNER TO hermi_definer;
+REVOKE EXECUTE ON FUNCTION spend_guest_allowance(text, integer, integer) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION spend_guest_allowance(text, integer, integer) TO hermi_worker;
 
 CREATE TABLE devices (
   id                  uuid PRIMARY KEY DEFAULT uuidv7(),
@@ -345,7 +383,7 @@ CREATE TABLE devices (
   app_version         text,
   os_version          text,
   refresh_token_hash  bytea,                                     -- session refresh token hash, for "sign out everywhere"
-  attestation_key_id  text,                                      -- App Attest key id
+  attestation_key_id  text REFERENCES device_attestations (key_id) ON DELETE SET NULL,   -- App Attest key id; null for web and for devices not yet attested
   last_seen_at        timestamptz NOT NULL DEFAULT now(),
   revoked_at          timestamptz,
   created_at          timestamptz NOT NULL DEFAULT now(),
@@ -554,6 +592,7 @@ CREATE TABLE trip_share_links (
   redact_prices     boolean NOT NULL DEFAULT true,
   redact_notes      boolean NOT NULL DEFAULT true,
   redact_people     boolean NOT NULL DEFAULT true,           -- show travelers as "Traveler 1" instead of names
+  indexable         boolean NOT NULL DEFAULT false,          -- public pages carry noindex unless the owner sets this
   expires_at        timestamptz NOT NULL DEFAULT now() + interval '90 days',   -- every share link expires (04: 1 to 365 days)
   revoked_at        timestamptz,
   view_count        integer NOT NULL DEFAULT 0,
@@ -601,6 +640,59 @@ CREATE TABLE activity_log (                                  -- per-trip change 
   created_at      timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX ix_activity_log_trip ON activity_log (trip_id, id DESC);
+```
+
+#### 5.4.1 Definer functions: `redeem_trip_invite` and `transfer_trip_owner`
+
+The API role has no `INSERT` on `trip_members` and cannot change `trips.owner_user_id` (6.1). Both writes go through these functions. Each is owned by `hermi_definer` (6.1), has a fixed `search_path`, checks `app_user_id()` itself, and is granted to `hermi_app` only (the `REVOKE` and `GRANT` lines are in 6.1; they are repeated here so this block stands alone). The API hashes the token with sha256 before the call; the token is never stored or passed in clear.
+
+```sql
+-- Redeem an invite for the caller. Returns the trip id. Raises invite_expired (P0001) for an unknown, revoked, expired or used-up invite, or one for a trashed trip
+-- (one error for all four, so a caller cannot tell them apart) and already_member (23505) when the caller is already on the trip.
+CREATE FUNCTION redeem_trip_invite(p_token_hash bytea) RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_me  uuid := app_user_id();
+  v_inv trip_invites%ROWTYPE;
+BEGIN
+  IF v_me IS NULL THEN RAISE EXCEPTION 'not_authenticated' USING ERRCODE = '42501'; END IF;
+  SELECT * INTO v_inv FROM trip_invites WHERE token_hash = p_token_hash FOR UPDATE;
+  IF NOT FOUND OR v_inv.revoked_at IS NOT NULL OR v_inv.expires_at <= now() OR v_inv.use_count >= v_inv.max_uses
+     OR EXISTS (SELECT 1 FROM trips WHERE id = v_inv.trip_id AND deleted_at IS NOT NULL) THEN      -- a trashed trip cannot be joined
+    RAISE EXCEPTION 'invite_expired' USING ERRCODE = 'P0001';
+  END IF;
+  IF EXISTS (SELECT 1 FROM trip_members WHERE trip_id = v_inv.trip_id AND user_id = v_me) THEN
+    RAISE EXCEPTION 'already_member' USING ERRCODE = '23505', DETAIL = v_inv.trip_id::text;
+  END IF;
+  INSERT INTO trip_members (trip_id, user_id, role, invited_by) VALUES (v_inv.trip_id, v_me, v_inv.role, v_inv.invited_by);
+  UPDATE trip_invites SET use_count = use_count + 1, accepted_by = v_me, accepted_at = now() WHERE id = v_inv.id;
+  RETURN v_inv.trip_id;
+END $$;
+ALTER FUNCTION redeem_trip_invite(bytea) OWNER TO hermi_definer;
+REVOKE EXECUTE ON FUNCTION redeem_trip_invite(bytea) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION redeem_trip_invite(bytea) TO hermi_app;
+
+-- Hand a trip to another member. Only the current owner may call it. The old owner becomes an editor. Returns the new owner id.
+CREATE FUNCTION transfer_trip_owner(p_trip uuid, p_new_owner uuid) RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_me uuid := app_user_id();
+BEGIN
+  IF v_me IS NULL OR NOT EXISTS (SELECT 1 FROM trips WHERE id = p_trip AND owner_user_id = v_me AND deleted_at IS NULL) THEN
+    RAISE EXCEPTION 'insufficient_role' USING ERRCODE = '42501';
+  END IF;
+  IF p_new_owner = v_me OR NOT EXISTS (SELECT 1 FROM trip_members WHERE trip_id = p_trip AND user_id = p_new_owner) THEN
+    RAISE EXCEPTION 'target_not_member' USING ERRCODE = '22023';
+  END IF;
+  -- uq_trip_members_one_owner is not deferrable: demote first, then promote.
+  UPDATE trip_members SET role = 'editor' WHERE trip_id = p_trip AND user_id = v_me;
+  UPDATE trip_members SET role = 'owner'  WHERE trip_id = p_trip AND user_id = p_new_owner;
+  UPDATE trips SET owner_user_id = p_new_owner WHERE id = p_trip;
+  RETURN p_new_owner;
+END $$;
+ALTER FUNCTION transfer_trip_owner(uuid, uuid) OWNER TO hermi_definer;
+REVOKE EXECUTE ON FUNCTION transfer_trip_owner(uuid, uuid) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION transfer_trip_owner(uuid, uuid) TO hermi_app;
 ```
 
 ### 5.5 People
@@ -661,6 +753,7 @@ CREATE TABLE runs (
   params            jsonb NOT NULL DEFAULT '{}'::jsonb,
   prompt            text,                                                    -- nulled after 30 days
   model             text,
+  provider          text NOT NULL DEFAULT 'anthropic_api',                   -- who ran it; the cost of a 'claude_cli' run is notional (a subscription, not metered)
   prompt_version    text,
   queued_at         timestamptz NOT NULL DEFAULT now(),
   started_at        timestamptz,
@@ -684,6 +777,7 @@ CREATE TABLE runs (
   reservation_id    uuid,                                                    -- credit_ledger.reservation_id
   cancel_requested  boolean NOT NULL DEFAULT false,
   created_at        timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ck_runs_provider CHECK (provider IN ('anthropic_api', 'claude_cli', 'fake')),
   CONSTRAINT ck_runs_finished CHECK (status IN ('queued', 'running') OR finished_at IS NOT NULL),
   CONSTRAINT uq_runs_id_trip UNIQUE (id, trip_id)
 );
@@ -720,6 +814,7 @@ CREATE TABLE ai_usage (
   run_id              uuid REFERENCES runs (id) ON DELETE SET NULL,
   action              ai_action NOT NULL,
   model               text,
+  provider            text NOT NULL DEFAULT 'anthropic_api',                 -- the cost of a 'claude_cli' row is notional (a subscription, not metered)
   input_tokens        integer NOT NULL DEFAULT 0,
   output_tokens       integer NOT NULL DEFAULT 0,
   cache_read_tokens   integer NOT NULL DEFAULT 0,
@@ -738,6 +833,7 @@ CREATE TABLE ai_usage (
   settled_at          timestamptz,
   CONSTRAINT uq_ai_usage_idempotency UNIQUE (idempotency_key),
   CONSTRAINT ck_ai_usage_purpose CHECK (purpose IS NULL OR (purpose IN ('digest', 'cache_warm', 'classifier', 'eval') AND user_id IS NULL)),
+  CONSTRAINT ck_ai_usage_provider CHECK (provider IN ('anthropic_api', 'claude_cli', 'fake')),
   CONSTRAINT ck_ai_usage_charged CHECK (credits_charged <= credits_reserved),
   CONSTRAINT ck_ai_usage_settled CHECK (state = 'reserved' OR settled_at IS NOT NULL)
 );
@@ -931,7 +1027,7 @@ CREATE TABLE webhook_events (                                 -- idempotency: in
   received_at    timestamptz NOT NULL DEFAULT now(),
   processed_at   timestamptz,
   PRIMARY KEY (provider, event_id),
-  CONSTRAINT ck_webhook_events_provider CHECK (provider IN ('revenuecat', 'apple', 'travelpayouts', 'viator', 'stay22')),
+  CONSTRAINT ck_webhook_events_provider CHECK (provider IN ('revenuecat', 'travelpayouts', 'viator', 'stay22', 'resend', 'supabase')),
   CONSTRAINT ck_webhook_events_status CHECK (status IN ('received', 'processed', 'failed', 'ignored'))
 );
 CREATE INDEX ix_webhook_events_pending ON webhook_events (received_at) WHERE status IN ('received', 'failed');
@@ -940,7 +1036,11 @@ CREATE INDEX ix_webhook_events_received ON webhook_events (received_at);
 
 ### 5.8 Credits
 
-One credit is a budget of up to $0.02 of provider spend (20,000 micro-dollars). `credit_grants` holds spendable balances (and is the only mutable part); `credit_ledger` is an append-only record of every movement, with reserve, settle and refund entries. Spend order: monthly allowance first, then promo (taster and referral credits), then Trip Pass credits for that trip, then purchased packs (oldest expiry first inside a class). Monthly allowances never roll over. Purchased credits last 12 months.
+One credit is a budget of up to $0.02 of provider spend (20,000 micro-dollars). `credit_grants` holds spendable balances (and is the only mutable part); `credit_ledger` is an append-only record of every movement, with reserve, settle and refund entries. Spend order: for an `agent_run`, the taster first when it covers the whole price; otherwise monthly allowance, promo (referral credits), Trip Pass credits for that trip, adjustments, then purchased packs (oldest expiry first inside a class), the same as 07 section 5.4. Monthly allowances never roll over. Purchased credits last 12 months.
+
+**Trip Pass credits are a trip pool.** A `trip_pass` grant is keyed by `trip_id` (its `user_id` is only the buyer) and any member who may start AI on that trip (owner or editor) can spend it. The credits are charged to the person who starts the action, so a collaborator first uses their own allowance, then the trip's pool. Every other grant is spendable only by its own `user_id`. **The taster** is a `promo` grant restricted to `agent_run` (`period_key = 'taster'`): for an `agent_run` it is drawn first, before any pool, whenever its `remaining` covers the whole price; it covers that run alone, and it never mixes with, or debits, another grant. When it cannot cover the price the run is paid from the other grants in the order above, and the taster is left untouched. Who pays for pass-funded work against the provider-spend ceilings is in 7.4.
+
+**Caller checks.** Every credit function that `hermi_app` can call (`reserve_credits`, `settle_credits`, `ensure_free_monthly_grant`, `ensure_taster_grant`) calls `assert_credit_caller()` first: an API caller whose `p_user` is not `app_user_id()` gets `insufficient_privilege` (SQLSTATE 42501). Worker and `SystemSession` connections are exempt by role, because their login role is not a member of `hermi_app`. `release_stale_reservations`, `expire_credit_grants`, `record_credit_debt` and `settle_credit_debt` are not granted to `hermi_app` at all.
 
 ```sql
 CREATE TYPE credit_grant_kind AS ENUM ('monthly', 'promo', 'trip_pass', 'purchase', 'adjustment');
@@ -996,6 +1096,37 @@ CREATE INDEX ix_credit_ledger_user ON credit_ledger (user_id, created_at DESC);
 CREATE INDEX ix_credit_ledger_reservation ON credit_ledger (reservation_id) WHERE reservation_id IS NOT NULL;
 CREATE INDEX ix_credit_ledger_open ON credit_ledger (created_at) WHERE entry_type = 'reserve';
 
+-- Append-only. UPDATE and DELETE are rejected, except the anonymizing update that account deletion uses (user_id set to NULL), the same
+-- nulling of grant_id and usage_id that the ON DELETE SET NULL foreign keys perform when a trip or usage row is purged, and the delete of a row
+-- older than 7 years by retention_sweep() (8), which is the only caller that runs as hermi_definer (the same pattern as audit_log_immutable, 5.16).
+-- Nothing else may change.
+CREATE FUNCTION credit_ledger_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' AND current_user = 'hermi_definer' AND OLD.created_at < now() - interval '7 years' THEN
+    RETURN OLD;
+  END IF;
+  IF TG_OP = 'UPDATE'
+     AND (to_jsonb(NEW) - 'user_id' - 'grant_id' - 'usage_id') = (to_jsonb(OLD) - 'user_id' - 'grant_id' - 'usage_id')
+     AND (NEW.user_id  IS NULL OR NEW.user_id  = OLD.user_id)
+     AND (NEW.grant_id IS NULL OR NEW.grant_id = OLD.grant_id)
+     AND (NEW.usage_id IS NULL OR NEW.usage_id = OLD.usage_id)
+  THEN
+    RETURN NEW;
+  END IF;
+  RAISE EXCEPTION 'credit_ledger is append-only' USING ERRCODE = '42501';
+END $$;
+CREATE TRIGGER trg_credit_ledger_immutable BEFORE UPDATE OR DELETE ON credit_ledger
+  FOR EACH ROW EXECUTE FUNCTION credit_ledger_immutable();
+
+-- API callers may act only for themselves. session_user is the login role, so it stays the caller inside a SECURITY DEFINER function;
+-- the worker and admin logins are not members of hermi_app and pass.
+CREATE FUNCTION assert_credit_caller(p_user uuid) RETURNS void LANGUAGE plpgsql STABLE AS $$
+BEGIN
+  IF pg_has_role(session_user, 'hermi_app', 'member') AND p_user IS DISTINCT FROM app_user_id() THEN
+    RAISE EXCEPTION 'insufficient_privilege' USING ERRCODE = '42501';
+  END IF;
+END $$;
+
 -- Credits already spent when a pack refund arrived (07 5.6). credit_grants.remaining never goes below 0, so the shortfall lives here:
 -- reserve_credits refuses while amount > 0, and settle_credit_debt() pays it down from the next grants. Written by the billing service and the functions below only.
 CREATE TABLE credit_debts (
@@ -1022,8 +1153,9 @@ CREATE FUNCTION reserve_credits(
   p_user uuid, p_trip uuid, p_amount integer, p_action ai_action, p_run uuid, p_idem text
 ) RETURNS uuid LANGUAGE plpgsql AS $$
 DECLARE
-  v_res uuid; v_need integer := p_amount; v_take integer; g record;
+  v_res uuid; v_need integer := p_amount; v_take integer; g record; v_pool boolean; v_taster uuid;
 BEGIN
+  PERFORM assert_credit_caller(p_user);
   IF p_amount <= 0 THEN RAISE EXCEPTION 'amount must be positive'; END IF;
   SELECT reservation_id INTO v_res FROM credit_ledger
    WHERE idempotency_key = p_idem AND entry_type = 'reserve' LIMIT 1;
@@ -1034,12 +1166,27 @@ BEGIN
 
   v_res := uuidv7();
 
+  -- Trip Pass credits are a trip pool: usable by any member who may start AI on the trip (owner or editor).
+  v_pool := EXISTS (SELECT 1 FROM trip_members WHERE trip_id = p_trip AND user_id = p_user AND role IN ('owner', 'editor'));
+
+  -- The taster pays for one agent run on its own and is tried first: it never mixes with, or debits, another grant.
+  IF p_action = 'agent_run' THEN
+    SELECT id INTO v_taster FROM credit_grants
+     WHERE user_id = p_user AND period_key = 'taster' AND remaining >= p_amount FOR UPDATE;
+    IF FOUND THEN
+      UPDATE credit_grants SET remaining = remaining - p_amount WHERE id = v_taster;
+      INSERT INTO credit_ledger (user_id, grant_id, entry_type, delta, reservation_id, action, run_id, trip_id, idempotency_key)
+      VALUES (p_user, v_taster, 'reserve', -p_amount, v_res, p_action, p_run, p_trip, p_idem);
+      RETURN v_res;
+    END IF;
+  END IF;
+
   FOR g IN
     SELECT id, remaining FROM credit_grants
      WHERE remaining > 0
        AND (expires_at IS NULL OR expires_at > now())
-       AND user_id = p_user
-       AND (trip_id IS NULL OR trip_id = p_trip)
+       AND period_key IS DISTINCT FROM 'taster'
+       AND ((user_id = p_user AND trip_id IS NULL) OR (kind = 'trip_pass' AND trip_id = p_trip AND v_pool))
        AND (restricted_action IS NULL OR restricted_action = p_action)
      ORDER BY CASE kind WHEN 'monthly' THEN 10 WHEN 'promo' THEN 20
                         WHEN 'trip_pass' THEN 30 WHEN 'adjustment' THEN 35 ELSE 40 END,
@@ -1069,6 +1216,8 @@ DECLARE
   v_reserved integer; v_charge integer; v_refund integer; v_back integer; r record;
 BEGIN
   PERFORM pg_advisory_xact_lock(hashtextextended(p_reservation::text, 0));
+  SELECT user_id INTO v_user FROM credit_ledger WHERE reservation_id = p_reservation AND entry_type = 'reserve' LIMIT 1;
+  PERFORM assert_credit_caller(v_user);                              -- an API caller can settle only their own reservation
   IF EXISTS (SELECT 1 FROM credit_ledger WHERE reservation_id = p_reservation AND entry_type = 'settle') THEN
     RETURN 0;                                                        -- already settled
   END IF;
@@ -1104,12 +1253,15 @@ BEGIN
   RETURN v_reserved - v_charge;
 END $$;
 
--- Sweeper (run every minute): release reservations older than the run cap (agent runs stop at 20 turns and $0.80).
-CREATE FUNCTION release_stale_reservations(p_older interval DEFAULT interval '30 minutes') RETURNS integer LANGUAGE plpgsql AS $$
+-- Sweeper (run every minute): release reservations older than the run deadline plus a grace period (agent runs stop at 20 turns and $0.80,
+-- so the deadline is 30 minutes). Idempotent: a settled reservation is skipped, settle_credits() returns 0 for one settled in the meantime, and a
+-- second call finds nothing to do. Returns the number released.
+CREATE FUNCTION release_stale_reservations(p_deadline interval DEFAULT interval '30 minutes', p_grace interval DEFAULT interval '5 minutes')
+RETURNS integer LANGUAGE plpgsql AS $$
 DECLARE r record; n integer := 0;
 BEGIN
   FOR r IN SELECT DISTINCT l.reservation_id FROM credit_ledger l
-            WHERE l.entry_type = 'reserve' AND l.created_at < now() - p_older
+            WHERE l.entry_type = 'reserve' AND l.created_at < now() - (p_deadline + p_grace)
               AND NOT EXISTS (SELECT 1 FROM credit_ledger s WHERE s.reservation_id = l.reservation_id AND s.entry_type = 'settle')
   LOOP
     PERFORM settle_credits(r.reservation_id, 0);
@@ -1170,6 +1322,7 @@ END $$;
 -- Free allowance, written lazily on the first credit use in a calendar month so idle accounts cost no writes (06 6.3, 07 5.1).
 -- The API calls it before every admission; accounts on a paid entitlement get theirs from the billing service instead.
 CREATE FUNCTION ensure_free_monthly_grant(p_user uuid) RETURNS void LANGUAGE sql AS $$
+  SELECT assert_credit_caller(p_user);
   INSERT INTO credit_grants (user_id, kind, credits, remaining, period_key, expires_at)
   SELECT p_user, 'monthly', p.monthly_credits, p.monthly_credits,
          to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM'),
@@ -1181,21 +1334,57 @@ CREATE FUNCTION ensure_free_monthly_grant(p_user uuid) RETURNS void LANGUAGE sql
   ON CONFLICT (user_id, kind, period_key) WHERE user_id IS NOT NULL AND period_key IS NOT NULL DO NOTHING
 $$;
 
+-- Abuse memory: what a person has already earned, kept after the account is gone. Each hash is sha256 of 'apple:<sub>' or 'google:<sub>'
+-- (the upstream subject in auth_identities.provider_subject, which does not change when the account is re-created) or of 'email:<lower(email)>' for
+-- a verified address (a relay address counts: it is stable per app). For kind 'import_uids' the hash is the import's uid_set_hash.
+-- Kept 12 months, then purged by retention_sweep() (8). No grant to hermi_app (6.1); written by the definer functions below and the worker.
+CREATE TABLE identity_hashes (
+  hash        bytea NOT NULL,
+  kind        text NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (kind, hash),
+  CONSTRAINT ck_identity_hashes_kind CHECK (kind IN ('taster', 'import_reward', 'import_uids'))
+);
+CREATE INDEX ix_identity_hashes_created ON identity_hashes (created_at);                    -- the 12 month purge
+
+-- Every identity hash of one user: one per upstream Apple or Google subject, plus one for the verified email.
+CREATE FUNCTION identity_hashes_for(p_user uuid) RETURNS SETOF bytea LANGUAGE sql STABLE AS $$
+  SELECT sha256(convert_to(provider || ':' || provider_subject, 'UTF8')) FROM auth_identities
+   WHERE user_id = p_user AND provider_subject IS NOT NULL
+  UNION
+  SELECT sha256(convert_to('email:' || lower(email::text), 'UTF8')) FROM users
+   WHERE id = p_user AND email_verified_at IS NOT NULL
+$$;
+
 -- The free taster (06 5.9): one promo grant per account for life, restricted to agent runs, no expiry, worth one agent run.
 -- Written at the first offer (or at sign-up); the unique index on (user_id, kind, period_key) makes a second call do nothing,
 -- and a spent grant stays in the table so it is never granted again.
-CREATE FUNCTION ensure_taster_grant(p_user uuid) RETURNS void LANGUAGE sql AS $$
+-- A deleted and re-created account does not earn it again: the user's identity hashes (upstream subjects and verified email) are looked up in
+-- identity_hashes (kind 'taster') before the grant and written after it.
+CREATE FUNCTION ensure_taster_grant(p_user uuid) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE v_id uuid;
+BEGIN
+  PERFORM assert_credit_caller(p_user);
+  IF EXISTS (SELECT 1 FROM identity_hashes WHERE kind = 'taster' AND hash IN (SELECT identity_hashes_for(p_user))) THEN
+    RETURN;
+  END IF;
   INSERT INTO credit_grants (user_id, kind, credits, remaining, restricted_action, period_key)
   SELECT p_user, 'promo', cap.credits, cap.credits, 'agent_run', 'taster'
     FROM credit_action_prices cap, plans p
    WHERE cap.action = 'agent_run' AND p.code = 'free' AND COALESCE((p.limits ->> 'taster_agent_runs')::integer, 0) > 0
   ON CONFLICT (user_id, kind, period_key) WHERE user_id IS NOT NULL AND period_key IS NOT NULL DO NOTHING
-$$;
+  RETURNING id INTO v_id;
+  IF v_id IS NOT NULL THEN
+    INSERT INTO identity_hashes (hash, kind) SELECT identity_hashes_for(p_user), 'taster'
+    ON CONFLICT DO NOTHING;
+  END IF;
+END $$;
+
 ```
 
 ### 5.9 Trip imports and referrals
 
-**Imports.** A `trip_imports` row records one import a user ran. `source` is the input method: a calendar file (`ics_file`, for example a TripIt, Tripsy or Google Calendar export), a calendar feed URL (`ics_feed`), pasted booking confirmations (`pasted_text`, extracted by Claude Haiku in a `booking_import` run), a Google Maps saved-list export file (`maps_file`: Takeout CSV, GeoJSON or KML, read locally) or pasted place names (`places_text`, for example a list copied out of Wanderlog or a Google Maps list). `origin` is the entry the person used on the import screen (`tripit`, `tripsy`, `wanderlog`, `google_calendar`, `google_maps` or `other`); it only changes the instructions the screen shows and feeds the "switch imports per week" metric, never the parsing. The file or text is parsed into a preview (`preview`, kept 7 days), the user confirms, and the job writes `itinerary_items` (flights, reservations and place ideas, with `source = 'import'`) and `lodging_options` (stays, `added_via = 'import'`) that point back to the import through `import_id`, so one tap can undo an import. The raw upload lives in R2 (`raw_key`, deleted after 7 days); pasted text is never stored. Stays in a confirmation are read from the text the user pasted, never fetched from the booking site. Nothing in a Google Maps file or pasted list is ever fetched: a place is matched by name through place search, and any Google Maps URL in the file stays as text in the item's notes. A pasted Google Maps list link is never opened (Google's terms); the screen explains how to export the list and keeps the link only as a note on the trip.
+**Imports.** A `trip_imports` row records one import a user ran. `source` is the input method: a calendar file (`ics_file`, for example a TripIt, Tripsy or Google Calendar export), a calendar feed URL (`ics_feed`), pasted booking confirmations (`pasted_text`, extracted by Claude Haiku in a `booking_import` run), a Google Maps saved-list export file (`maps_file`: Takeout CSV, GeoJSON or KML, read locally) or pasted place names (`places_text`, for example a list copied out of Wanderlog or a Google Maps list). `origin` is the entry the person used on the import screen (`tripit`, `tripsy`, `wanderlog`, `google_calendar`, `google_maps` or `other`); it only changes the instructions the screen shows and feeds the "switch imports per week" metric, never the parsing. The file or text is parsed into a preview (`preview`, kept 7 days), the user confirms, and the job writes `itinerary_items` (flights, reservations and place ideas, with `source = 'import'`) and `lodging_options` (stays, `added_via = 'import'`) that point back to the import through `import_id`, so one tap can undo an import. The raw file is never stored: it is parsed in memory and only the preview is kept, and pasted text is never stored either. Stays in a confirmation are read from the text the user pasted, never fetched from the booking site. Nothing in a Google Maps file or pasted list is ever fetched: a place is matched by name through place search, and any Google Maps URL in the file stays as text in the item's notes. A pasted Google Maps list link is never opened (Google's terms); the screen explains how to export the list and keeps the link only as a note on the trip.
 
 **Keep checking this calendar.** A feed import can be switched to polling, by the person and only after the first preview is confirmed (`set_import_polling()`). Polling needs the feed URL, which often carries a secret token, so for a polled feed (and only then) the URL is kept encrypted in `feed_url_enc` (application-level AES-GCM, key in the `FIELD_ENCRYPTION_KEY` environment variable (02 section 7), never logged). For an import that is not polled the URL is held only until the preview is confirmed or discarded and is then set to NULL by the worker. A worker job reads every row whose `next_poll_at` is due (every 6 hours), fetches the feed through the same SSRF guard as the first read, and compares a hash of the feed body with `last_content_hash`. No change: only `last_polled_at` and `next_poll_at` move. A change: the worker builds a diff against the items this import created (matched by `import_uid`) and stores it in `pending_changes` with a `calendar_changes` notification. The diff is a preview and nothing is applied until the person confirms it; it is never applied automatically. A fetch failure adds one to `consecutive_failures` (reset on success); the third failure in a row switches polling off, deletes the URL and sends a `calendar_poll_stopped` notification. Polling also stops 7 days after the trip's end date. A person can have at most 3 polled feeds.
 
@@ -1213,7 +1402,7 @@ CREATE TABLE trip_imports (
   status                 text NOT NULL DEFAULT 'received',
   source_name            text CHECK (source_name IS NULL OR char_length(source_name) <= 200),   -- file name, or the feed's host for ics_feed; never a full feed URL
   content_hash           char(64),                                           -- sha256 of the file or pasted text, to warn about importing the same thing twice
-  raw_key                text,                                               -- object key of an uploaded file in R2; deleted after 7 days
+  uid_set_hash           char(64),                                           -- sha256 (hex) of the sorted set of source UIDs of the import, set by the worker with the preview; with identity_hashes (5.8) it stops a deleted and re-created account earning the first-import pass again with the same calendar
   run_id                 uuid REFERENCES runs (id) ON DELETE SET NULL,       -- the Haiku extraction run for pasted_text (kind booking_import)
   flights_found          smallint NOT NULL DEFAULT 0,
   stays_found            smallint NOT NULL DEFAULT 0,
@@ -1249,7 +1438,6 @@ CREATE TABLE trip_imports (
   CONSTRAINT ck_trip_imports_counts CHECK (items_applied + items_skipped + items_duplicate <= items_found),
   CONSTRAINT ck_trip_imports_applied CHECK (status <> 'applied' OR completed_at IS NOT NULL),
   CONSTRAINT ck_trip_imports_reward CHECK (reward_granted_at IS NULL OR status = 'applied'),
-  CONSTRAINT ck_trip_imports_raw CHECK (raw_key IS NULL OR source IN ('ics_file', 'maps_file')),
   CONSTRAINT ck_trip_imports_applied_split CHECK (flights_applied + stays_applied <= items_applied),
   CONSTRAINT ck_trip_imports_feed_url CHECK (feed_url_enc IS NULL OR source = 'ics_feed'),
   CONSTRAINT ck_trip_imports_poll CHECK (NOT poll_enabled OR (source = 'ics_feed' AND status = 'applied' AND feed_url_enc IS NOT NULL AND next_poll_at IS NOT NULL))
@@ -1259,7 +1447,7 @@ CREATE UNIQUE INDEX uq_trip_imports_one_reward ON trip_imports (user_id) WHERE r
 CREATE INDEX ix_trip_imports_user ON trip_imports (user_id, created_at DESC);
 CREATE INDEX ix_trip_imports_trip ON trip_imports (trip_id) WHERE trip_id IS NOT NULL;
 CREATE INDEX ix_trip_imports_hash ON trip_imports (user_id, content_hash) WHERE content_hash IS NOT NULL;
-CREATE INDEX ix_trip_imports_cleanup ON trip_imports (created_at) WHERE raw_key IS NOT NULL OR preview IS NOT NULL OR (feed_url_enc IS NOT NULL AND NOT poll_enabled);
+CREATE INDEX ix_trip_imports_cleanup ON trip_imports (created_at) WHERE preview IS NOT NULL OR (feed_url_enc IS NOT NULL AND NOT poll_enabled);
 CREATE INDEX ix_trip_imports_poll_due ON trip_imports (next_poll_at) WHERE poll_enabled;     -- the 6-hourly calendar poll job
 SELECT add_updated_at_trigger('trip_imports');
 
@@ -1282,12 +1470,15 @@ BEGIN
   -- At least one flight or stay among the applied items (place ideas and other events alone do not qualify).
   IF v_imp.flights_applied + v_imp.stays_applied < 1 THEN RETURN NULL; END IF;
   -- A verified email, and no active Plus (a Plus owner already has the capabilities a pass would add).
-  IF NOT EXISTS (SELECT 1 FROM users WHERE id = v_imp.user_id AND email_verified_at IS NOT NULL AND NOT is_guest AND deleted_at IS NULL) THEN RETURN NULL; END IF;
+  IF NOT EXISTS (SELECT 1 FROM users WHERE id = v_imp.user_id AND email_verified_at IS NOT NULL AND deleted_at IS NULL) THEN RETURN NULL; END IF;
   IF EXISTS (SELECT 1 FROM entitlements WHERE user_id = v_imp.user_id AND tier_code = 'plus' AND (valid_until IS NULL OR valid_until > now())) THEN RETURN NULL; END IF;
   -- The importer must own a live trip: a pass is bound to a trip its purchaser owns.
   IF NOT EXISTS (SELECT 1 FROM trips WHERE id = v_imp.trip_id AND owner_user_id = v_imp.user_id AND deleted_at IS NULL) THEN RETURN NULL; END IF;
-  -- Once per user for life.
+  -- Once per user for life, and once per person: a deleted and re-created account is caught by the identity and UID-set hashes (5.8).
   IF EXISTS (SELECT 1 FROM trip_imports WHERE user_id = v_imp.user_id AND reward_granted_at IS NOT NULL) THEN RETURN NULL; END IF;
+  IF EXISTS (SELECT 1 FROM identity_hashes WHERE kind = 'import_reward' AND hash IN (SELECT identity_hashes_for(v_imp.user_id)))
+     OR (v_imp.uid_set_hash IS NOT NULL AND EXISTS (SELECT 1 FROM identity_hashes WHERE kind = 'import_uids' AND hash = decode(v_imp.uid_set_hash, 'hex')))
+  THEN RETURN NULL; END IF;
   -- A trip that already has an active pass has the capabilities; keep the reward for the next import.
   IF EXISTS (SELECT 1 FROM trip_passes WHERE trip_id = v_imp.trip_id AND status = 'active') THEN RETURN NULL; END IF;
 
@@ -1300,6 +1491,11 @@ BEGIN
   VALUES (v_imp.user_id, 'trip_pass', v_plan.credits_granted, v_plan.credits_granted, v_imp.trip_id,
           'import_reward:' || v_imp.id, now() + make_interval(days => COALESCE(v_plan.credits_valid_days, v_plan.duration_days)));
   UPDATE trip_imports SET reward_granted_at = now(), reward_pass_id = v_pass WHERE id = v_imp.id;
+  INSERT INTO identity_hashes (hash, kind) SELECT identity_hashes_for(v_imp.user_id), 'import_reward'
+  ON CONFLICT DO NOTHING;
+  IF v_imp.uid_set_hash IS NOT NULL THEN
+    INSERT INTO identity_hashes (hash, kind) VALUES (decode(v_imp.uid_set_hash, 'hex'), 'import_uids') ON CONFLICT DO NOTHING;
+  END IF;
   RETURN v_pass;
 EXCEPTION WHEN unique_violation THEN
   RETURN NULL;                                   -- a concurrent call already granted the reward
@@ -1397,7 +1593,7 @@ BEGIN
   IF v_me IS NULL THEN RETURN NULL; END IF;
   SELECT user_id INTO v_referrer FROM referral_codes WHERE code = v_code AND disabled_at IS NULL;
   IF v_referrer IS NULL OR v_referrer = v_me THEN RETURN NULL; END IF;
-  IF NOT EXISTS (SELECT 1 FROM users WHERE id = v_me AND NOT is_guest AND created_at > now() - interval '14 days') THEN RETURN NULL; END IF;
+  IF NOT EXISTS (SELECT 1 FROM users WHERE id = v_me AND created_at > now() - interval '14 days') THEN RETURN NULL; END IF;
   SELECT rules INTO v_cfg FROM feature_flags WHERE key = 'setting_referral_credits' AND enabled;
   IF v_cfg IS NULL THEN RETURN NULL; END IF;
   INSERT INTO referral_rewards (code, referrer_user_id, referee_user_id, referrer_credits, referee_credits)
@@ -1632,7 +1828,7 @@ CREATE UNIQUE INDEX uq_revenue_by_partner ON revenue_by_partner (month, program,
 
 `fare_observations` is shared across all users: one row per observed fare, keyed by route, dates and search. A user's route links to observations through `trip_fare_links`, so 1,000 users watching the same route cost one live call per cache window. Observations are display hints with a source and a timestamp ("price seen at 14:05 from Travelpayouts"), never a bookable guarantee.
 
-`chosen_flights` is the flight picked for a route. Phase 1 adds the booked-fare fields to it: when the user marks the flight booked they can enter what they paid (`paid_minor`, `paid_currency`, `booked_at`, `booked_by`). The booked-fare drop alert compares that amount with the latest matching observation for the same route, dates and cabin (view `booked_fare_drops`, below) and tells `booked_by`: "you paid $X, it is now $Y; check the airline's change and credit rules". Hermi never claims a refund is owed and never books anything.
+`chosen_flights` is the flight picked for a route. Phase 1 adds the booked-fare fields to it: when the user marks the flight booked they can enter what they paid (`paid_minor`, `paid_currency`, `booked_at`, `booked_by`). The booked-fare drop alert compares that amount with the latest matching observation for the same route, dates, cabin, airline, flight numbers and party size (view `booked_fare_drops`, below) and tells `booked_by`: "you paid $X, it is now $Y; check the airline's change and credit rules". Hermi never claims a refund is owed and never books anything.
 
 ```sql
 CREATE TYPE cabin_class     AS ENUM ('economy', 'premium_economy', 'business', 'first');
@@ -1662,6 +1858,7 @@ CREATE TABLE flight_routes (
   is_live            boolean NOT NULL DEFAULT false,        -- live (paid-source) tracking; capped by entitlement live_routes
   live_enabled_at    timestamptz,
   last_checked_at    timestamptz,
+  next_check_at      timestamptz,                           -- when the scheduler should check this route next; null when the route is not scheduled
   active             boolean NOT NULL DEFAULT true,
   created_by         uuid REFERENCES users (id) ON DELETE SET NULL,
   version            integer NOT NULL DEFAULT 1,
@@ -1680,6 +1877,7 @@ CREATE TABLE flight_routes (
 );
 CREATE INDEX ix_flight_routes_trip ON flight_routes (trip_id);
 CREATE INDEX ix_flight_routes_live_due ON flight_routes (last_checked_at NULLS FIRST) WHERE is_live AND active;
+CREATE INDEX ix_flight_routes_due ON flight_routes (next_check_at) WHERE next_check_at IS NOT NULL;
 SELECT add_version_trigger('flight_routes');
 SELECT add_updated_at_trigger('flight_routes');
 
@@ -1748,7 +1946,10 @@ CREATE TABLE chosen_flights (                                -- the flight picke
   return_date        date,
   price_total_minor  bigint NOT NULL CHECK (price_total_minor > 0),
   currency           currency_code NOT NULL,
-  airlines           text[] NOT NULL DEFAULT '{}',
+  airlines           text[] NOT NULL DEFAULT '{}',            -- sorted, so the booked-fare drop view can compare them
+  flight_numbers     jsonb,                                   -- as on the observation; the booked-fare drop view matches on it
+  adults             smallint NOT NULL DEFAULT 1,             -- party size of the chosen fare (the price is for the whole party)
+  children           smallint NOT NULL DEFAULT 0,
   source             text NOT NULL,
   observed_at        timestamptz NOT NULL,
   deep_link_template text,
@@ -1757,7 +1958,7 @@ CREATE TABLE chosen_flights (                                -- the flight picke
   cabin              cabin_class NOT NULL DEFAULT 'economy',  -- of the chosen fare, so the booked-fare drop alert compares like with like
   booked_at          timestamptz,                             -- set when the user marks it booked (checklist item flights_booked)
   booked_by          uuid REFERENCES users (id) ON DELETE SET NULL,   -- who booked it; the booked-fare drop alert is sent to them
-  paid_minor         bigint CHECK (paid_minor IS NULL OR paid_minor > 0),   -- what the user paid for the whole party, typed by them or read from an imported confirmation
+  paid_minor         bigint CHECK (paid_minor IS NULL OR paid_minor > 0),   -- integer minor units (with paid_currency): what the user paid for the whole party, typed by them or read from an imported confirmation
   paid_currency      currency_code,                           -- the currency they paid in; current prices are converted to it at read time
   paid_source        text,                                    -- manual or import
   drop_alert_enabled boolean NOT NULL DEFAULT true,           -- the user can turn the booked-fare drop alert off for this flight
@@ -1821,6 +2022,9 @@ SELECT c.id                AS chosen_flight_id,
            AND o.origin = c.origin AND o.destination = c.destination
            AND o.depart_date = c.depart_date AND o.return_date IS NOT DISTINCT FROM c.return_date
            AND o.cabin = c.cabin
+           AND o.airlines = c.airlines                                 -- same airline, same flight numbers, same party size:
+           AND o.flight_numbers IS NOT DISTINCT FROM c.flight_numbers  -- a different flight or a different party is not a drop
+           AND o.adults = c.adults AND o.children = c.children
            AND o.observed_at > now() - interval '48 hours'
          ORDER BY o.observed_at DESC
          LIMIT 1) cur
@@ -2395,6 +2599,8 @@ CREATE TABLE sample_trips (
   country_code       country_code2,
   cover_image_url    text,
   cover_attribution  text,
+  tags               text[] NOT NULL DEFAULT '{}',                    -- the Beach, City, Mountains and Food chips of the gallery (05 section 6.23) filter on it
+  suits              text,                                            -- the "who it suits" line on a gallery card
   status             text NOT NULL DEFAULT 'draft',
   sort_order         smallint NOT NULL DEFAULT 0,
   published_at       timestamptz,
@@ -2565,6 +2771,8 @@ GRANT INSERT ON audit_log TO hermi_admin;
 
 -- The API gets read and write on tenant tables, then loses what it must never touch.
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hermi_app;
+-- Abuse and attestation state is never touched by the API: only definer functions and the worker write it (5.1, 5.8).
+REVOKE ALL ON identity_hashes, device_attestations, guest_allowances FROM hermi_app;
 
 -- Global reference and catalog data: read only for the API (workers and the admin console write them).
 REVOKE INSERT, UPDATE, DELETE ON airports, fx_rates, places_cache, plans, store_products, credit_action_prices,
@@ -2669,7 +2877,7 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO hermi_definer;
 -- Write rights follow the functions: extend this list in the migration that adds a function writing another table.
 GRANT INSERT, UPDATE, DELETE ON users, auth_identities, people, entitlements, devices, trips, trip_members, trip_invites, trip_imports, trip_passes,
   credit_grants, credit_ledger, credit_debts, ai_usage, referral_codes, referral_rewards, notifications, deletion_requests,
-  content_reports, shared_research_cache, runs, audit_log TO hermi_definer;
+  content_reports, shared_research_cache, runs, audit_log, identity_hashes, device_attestations, guest_allowances TO hermi_definer;
 
 -- The last statement of 0014, and of any later migration that creates a SECURITY DEFINER function.
 DO $$ DECLARE f regprocedure; BEGIN
@@ -3017,6 +3225,11 @@ ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscriptions FORCE ROW LEVEL SECURITY;
 CREATE POLICY subscriptions_select ON subscriptions FOR SELECT USING (user_id = (SELECT app_user_id()));
 
+-- Abuse and attestation tables: RLS on and no policy, so hermi_app is denied even if a grant ever appears. Definer functions and the worker write them.
+ALTER TABLE identity_hashes ENABLE ROW LEVEL SECURITY;      ALTER TABLE identity_hashes FORCE ROW LEVEL SECURITY;
+ALTER TABLE device_attestations ENABLE ROW LEVEL SECURITY;  ALTER TABLE device_attestations FORCE ROW LEVEL SECURITY;
+ALTER TABLE guest_allowances ENABLE ROW LEVEL SECURITY;     ALTER TABLE guest_allowances FORCE ROW LEVEL SECURITY;
+
 -- Reports: anyone signed in may file one and read their own. Moderators use hermi_admin, which bypasses the policies.
 ALTER TABLE content_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content_reports FORCE ROW LEVEL SECURITY;
@@ -3061,6 +3274,7 @@ SELECT r.rolsuper OR r.rolbypassrls
   6. `audit_log`: the app, worker and admin roles cannot `UPDATE`, `DELETE` or `TRUNCATE`; `retention_sweep()` deletes a row past its class and keeps one inside it.
   7. Phase 1 functions: `grant_import_reward()` grants once per user and again never (including after the trip is deleted), `redeem_referral()` refuses your own code and a second redemption, and `grant_referral_reward()` is idempotent.
   8. `trip_member_profiles`: as `hermi_api_login`, a member of a trip sees the display name of every co-member of that trip, and no row for a trip they are not in.
+  9. `identity_hashes`, `device_attestations` and `guest_allowances`: `hermi_api_login` can neither read nor write them (no grant, RLS with no policy), `relforcerowsecurity` is true, and `spend_guest_allowance()` refuses a spend past the limit.
 
 ### 6.6 Cross-tenant access from the API
 
@@ -3133,13 +3347,19 @@ The owner-tier limit `credits_*` and the ceilings are not used for trip features
 ### 7.2 Credit balance
 
 ```postgresql
--- Spendable credits for the acting user on a trip: own grants and pass credits for this trip.
-SELECT COALESCE(sum(g.remaining), 0)::integer AS available
+-- Spendable credits for the acting user on a trip: own grants plus the trip's pass pool (a pass grant belongs to the trip, not to its buyer;
+-- the same rule as reserve_credits, 5.8). The taster is never added to the others: for an agent run it is used alone and first when it covers
+-- the whole price (:price), otherwise it is left out.
+SELECT GREATEST(
+         COALESCE(sum(g.remaining) FILTER (WHERE g.period_key IS DISTINCT FROM 'taster'), 0),
+         CASE WHEN :action = 'agent_run' AND COALESCE(sum(g.remaining) FILTER (WHERE g.period_key = 'taster' AND g.user_id = :user_id), 0) >= :price
+              THEN :price ELSE 0 END)::integer AS available
   FROM credit_grants g
  WHERE g.remaining > 0
    AND (g.expires_at IS NULL OR g.expires_at > now())
-   AND g.user_id = :user_id
-   AND (g.trip_id IS NULL OR g.trip_id = :trip_id)
+   AND ((g.user_id = :user_id AND g.trip_id IS NULL)
+        OR (g.kind = 'trip_pass' AND g.trip_id = :trip_id
+            AND EXISTS (SELECT 1 FROM trip_members m WHERE m.trip_id = :trip_id AND m.user_id = :user_id AND m.role IN ('owner', 'editor'))))
    AND (g.restricted_action IS NULL OR g.restricted_action = :action);
 
 -- Settings screen: the breakdown (RLS limits the view to the caller).
@@ -3158,7 +3378,7 @@ INSERT INTO ai_usage (user_id, trip_id, run_id, action, credits_reserved, idempo
 VALUES (:user_id, :trip_id, :run_id, :action, :price, :idem)
 ON CONFLICT (idempotency_key) DO NOTHING
 RETURNING id;                                              -- no row back = replay: load the existing usage row instead
--- 2. Reserve. Raises WF402 (insufficient credits) and rolls back the statement.
+-- 2. Reserve (spend order and the trip pool: 5.8). Raises WF402 (insufficient credits) and rolls back the statement.
 SELECT reserve_credits(:user_id, :trip_id, :price, :action, :run_id, :idem) AS reservation_id;
 UPDATE ai_usage SET reservation_id = :reservation_id WHERE id = :usage_id;
 COMMIT;
@@ -3177,13 +3397,28 @@ The price comes from `credit_action_prices` (`credits_cached` when the shared ca
 
 Checked before the credit reserve because it is the harder limit. Cached data keeps working when a ceiling is hit, and a credit balance never overrides a ceiling. The ceilings come from the merged limits (`monthly_ceiling_micros`, `daily_ceiling_micros`). An agent run is admitted when the month has at least the action's `hard_stop_micros` (800,000) of headroom, even if that exceeds the daily budget.
 
+Admission is one transaction that takes the per-account lock first, then counts spend, then reserves, so two parallel requests cannot both pass on the same headroom. Spend is settled cost plus the hard stop of every reservation still open (`credit_action_prices.hard_stop_micros` of its action, times the items reserved for `verify_plan`), not only settled spend. "Month" and "day" are calendar periods in UTC (`date_trunc` below), never a rolling 30 days or 24 hours.
+
+**Who pays for pass-funded work.** The pass. Usage on a trip while it has an active Trip Pass counts against the pass ceiling for that trip (`ai_usage.trip_id`, summed over every member, with the limits of the `trip_pass` plan), and not against the actor's tier ceiling. The actor's own query below leaves those rows out.
+
 ```postgresql
+BEGIN;
+SELECT pg_advisory_xact_lock(hashtextextended('ceiling:' || :user_id, 0));      -- held until COMMIT, which is after the reserve (7.3)
+-- When the trip has an active pass, also lock the trip, always second (account lock first, then trip lock), so two members cannot both pass the pass ceiling:
+SELECT pg_advisory_xact_lock(hashtextextended('ceiling:trip:' || :trip_id, 0)) WHERE :trip_has_active_pass;
 WITH bounds AS (
   SELECT (date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') AS month_start,
          (date_trunc('day',   now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') AS day_start
 ), spend AS (
-  SELECT created_at, cost_usd_micros FROM ai_usage, bounds
-   WHERE user_id = :user_id AND state <> 'released' AND created_at >= bounds.month_start
+  SELECT u.created_at,
+         CASE WHEN u.state = 'reserved'                                       -- an open reservation counts at its hard stop (verify_plan: per checked item)
+              THEN GREATEST(u.cost_usd_micros, cap.hard_stop_micros * CASE WHEN u.action = 'verify_plan' THEN u.credits_reserved ELSE 1 END)
+              ELSE u.cost_usd_micros END AS cost_usd_micros
+    FROM ai_usage u JOIN credit_action_prices cap ON cap.action = u.action, bounds
+   WHERE u.user_id = :user_id AND u.state <> 'released' AND u.created_at >= bounds.month_start
+     AND NOT EXISTS (SELECT 1 FROM trip_passes p                              -- pass-funded work is the pass's, not the actor's
+                      WHERE p.trip_id = u.trip_id AND p.status = 'active'
+                        AND u.created_at >= p.starts_at AND u.created_at < p.expires_at)
   UNION ALL
   SELECT created_at, cost_usd_micros FROM provider_calls, bounds
    WHERE user_id = :user_id AND provider <> 'anthropic' AND cost_usd_micros IS NOT NULL
@@ -3192,9 +3427,30 @@ WITH bounds AS (
 SELECT COALESCE(sum(cost_usd_micros), 0)                                                     AS month_micros,
        COALESCE(sum(cost_usd_micros) FILTER (WHERE created_at >= (SELECT day_start FROM bounds)), 0) AS day_micros
   FROM spend;
+-- The pass ceiling for a trip with an active pass: the same sum over every member, keyed by trip_id, against the trip_pass plan's limits.
+SELECT COALESCE(sum(CASE WHEN u.state = 'reserved' THEN GREATEST(u.cost_usd_micros, cap.hard_stop_micros * CASE WHEN u.action = 'verify_plan' THEN u.credits_reserved ELSE 1 END) ELSE u.cost_usd_micros END), 0) AS pass_month_micros
+  FROM ai_usage u JOIN credit_action_prices cap ON cap.action = u.action
+ WHERE u.trip_id = :trip_id AND u.state <> 'released' AND u.created_at >= (date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC');
+-- ...then the reserve, the usage row and COMMIT (7.3).
 ```
 
-Reading `provider_calls` from the API role needs a `SECURITY DEFINER` wrapper (`my_provider_spend_micros(since timestamptz)`) because the app role cannot select that table (6.1). Pass-funded work is measured against the pass ceiling for that trip using `ai_usage.trip_id`. Purchased packs raise the monthly ceiling by the cost value of credits spent from them (`credits * 20000`), since that spend is separately paid.
+Reading `provider_calls` from the API role needs a `SECURITY DEFINER` wrapper because the app role cannot select that table (6.1). It returns the caller's non-Claude provider spend since a moment, which is the second branch of the `spend` query above; Claude cost is read from `ai_usage`, which the caller can select.
+
+```sql
+CREATE FUNCTION my_provider_spend_micros(since timestamptz) RETURNS bigint
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_me uuid := app_user_id();
+BEGIN
+  IF v_me IS NULL THEN RAISE EXCEPTION 'not_authenticated' USING ERRCODE = '42501'; END IF;
+  RETURN COALESCE((SELECT sum(cost_usd_micros) FROM provider_calls
+                    WHERE user_id = v_me AND provider <> 'anthropic' AND cost_usd_micros IS NOT NULL AND created_at >= since), 0);
+END $$;
+ALTER FUNCTION my_provider_spend_micros(timestamptz) OWNER TO hermi_definer;
+REVOKE EXECUTE ON FUNCTION my_provider_spend_micros(timestamptz) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION my_provider_spend_micros(timestamptz) TO hermi_app;
+```
+
+Purchased packs raise the monthly ceiling by the cost value of credits spent from them (`credits * 20000`), since that spend is separately paid.
 
 ### 7.5 Other queries the API and jobs depend on
 
@@ -3255,7 +3511,8 @@ ON CONFLICT (user_id, kind, period_key) WHERE user_id IS NOT NULL AND period_key
 SELECT count(*) FILTER (WHERE role <> 'owner') AS collaborators FROM trip_members WHERE trip_id = :trip_id;
 
 -- Nightly booked-fare drop scan (worker). The thresholds come from feature_flags 'setting_booked_fare_drop': the drop must be at least
--- rules.min_drop_pct (5) percent AND at least rules.min_drop_usd (10) US dollars after conversion, and a flight is alerted at most once every
+-- rules.min_drop_pct (5) percent AND at least rules.min_drop_usd (10) US dollars after conversion, compared in minor units
+-- (:min_drop_usd_minor = rules.min_drop_usd * 100, so the $10 threshold is 1000), and a flight is alerted at most once every
 -- rules.min_days_between (7) days. The alert never carries a partner link.
 SELECT d.* FROM booked_fare_drops d
  WHERE (d.last_drop_notified_minor IS NULL OR d.current_minor < d.last_drop_notified_minor)
@@ -3295,7 +3552,7 @@ The product promises account deletion in the app, data export on every tier, and
 | `trip_invites` | Expire at 7 days, rows purged at 30 days | `DELETE ... WHERE expires_at < now() - interval '30 days'` |
 | `trip_share_links` | Until revoked or expired (default 90 days); purged 30 days after | Nightly delete |
 | `activity_log` | 90 days | Nightly delete by `created_at` |
-| `trip_imports` | The uploaded file (`raw_key`) is deleted from R2 and `preview` is nulled 7 days after creation. The feed URL (`feed_url_enc`) is deleted when polling is switched off, when the import is discarded, after 7 days if it was never applied, and when the trip is deleted. `pending_changes` is nulled 30 days after it was created if nobody confirmed it. The row (counts, status, reward flag) stays with the account, because the reward flag must outlive the trip; it is deleted with the account | Nightly job; cascade on user delete |
+| `trip_imports` | The raw file is never stored; `preview` is nulled 7 days after creation. The feed URL (`feed_url_enc`) is deleted when polling is switched off, when the import is discarded, after 7 days if it was never applied, and when the trip is deleted. `pending_changes` is nulled 30 days after it was created if nobody confirmed it. The row (counts, status, reward flag) stays with the account, because the reward flag must outlive the trip; it is deleted with the account | Nightly job; cascade on user delete |
 | `plan_verifications`, `plan_verification_items` | 30 days after creation (`expires_at`), or with the trip. The pasted text itself is never stored | Nightly `DELETE FROM plan_verifications WHERE expires_at < now()` (items cascade) |
 | `fare_observations` | `raw` nulled after 14 days; rows kept 24 months for price history | Nightly `UPDATE ... SET raw = NULL`, then batched `DELETE` (5,000 rows per batch) past 24 months |
 | `trip_fare_links` | With the trip; links to pruned observations cascade away | Foreign key cascade |
@@ -3322,11 +3579,109 @@ The product promises account deletion in the app, data export on every tier, and
 | `content_reports` | Open reports kept; handled reports 24 months after `handled_at` | Nightly delete |
 | `audit_log` | `retention_class = 'standard'`: 13 months. `'extended'` (money, security and control actions, prefixes in 08 4.2): 7 years. The nightly hash-chain digests in R2 are kept 7 years | Nightly delete by class with `SET LOCAL hermi.audit_purge = 'on'` |
 | `data_exports` | The file is deleted at `expires_at` (7 days); the row at 30 days | Nightly job removes the R2 object, then the row |
+| `identity_hashes` | 12 months after `created_at` (abuse memory for the taster and the first-import pass, 5.8) | `retention_sweep()` |
 | `deletion_requests` | 12 months after completion (so a restored backup can be re-purged) | Nightly delete |
 | `rate_limit_counters` | 1 day | Nightly `DELETE WHERE window_start < now() - interval '1 day'` |
 | `idempotency_keys` | 24 hours (`expires_at`) | Hourly `DELETE WHERE expires_at < now()` |
 | `airports`, `fx_rates`, `plans`, `store_products`, `credit_action_prices`, `feature_flags`, `kill_switches`, `affiliate_programs`, `affiliate_link_templates` | Reference data, kept | None |
 | Application logs | 30 days | Log platform setting |
+
+The two nightly jobs that apply this table run as `SECURITY DEFINER` functions owned by `hermi_definer` (6.1), because the worker role has no `DELETE` on `audit_log` and the sweep must pass the `FORCE` policies. `EXECUTE` goes to `hermi_worker` only. Both are idempotent: a second run finds nothing past its window.
+
+```sql
+-- Hard-deletes trips that have been in the trash for more than 30 days (job purge_trash, daily 04:30). Children cascade. Only trips are soft-deleted
+-- (trips.deleted_at); itinerary items, lodging and notes have no trash of their own and go with their trip. Returns the number of trips removed.
+CREATE FUNCTION purge_trash(p_window interval DEFAULT interval '30 days') RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE n integer;
+BEGIN
+  DELETE FROM trips WHERE deleted_at IS NOT NULL AND deleted_at < now() - p_window;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RETURN n;
+END $$;
+
+-- Applies every retention class in the table above except the ones that drop partitions (section 9), the cascades and the account deletion job (8.1)
+-- (job retention_sweep, daily 05:30). Returns the number of rows deleted or scrubbed.
+CREATE FUNCTION retention_sweep() RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_sql text; k integer; n integer := 0;
+BEGIN
+  FOREACH v_sql IN ARRAY ARRAY[
+    -- Deletes and scrubs by class. Each statement is safe to repeat.
+    $q$DELETE FROM trip_invites WHERE expires_at < now() - interval '30 days'$q$,
+    $q$DELETE FROM trip_share_links WHERE expires_at < now() - interval '30 days' OR revoked_at < now() - interval '30 days'$q$,
+    $q$DELETE FROM activity_log WHERE created_at < now() - interval '90 days'$q$,
+    $q$UPDATE trip_imports SET preview = NULL WHERE preview IS NOT NULL AND created_at < now() - interval '7 days'$q$,
+    $q$UPDATE trip_imports SET feed_url_enc = NULL WHERE feed_url_enc IS NOT NULL AND NOT poll_enabled
+         AND (status = 'discarded' OR created_at < now() - interval '7 days')$q$,
+    $q$UPDATE trip_imports SET pending_changes = NULL, pending_changes_at = NULL
+         WHERE pending_changes IS NOT NULL AND pending_changes_at < now() - interval '30 days'$q$,
+    $q$DELETE FROM plan_verifications WHERE expires_at < now()$q$,
+    $q$UPDATE fare_observations SET raw = NULL WHERE raw IS NOT NULL AND observed_at < now() - interval '14 days'$q$,
+    $q$DELETE FROM route_price_insights WHERE expires_at < now() - interval '7 days'$q$,
+    $q$UPDATE lodging_options SET raw = NULL WHERE raw IS NOT NULL AND created_at < now() - interval '30 days'$q$,
+    $q$UPDATE runs SET prompt = NULL WHERE prompt IS NOT NULL AND created_at < now() - interval '30 days'$q$,
+    $q$UPDATE runs SET report = NULL WHERE report IS NOT NULL AND created_at < now() - interval '12 months'$q$,
+    $q$DELETE FROM runs WHERE created_at < now() - interval '25 months'$q$,
+    $q$UPDATE run_events SET payload = NULL WHERE payload IS NOT NULL AND ts < now() - interval '14 days'$q$,
+    $q$DELETE FROM run_events WHERE ts < now() - interval '30 days'$q$,
+    $q$DELETE FROM ai_usage WHERE created_at < now() - interval '25 months'$q$,
+    $q$DELETE FROM shared_research_cache WHERE stale_until < now() AND flagged_at IS NULL$q$,
+    $q$DELETE FROM places_cache WHERE expires_at < now() - interval '1 day'$q$,
+    $q$DELETE FROM credit_debts WHERE amount = 0 AND updated_at < now() - interval '12 months'$q$,
+    $q$UPDATE store_transactions SET raw = NULL WHERE raw IS NOT NULL AND created_at < now() - interval '12 months'$q$,
+    $q$DELETE FROM notifications WHERE created_at < now() - interval '90 days'$q$,
+    $q$DELETE FROM webhook_events WHERE received_at < now() - interval '12 months'$q$,
+    $q$DELETE FROM support_tickets WHERE resolved_at < now() - interval '24 months'$q$,
+    $q$DELETE FROM content_reports WHERE handled_at < now() - interval '24 months'$q$,
+    $q$DELETE FROM data_exports WHERE requested_at < now() - interval '30 days'$q$,
+    $q$DELETE FROM deletion_requests WHERE completed_at < now() - interval '12 months'$q$,
+    $q$DELETE FROM rate_limit_counters WHERE window_start < now() - interval '1 day'$q$,
+    $q$DELETE FROM idempotency_keys WHERE expires_at < now()$q$,
+    $q$DELETE FROM identity_hashes WHERE created_at < now() - interval '12 months'$q$,
+    -- Financial records: 7 years, then deleted (they were anonymized when the account was deleted). The ledger first, its grants after.
+    $q$DELETE FROM credit_ledger WHERE created_at < now() - interval '7 years'$q$,
+    $q$DELETE FROM credit_grants WHERE created_at < now() - interval '7 years'$q$,
+    $q$DELETE FROM trip_passes WHERE created_at < now() - interval '7 years'$q$,
+    $q$DELETE FROM subscriptions WHERE created_at < now() - interval '7 years'$q$,
+    $q$DELETE FROM store_transactions WHERE created_at < now() - interval '7 years'$q$,
+    $q$DELETE FROM affiliate_conversions WHERE created_at < now() - interval '7 years'$q$,
+    $q$DELETE FROM affiliate_payouts WHERE created_at < now() - interval '7 years'$q$,
+    $q$DELETE FROM devices WHERE revoked_at < now() - interval '90 days'$q$
+  ] LOOP
+    EXECUTE v_sql;
+    GET DIAGNOSTICS k = ROW_COUNT;
+    n := n + k;
+  END LOOP;
+
+  -- fare_observations is large: delete past 24 months in batches of 5,000 rows.
+  LOOP
+    DELETE FROM fare_observations WHERE id IN (SELECT id FROM fare_observations WHERE observed_at < now() - interval '24 months' LIMIT 5000);
+    GET DIAGNOSTICS k = ROW_COUNT;
+    n := n + k;
+    EXIT WHEN k < 5000;
+  END LOOP;
+
+  -- audit_log: the one place a delete is allowed. audit_log_immutable() (5.16) lets this function delete a row only when the transaction-local
+  -- setting is on, the caller is hermi_definer and the row is past its class (13 months standard, 7 years extended).
+  PERFORM set_config('hermi.audit_purge', 'on', true);
+  DELETE FROM audit_log
+   WHERE created_at < now() - CASE retention_class WHEN 'extended' THEN interval '7 years' ELSE interval '13 months' END;
+  GET DIAGNOSTICS k = ROW_COUNT;
+  n := n + k;
+  PERFORM set_config('hermi.audit_purge', 'off', true);
+  RETURN n;
+END $$;
+
+ALTER FUNCTION purge_trash(interval) OWNER TO hermi_definer;
+ALTER FUNCTION retention_sweep() OWNER TO hermi_definer;
+GRANT UPDATE, DELETE ON trips, trip_invites, trip_share_links, activity_log, plan_verifications, fare_observations, route_price_insights,
+  lodging_options, run_events, places_cache, notifications, webhook_events, support_tickets, content_reports, data_exports,
+  rate_limit_counters, idempotency_keys, identity_hashes, credit_grants, credit_ledger, trip_passes, subscriptions, store_transactions,
+  affiliate_conversions, affiliate_payouts, devices TO hermi_definer;
+REVOKE EXECUTE ON FUNCTION purge_trash(interval), retention_sweep() FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION purge_trash(interval), retention_sweep() TO hermi_worker;
+```
 
 ### 8.1 Account deletion job
 
@@ -3383,13 +3738,59 @@ END $$;
 SELECT ensure_month_partitions('provider_calls', 3);
 SELECT ensure_month_partitions('run_events', 3);
 SELECT ensure_month_partitions('link_clicks', 3);
+
+-- The scheduler job maintain_partitions (daily 02:30) calls this. The worker role cannot create objects, and CREATE TABLE ... PARTITION OF needs
+-- ownership of the parent, so the three parents and every partition are owned by hermi_definer (a role hermi_owner is a member of, so later
+-- migrations can still alter them) and the creation runs as hermi_definer (SECURITY DEFINER, 6.1). 0014 re-owns the parents and the first
+-- partitions made by 0005 once, at the end (the DO block below). No grant is given on any partition: the API reads and writes through the parent only.
+CREATE FUNCTION maintain_partitions() RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  RETURN ensure_month_partitions('provider_calls', 3) + ensure_month_partitions('run_events', 3) + ensure_month_partitions('link_clicks', 3);
+END $$;
+ALTER FUNCTION maintain_partitions() OWNER TO hermi_definer;
+ALTER FUNCTION ensure_month_partitions(regclass, integer) SECURITY DEFINER SET search_path = public;
+ALTER FUNCTION drop_old_partitions(regclass, integer) SECURITY DEFINER SET search_path = public;
+ALTER FUNCTION ensure_month_partitions(regclass, integer) OWNER TO hermi_definer;
+ALTER FUNCTION drop_old_partitions(regclass, integer) OWNER TO hermi_definer;
+-- The worker never gets the generic helpers (they take any table): it calls maintain_partitions() and a wrapper that fixes the parent list.
+CREATE FUNCTION drop_old_log_partitions(p_parent text, p_keep_months integer) RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF p_parent NOT IN ('provider_calls', 'run_events', 'link_clicks') THEN
+    RAISE EXCEPTION 'not a partitioned log table' USING ERRCODE = '22023';
+  END IF;
+  RETURN drop_old_partitions(p_parent::regclass, p_keep_months);
+END $$;
+ALTER FUNCTION drop_old_log_partitions(text, integer) OWNER TO hermi_definer;
+REVOKE EXECUTE ON FUNCTION maintain_partitions(), drop_old_log_partitions(text, integer), ensure_month_partitions(regclass, integer), drop_old_partitions(regclass, integer) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION maintain_partitions(), drop_old_log_partitions(text, integer) TO hermi_worker;
+ALTER TABLE provider_calls OWNER TO hermi_definer;
+ALTER TABLE run_events     OWNER TO hermi_definer;
+ALTER TABLE link_clicks    OWNER TO hermi_definer;
+DO $$ DECLARE c regclass; BEGIN
+  FOR c IN SELECT i.inhrelid::regclass FROM pg_inherits i
+            WHERE i.inhparent IN ('provider_calls'::regclass, 'run_events'::regclass, 'link_clicks'::regclass) LOOP
+    EXECUTE format('ALTER TABLE %s OWNER TO hermi_definer', c);
+  END LOOP;
+END $$;
+
+-- Rows per default partition. The worker alerts (10 section 5.3) when any row count is above 0: rows only land there when a month's
+-- partition was missing. Owned by hermi_definer so it can read the partitions under FORCE.
+CREATE VIEW partition_default_rows AS
+SELECT 'provider_calls' AS parent, count(*) AS row_count FROM provider_calls_default
+UNION ALL SELECT 'run_events', count(*) FROM run_events_default
+UNION ALL SELECT 'link_clicks', count(*) FROM link_clicks_default;
+ALTER VIEW partition_default_rows OWNER TO hermi_definer;
+REVOKE ALL ON partition_default_rows FROM PUBLIC;
+GRANT SELECT ON partition_default_rows TO hermi_worker, hermi_admin;
 ```
 
 | Table | Partition key | Keep | Job |
 |---|---|---|---|
-| `provider_calls` | `created_at` | 13 months (roll up first) | Daily: `ensure_month_partitions(..., 3)`. Monthly: roll up the month that is about to expire, then `drop_old_partitions('provider_calls', 13)` |
-| `run_events` | `ts` | Current plus previous month (30 day product window) | Daily: ensure, then `drop_old_partitions('run_events', 1)` and `DELETE FROM run_events WHERE ts < now() - interval '30 days'` inside the oldest kept partition |
-| `link_clicks` | `created_at` | 25 months | Daily: ensure. Monthly: `drop_old_partitions('link_clicks', 25)` |
+| `provider_calls` | `created_at` | 13 months (roll up first) | Daily: `ensure_month_partitions(..., 3)`. Monthly: roll up the month that is about to expire, then `drop_old_log_partitions('provider_calls', 13)` |
+| `run_events` | `ts` | Current plus previous month (30 day product window) | Daily: ensure, then `drop_old_log_partitions('run_events', 1)` and `DELETE FROM run_events WHERE ts < now() - interval '30 days'` inside the oldest kept partition |
+| `link_clicks` | `created_at` | 25 months | Daily: ensure. Monthly: `drop_old_log_partitions('link_clicks', 25)` |
 
 A missed job is safe: the `_default` partition catches rows, and the next run of a maintenance migration can split it. Alert when a default partition is not empty.
 
@@ -3410,18 +3811,18 @@ Sizing guide: one month of `provider_calls` is fine without further tuning up to
 
 ## 10. Alembic migration order
 
-The hosted Hermi database starts empty, so there is no expand-and-contract for the first release: the schema is created in the order below and the owner's data is imported afterwards (section 12). From the first production release on, every migration follows the zero-downtime rules in `../../06-database-and-data-integrations.md` section 3.2 (expand, migrate, contract; `CREATE INDEX CONCURRENTLY` inside `autocommit_block()`; foreign keys and checks added `NOT VALID` then validated; `lock_timeout = '3s'`; migrations run as a single pre-deploy job guarded by `pg_advisory_lock`, never at server start).
+The hosted Hermi database starts empty, so there is no expand-and-contract for the first release: the schema is created in the order below and the owner's data is imported afterwards (section 12). From the first production release on, every migration follows the zero-downtime rules (expand, migrate, contract; `CREATE INDEX CONCURRENTLY` inside `autocommit_block()`; foreign keys and checks added `NOT VALID` then validated; `lock_timeout = '3s'`; migrations run as a single pre-deploy job guarded by `pg_advisory_lock`, never at server start).
 
-Practical rules for the revisions: functions, triggers, partitions, policies and views are written as raw SQL in `op.execute()` (Alembic does not autogenerate them); enums use `postgresql.ENUM(..., create_type=False)` after an explicit `CREATE TYPE`; the `NAMING_CONVENTION` from `backend/tripplanner/models/base.py` stays unchanged so autogenerated diffs for plain tables stay quiet; each revision calls `add_updated_at_trigger` and `add_version_trigger` for its own tables. The revisions follow the order of the sections in 5, so every foreign key target exists first and no `ALTER TABLE ... ADD CONSTRAINT` is needed to close a cycle.
+Practical rules for the revisions: functions, triggers, partitions, policies and views are written as raw SQL in `op.execute()` (Alembic does not autogenerate them); enums use `postgresql.ENUM(..., create_type=False)` after an explicit `CREATE TYPE`; the `NAMING_CONVENTION` (section 2, item 9) stays unchanged so autogenerated diffs for plain tables stay quiet; each revision calls `add_updated_at_trigger` and `add_version_trigger` for its own tables. The revisions follow the order of the sections in 5, so every foreign key target exists first and no `ALTER TABLE ... ADD CONSTRAINT` is needed to close a cycle. The chain is linear (each revision has one parent, in the numbering below), and Phase 1 lands all of `0001` to `0015` in P04.
 
 | Revision | Creates | Depends on |
 |---|---|---|
 | `0001_setup` | Extensions, domains, `set_updated_at`, `bump_version`, helper-trigger functions, `currency_exponent`, `app_user_id`, and a check that the roles from section 6.1 exist (it creates none: `infra/db/bootstrap.sql`, run by `npm run db:init`, does; the check fails with a clear message when one is missing) | none |
-| `0002_identity` | `users`, `auth_identities`, `devices` | 0001 |
+| `0002_identity` | `users`, `auth_identities`, `device_attestations`, `guest_allowances`, `devices` | 0001 |
 | `0003_reference_catalog` | `airports`, `fx_rates`, `places_cache`, `fx_convert_minor`, `CREATE TYPE ai_action`, `plans`, `store_products`, `credit_action_prices` | 0001 |
-| `0004_trips_people` | `trips` (with owner-member trigger), `trip_members`, `trip_invites`, `trip_share_links`, `trip_destinations`, `activity_log`, `people`, `trip_people` | 0002 |
-| `0005_ai` | `runs`, `run_events` (partitioned), `ai_usage`, `provider_calls` (partitioned), `provider_call_rollups`, `shared_research_cache`, partition functions and the first partitions (section 9). The same migration installs Procrastinate's own schema (the `procrastinate_*` tables and functions, taken from the library's SQL and not listed in this file) and the `job_heartbeats` view over its worker table | 0003, 0004 |
-| `0006_billing_credits` | `store_transactions`, `subscriptions`, `entitlements`, `trip_passes`, `webhook_events`, `credit_grants`, `credit_ledger`, `credit_debts`, `credit_balances`, `reserve_credits`, `settle_credits`, `release_stale_reservations`, `expire_credit_grants`, `record_credit_debt`, `settle_credit_debt`, `ensure_free_monthly_grant`, `ensure_taster_grant` | 0003, 0004 |
+| `0004_trips_people` | `trips` (with owner-member trigger), `trip_members`, `trip_invites`, `trip_share_links`, `trip_destinations`, `activity_log`, `people`, `trip_people`, `redeem_trip_invite`, `transfer_trip_owner` | 0002 |
+| `0005_ai` | `runs`, `run_events` (partitioned), `ai_usage`, `provider_calls` (partitioned), `provider_call_rollups`, `shared_research_cache`, `my_provider_spend_micros`, partition functions and the first partitions (section 9). The same migration installs Procrastinate's own schema (the `procrastinate_*` tables and functions, taken from the library's SQL and not listed in this file) and the `job_heartbeats` view over its worker table | 0003, 0004 |
+| `0006_billing_credits` | `store_transactions`, `subscriptions`, `entitlements`, `trip_passes`, `webhook_events`, `credit_grants`, `credit_ledger` (with its append-only trigger), `credit_debts`, `credit_balances`, `identity_hashes`, `identity_hashes_for`, `assert_credit_caller`, `reserve_credits`, `settle_credits`, `release_stale_reservations`, `expire_credit_grants`, `record_credit_debt`, `settle_credit_debt`, `ensure_free_monthly_grant`, `ensure_taster_grant` | 0003, 0004 |
 | `0007_imports_referrals` | `trip_imports` (with the polling columns), `grant_import_reward`, `set_import_polling`, `referral_codes`, `referral_rewards`, `ensure_referral_code`, `my_referral_code`, `redeem_referral`, `grant_referral_reward` | 0005, 0006 |
 | `0008_affiliate` | `affiliate_programs`, `affiliate_link_templates`, `link_clicks` (partitioned), `affiliate_conversions`, `affiliate_payouts`, materialized views | 0003 |
 | `0009_flights` | `flight_routes`, `fare_observations`, `trip_fare_links`, `chosen_flights`, `route_price_insights`, `booked_fare_drops`, `price_alerts` | 0003, 0005 |
@@ -3429,14 +3830,14 @@ Practical rules for the revisions: functions, triggers, partitions, policies and
 | `0011_checklist_notes` | `checklist_items` (foreign key to `affiliate_programs`), `notes` (foreign key to `itinerary_items`) | 0008, 0010 |
 | `0012_admin_privacy` | `admin_users`, `feature_flags`, `kill_switches`, `audit_log`, `support_tickets`, `content_reports` (references `trip_share_links`, `notes` and `runs`), `consents`, `data_exports`, `deletion_requests`, `rate_limit_counters`, `idempotency_keys` | 0004, 0005, 0011 |
 | `0013_notifications_samples` | `notifications`, `sample_trips`, `plan_verifications`, `plan_verification_items` | 0004, 0005, 0010 |
-| `0014_rls` | Helper functions, `trip_member_profiles`, policies for every table, grants and `SECURITY DEFINER` changes (section 6). Any table added after this revision must include its own `GRANT`, `ENABLE ROW LEVEL SECURITY` and policies in the same migration; the test in 6.5 fails otherwise | all tables exist |
+| `0014_rls` | Helper functions, `trip_member_profiles`, `purge_trash`, `retention_sweep`, `maintain_partitions`, `drop_old_log_partitions`, `partition_default_rows`, policies for every table, grants and `SECURITY DEFINER` changes (section 6). Any table added after this revision must include its own `GRANT`, `ENABLE ROW LEVEL SECURITY` and policies in the same migration; the test in 6.5 fails otherwise | all tables exist |
 | `0015_seed` | Seed data (section 11), idempotent `INSERT ... ON CONFLICT DO NOTHING` | 0014 |
 
 Airports and FX are loaded by jobs, not by a migration: `hermi seed-airports` reads the OurAirports CSV and `hermi refresh-fx` pulls Frankfurter. CI runs `npm run db:init`, then the full chain on an empty database as `hermi_migrate_login`, runs the tenant-isolation tests and the role checks as `hermi_api_login` (never as the owner), then runs `alembic downgrade base` and `upgrade head` once to prove the chain is reversible in a scratch database (production never downgrades).
 
 ## 11. Seed data
 
-Seeds live in migration `0015_seed` and are safe to re-run. Numbers come from the build README and from `../../02-pricing-tiers.md`. Changing a price, limit or credit cost later is an `UPDATE` in the admin console (audited), not a migration. The seed blocks use `INSERT ... ON CONFLICT DO NOTHING`, so the top-to-bottom run also works against a database that already has rows.
+Seeds live in migration `0015_seed` and are safe to re-run. Numbers come from the build README (`../README.md`) and the entitlement matrix in `01-product-spec.md`. Changing a price, limit or credit cost later is an `UPDATE` in the admin console (audited), not a migration. The seed blocks use `INSERT ... ON CONFLICT DO NOTHING`, so the top-to-bottom run also works against a database that already has rows.
 
 ### 11.1 Plans (tiers, passes, credit packs)
 
@@ -3454,6 +3855,9 @@ Phase 1 seeds six rows: `free`, `plus`, `trip_pass` and the three credit packs. 
 | `monthly_ceiling_micros`, `daily_ceiling_micros` | Per-account provider-spend ceilings in micro-dollars |
 | `taster_agent_runs` | One-time free deep agent runs |
 | `verify_items_per_run` | Most items one "Verify this plan" check may include (Free 5, Plus and Trip Pass 12); more items need another run |
+| `destinations_per_trip`, `airports_per_side` | Destinations on one trip (12 on every row), airports on each side of a route (Free 2, Plus and Trip Pass 4) (01 section 5) |
+| `imports`, `calendar_feed`, `calendar_polling` | Switching imports (file, feed, Google Maps list, pasted places), the live calendar feed, and opt-in feed polling: true on every row (07 section 2.2) |
+| `monthly_credits` | The plan's monthly credits as the API shows them in `limits` (04 section 5.19); it mirrors the `monthly_credits` column, which the credit functions read; the console updates both together when it edits a plan |
 
 ```sql
 INSERT INTO plans (code, kind, name, rank, monthly_credits, credits_granted, credits_valid_days, duration_days, feature_flag_key, is_active, sort_order, limits) VALUES
@@ -3461,16 +3865,19 @@ INSERT INTO plans (code, kind, name, rank, monthly_credits, credits_granted, cre
  '{"active_trips":2,"active_trips_bonus":0,"routes_per_trip":1,"live_routes":0,"live_window_days":0,"price_alerts":1,"live_alerts":false,
    "collaborators":1,"travelers_per_trip":2,"can_invite":true,"saved_lodging_per_trip":8,"lodging_compare":2,
    "places_searches_per_day":30,"hide_presentation_footer":false,"taster_agent_runs":1,"verify_items_per_run":5,
+   "destinations_per_trip":12,"airports_per_side":2,"imports":true,"calendar_feed":true,"calendar_polling":true,"monthly_credits":12,
    "monthly_ceiling_micros":250000,"daily_ceiling_micros":50000}'),
 ('plus', 'tier', 'Plus', 20, 60, 0, NULL, NULL, NULL, true, 10,
  '{"active_trips":25,"active_trips_bonus":0,"routes_per_trip":5,"live_routes":3,"live_window_days":120,"price_alerts":3,"live_alerts":true,
    "collaborators":6,"travelers_per_trip":8,"can_invite":true,"saved_lodging_per_trip":100,"lodging_compare":4,
    "places_searches_per_day":100,"hide_presentation_footer":true,"taster_agent_runs":0,"verify_items_per_run":12,
+   "destinations_per_trip":12,"airports_per_side":4,"imports":true,"calendar_feed":true,"calendar_polling":true,"monthly_credits":60,
    "monthly_ceiling_micros":2250000,"daily_ceiling_micros":400000}'),
 ('trip_pass', 'pass', 'Trip Pass', 25, 0, 40, 90, 90, NULL, true, 40,
  '{"active_trips_bonus":1,"routes_per_trip":3,"live_routes":2,"live_window_days":120,"live_checks_max":60,"price_alerts":2,"live_alerts":true,
    "collaborators":6,"travelers_per_trip":8,"can_invite":true,"saved_lodging_per_trip":30,"lodging_compare":4,
    "places_searches_per_day":100,"hide_presentation_footer":true,"verify_items_per_run":12,
+   "destinations_per_trip":12,"airports_per_side":4,"imports":true,"calendar_feed":true,"calendar_polling":true,"monthly_credits":0,
    "monthly_ceiling_micros":1800000,"daily_ceiling_micros":400000}'),
 ('credits_50',  'credit_pack', '50 credits',  0, 0,  50, 365, NULL, NULL, true, 60, '{}'),
 ('credits_150', 'credit_pack', '150 credits', 0, 0, 150, 365, NULL, NULL, true, 61, '{}'),
@@ -3478,7 +3885,7 @@ INSERT INTO plans (code, kind, name, rank, monthly_credits, credits_granted, cre
 ON CONFLICT (code) DO NOTHING;
 ```
 
-The Free row invites 1 collaborator per trip (`collaborators = 1`, `can_invite = true`) so a couple can plan on the free tier, as the build README and the Phase 1 scope say; the full schema's Free row had 0 and is superseded. Plus and the Trip Pass allow up to 6. Collaborators are counted as every `trip_members` row except the owner, and members beyond the limit after a lapse are treated as viewers by the API (7.1). The traveler and saved-lodging counts follow `../../02-pricing-tiers.md`; align them with the entitlement matrix in `01-product-spec.md` if that file differs (the matrix wins, and this seed is updated in the same change).
+The Free row invites 1 collaborator per trip (`collaborators = 1`, `can_invite = true`) so a couple can plan on the free tier, as the build README and the Phase 1 scope say; the full schema's Free row had 0 and is superseded. Plus and the Trip Pass allow up to 6. Collaborators are counted as every `trip_members` row except the owner, and members beyond the limit after a lapse are treated as viewers by the API (7.1). The traveler and saved-lodging counts follow the entitlement matrix in `01-product-spec.md`, which wins if the two ever differ (this seed is updated in the same change).
 
 Keys that only some rows have (`live_checks_max` on the pass, and the tier-only keys `active_trips` and `taster_agent_runs` that the pass leaves out) are absent on purpose: a missing key means "not granted", and the merge in 7.1 takes the best value among the rows that have it. The referral and import-reward credit amounts are not plan limits; they live in `feature_flags` settings (11.5).
 
@@ -3499,7 +3906,7 @@ Apple product ids are the ids created in App Store Connect; the subscription gro
 
 ### 11.3 Credit prices
 
-1 credit is a budget of up to $0.02, so `hard_stop_micros` equals `credits * 20000` at the uncached price (for `verify_plan`, per checked item).
+1 credit is a budget of up to $0.02, but `hard_stop_micros` is the hard stop set per action in the build README credit table, not always `credits * 20000` (`explain` is 10,000 and `draft_day` 30,000 for 1 credit). For `verify_plan` it is per checked item. Provider-spend admission (7.4) counts an open reservation at this value.
 
 ```sql
 INSERT INTO credit_action_prices (action, credits, credits_cached, hard_stop_micros, max_turns, max_searches, max_fetches, model) VALUES
@@ -3518,7 +3925,7 @@ ON CONFLICT (action) DO NOTHING;
 
 ### 11.4 Affiliate programs
 
-Rates, cookie windows and eligibility are "reported, verify" until read on each network's terms page after sign-up (`../../08-affiliate-revenue.md`). `api_credentials_ref` holds an environment variable name, never a secret. Airbnb is intentionally absent and the check constraint blocks it. Insurance stays `planned` until legal review clears it. The Phase 1 checklist item `esim` links to a partner only once a Travelpayouts eSIM program has been confirmed and added as a row here; until then it is shown unmonetized. The direct programs (Expedia Group and Vrbo, Booking.com direct, Skyscanner, Airalo, GetYourGuide direct, AirHelp) and the Travelpayouts compensation program are Phase 2 rows.
+Rates, cookie windows and eligibility are "reported, verify" until read on each network's terms page after sign-up (affiliate system: `07-monetization-spec.md` section 8). `api_credentials_ref` holds an environment variable name, never a secret. Airbnb is intentionally absent and the check constraint blocks it. Insurance stays `planned` until legal review clears it. The Phase 1 checklist item `esim` links to a partner only once a Travelpayouts eSIM program has been confirmed and added as a row here; until then it is shown unmonetized. The direct programs (Expedia Group and Vrbo, Booking.com direct, Skyscanner, Airalo, GetYourGuide direct, AirHelp) and the Travelpayouts compensation program are Phase 2 rows.
 
 ```sql
 INSERT INTO affiliate_programs (code, network, name, category, status, hosts, cookie_days, subid_param, campaign_param, api_credentials_ref, extra_disclosure_text) VALUES
@@ -3549,7 +3956,7 @@ ON CONFLICT (code) DO NOTHING;
 -- Per-partner kill switches are named affiliate.<code> in kill_switches (seeded from this table in 11.5); feature_flag_key stays null unless a partner needs a staged rollout.
 ```
 
-Link templates are created after each network's link format is confirmed (Phase 1 checklist in `../../08-affiliate-revenue.md`). One illustrative row, showing the placeholder shape (inactive; verify the parameters in the network's link tool before enabling):
+Link templates are created after each network's link format is confirmed (Phase 1 checklist in `07-monetization-spec.md` section 8). One illustrative row, showing the placeholder shape (inactive; verify the parameters in the network's link tool before enabling):
 
 ```sql
 INSERT INTO affiliate_link_templates (program_id, kind, surface, variant, template, required_placeholders, active)
@@ -3566,7 +3973,7 @@ Only Phase 1 flags are seeded. The four new settings at the end of the flags blo
 
 ```sql
 INSERT INTO feature_flags (key, description, enabled, rollout_pct, rules, variants) VALUES
-('serpapi_live_fares',       'Live fares from SerpApi (legal risk flagged; turns off by config)', true,  100, '{"tiers":["plus","trip_pass"]}', '{}'),
+('serpapi_live_fares',       'Live fares from SerpApi (legal risk flagged; stays off until the owner turns it on in the console)', false, 100, '{"tiers":["plus","trip_pass"]}', '{}'),
 ('guest_mode',               'Local-first guest mode before sign-in',                           true,  100, '{}', '{}'),
 ('min_app_version',          'Forces an update below the version in rules.min_version',         true,  100, '{"min_version":"1.0.0"}', '{}'),
 ('insurance_cards',          'Insurance referral cards (legal review first)',                   false, 100, '{}', '{}'),
@@ -3586,7 +3993,7 @@ ON CONFLICT (key) DO NOTHING;
 -- Others (admin limits, finance cost entries such as setting_finance_cost_2026_11) are created by the console when first needed.
 INSERT INTO feature_flags (key, kind, description, enabled, rollout_pct, rules, variants) VALUES
 ('setting_ai_warm_daily_usd',      'setting', 'Daily budget for nightly shared-cache warming, in dollars (06 8.6)',  true, 100, '{"usd":5}',  '{}'),
-('setting_ai_global_daily_usd',    'setting', 'Global daily Anthropic budget in dollars; 80 and 95 percent of it trip the AI breakers (08 6.5)', true, 100, '{"usd":50}', '{}'),
+('setting_ai_global_daily_usd',    'setting', 'Global daily Anthropic budget in dollars; 80 and 95 percent of it trip the AI breakers (08 6.5)', true, 100, '{"usd":150}', '{}'),
 ('setting_serpapi_monthly_quota',  'setting', 'SerpApi searches per month; 90 percent trips provider.serpapi (08 6.5)', true, 100, '{"searches":5000}', '{}'),
 ('setting_import_reward',          'setting', 'Free Trip Pass for the first qualifying import, once per user; at least min_items_applied items including a flight or a stay, a verified email, no active pass on the trip, no active Plus', true, 100,
    '{"min_items_applied":3,"require_flight_or_stay":true,"require_verified_email":true,"block_if_plus":true}', '{}'),
@@ -3657,7 +4064,7 @@ Per-account holds (`user:<users.id>`) are created on demand by the admin console
 
 ## 12. Mapping the existing Trip Planner data
 
-The owner's current data (the two-person household in the existing app) moves into the new database once, before public launch. The existing model is in `backend/tripplanner/models/` (7 Alembic revisions). Hermi is a new database, so the import is a script (`hermi import-legacy`), not an Alembic revision, and it is idempotent: every inserted row is recorded in a mapping table and skipped on a re-run. The example statements in this section use the `legacy` schema and `:parameters`, so they are fenced as `postgresql`.
+The owner's current data (the two-person household in the existing app) moves into the new database once, before public launch. The existing model is the Trip Planner base code (7 Alembic revisions). Hermi is a new database, so the import is a script (`hermi import-legacy`), not an Alembic revision, and it is idempotent: every inserted row is recorded in a mapping table and skipped on a re-run. The example statements in this section use the `legacy` schema and `:parameters`, so they are fenced as `postgresql`.
 
 ### 12.1 Table mapping
 
@@ -3699,7 +4106,7 @@ uv run hermi import-legacy --primary-email "$PRIMARY_EMAIL" --partner-email "$PA
 uv run hermi import-legacy --primary-email "$PRIMARY_EMAIL" --partner-email "$PARTNER_EMAIL"
 ```
 
-The two users are created as `users` rows with `status = 'active'` and the given emails; no `auth_identities` row exists yet. On first sign-in (email code, Apple or Google) the verified email matches the pre-created row and the identity is attached (the claim step described in `../../04-users-and-accounts.md`). Nothing about the legacy passcode carries over.
+The two users are created as `users` rows with `status = 'active'` and the given emails; no `auth_identities` row exists yet. On first sign-in (email code, Apple or Google) the verified email matches the pre-created row and the identity is attached (the claim link in `04-api-spec.md` section 5.1). Nothing about the legacy passcode carries over.
 
 Core statements (the script wraps them in one transaction per entity and records progress in `legacy_id_map`):
 
@@ -3780,11 +4187,13 @@ The build README list is complete for the product; these tables are added becaus
 | `plans` | Holds tier, pass and credit-pack limits, credits and ceilings, so the "seed data (tiers)" exists and the entitlement query has something to read |
 | `store_products` | Maps each App Store product id to a plan with price, period and trial; one plan (Plus) has several products |
 | `credit_action_prices` | Holds the credit price, cached price, hard spend stop and caps for each AI action (build README credit table) |
-| `affiliate_payouts` | Named in `../../06-database-and-data-integrations.md` section 6: payouts received per program, for the cash view |
+| `device_attestations`, `guest_allowances` | App Attest keys and the monthly credits a guest may spend, so guest AI (F-ACC-2) has a server-side limit without a `users` row (5.1) |
+| `identity_hashes` | Abuse memory so a deleted and re-created account cannot earn the taster or the first-import Trip Pass again (5.8) |
+| `affiliate_payouts` | Payouts received per program, for the cash view. Rows are inserted by the admin action "Mark a payout received" (WF-099) |
 | `route_price_insights` | Existing Trip Planner table (Google price level and typical range) that the fare UI uses; shared by market |
-| `activity_log` | The per-trip change feed required by `../../04-users-and-accounts.md` (attribution and "what changed"; the Phase 1 collaboration scope) |
+| `activity_log` | The per-trip change feed required by the collaboration scope in `01-product-spec.md` (attribution and "what changed"; the Phase 1 collaboration scope) |
 | `rate_limit_counters` | The Postgres-backed rate limits that replace the in-process login limiter (no Redis until about 10k MAU) |
-| `provider_call_rollups` | The monthly rollup that `../../06-database-and-data-integrations.md` section 7 keeps after raw `provider_calls` partitions are dropped |
+| `provider_call_rollups` | The monthly rollup that section 9 keeps after raw `provider_calls` partitions are dropped |
 | `idempotency_keys` | The 24 hour replay store for the `Idempotency-Key` header on every money or credit route (04 section 1.6) |
 | `credit_debts` | Credits already spent when a pack refund arrives; `credit_grants.remaining` cannot go negative and the API must block paid AI until the debt is repaid (07 5.6) |
 | `content_reports` | Reports on shared trips and AI content, required by App Review Guideline 1.2 and by the "three reports pause a cached topic" rule (08 6.12, 06 8.5); the Phase 1 "basic content reports" |
@@ -3812,7 +4221,7 @@ Names only. Each feature pack defines the exact DDL, policies, grants and seed r
 | Comments on items | `comments` | flag `poll_comments`; `notifications.kind` values for mentions and replies |
 | Email-forward import (`plans@hermi.world`) | `forwarding_addresses`, `inbound_emails` | `trip_imports.source` value `email_forward`; `trip_imports.inbound_email_id` |
 | Paste your group chat, repair a day | none | `run_kind` values `group_chat_draft`, `repair_day`; `ai_action` values if they get their own price; flags `group_chat_draft`, `repair_day` |
-| Flight status, delay and gate alerts | `flight_status_subscriptions`, `flight_status_events` | `chosen_flights.flight_numbers`; `itinerary_items.flight_number`; `notifications.kind` values `flight_delay`, `gate_change`; kill switch `provider.flight_status` |
+| Flight status, delay and gate alerts | `flight_status_subscriptions`, `flight_status_events` | `itinerary_items.flight_number`; `notifications.kind` values `flight_delay`, `gate_change`; kill switch `provider.flight_status` |
 | Pro tier and scheduled agent routines | `routines` | `runs.routine_id`, `runs.priority`; type `routine_kind`; `run_kind` values `price_check`, `batch_scan`; `run_trigger` values `schedule`, `catch_up`; `plans` row `pro`; `store_products` rows `hermi_pro_monthly`, `hermi_pro_annual`; limit keys `scheduled_routines`, `priority_queue`, `credit_rollover_cap`, `group_payments`; flags `tier_pro`, `scheduled_agent_routines` |
 | Concierge lane | `concierge_requests` | type `concierge_status`; `room_block_requests.concierge_request_id`; `consents.kind` value `concierge_sharing`; `support_tickets.category` value `concierge`; flag `concierge_requests` |
 | Direct affiliate programs | none | `affiliate_programs.network` values `impact`, `direct`; `webhook_events.provider` value `impact`; seed programs `expedia_group`, `booking_direct`, `skyscanner`, `airalo`, `getyourguide_direct`; their link templates for them; one `affiliate.<code>` kill switch each |
