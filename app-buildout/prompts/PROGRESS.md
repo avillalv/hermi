@@ -4,7 +4,22 @@ The build's memory. Every autopilot session updates this file in its pull reques
 
 ## Current prompt
 
-05 shipped (PR #17). Next: 06, web app platform, sign-in and trips.
+06 in progress on `phase1/p06-web-app-and-trips`. Steps in order:
+
+1. WF-017: `npm run gen:api` for real (`hermi.tools.dump_openapi` to `apps/web/src/lib/api/openapi.json`, `openapi-typescript` to `schema.d.ts`), `client.ts` on `openapi-fetch` (bearer only, one refresh on 401 then sign-out, `ApiError` from problem+json, the 04 section 7 headers), `env.ts`, CORS origins and a preflight test. Vitest client tests on a mock server.
+2. WF-130.1: `packages/tokens` gets `hermi.css` verbatim next to `tokens.css` (values from 05 section 2); Logo from `app-buildout/brand/`, `generate_logo.py` extended for transparent lockups, light wordmark and web icons in `apps/web/public/`.
+3. WF-130.2: Playwright (Chromium, WebKit), kit fixture, frozen clock, fonts routed to the bundled files, pixelmatch in one run, `kit-metrics`, `npm run test:kit` and `npm run test:e2e`; stylelint `declaration-strict-value`.
+4. WF-130.3: React wrappers in `apps/web/src/components/kit/` emitting the `h-` classes (Logo, RoutePattern, ticket, sheet, tab bar, section strip as `nav` with `aria-current`), component parity for every `components.html` block.
+5. WF-130.4: React Router 7 and the scrolling shell in `apps/web/src/shell/` (strip, sheet, tab bar, rail 768 to 1199 px, 248 px sidebar from 1200 px, placeholder tabs), layout tests at 390 to 1440 px, fonts and network check, focus rings.
+6. WF-018.1: sign-in screens (Apple, Google, email code via supabase-js; persona picker when `AUTH_MODE=dev` via `POST /v1/dev/session`), auth guard, sign-out clears state, `locales/en.json`, Playwright smoke flow 1.
+7. WF-018.2: intro, age gate, first-trip wizard, profile sheet (05 6.4), plus `GET` and `POST /v1/trips` so the wizard creates a trip.
+8. WF-019.1: rest of the trips and destinations API (04 section 5.4), archive as `PATCH` status, duplicate, trash and restore, `route_policy.py` entries, tenancy and viewer-refused tests.
+9. WF-019.2: Trips home (05 6.5) and Overview (6.7) with "Happening now".
+10. WF-019.3: edit, archive, duplicate, trash and restore, trip switcher, place autocomplete and destination time zone, Playwright smoke flow 26 and the prompt's sign-in plus create-trip smoke test.
+
+Risks: 04 has no duplicate endpoint; WF-019.1 adds `POST /v1/trips/{id}/duplicate` with a `DECISIONS.md` row. The wizard needs trip creation before WF-019, so WF-018.2 carries the create and list routes. New dependencies, all named in the stack (README, 02, 04): react-router, openapi-fetch, openapi-typescript, @supabase/supabase-js, @playwright/test, pixelmatch, stylelint. Paths: the ticket says `brand/generate_logo.py`, the file is `app-buildout/brand/`; 04 says `frontend/src/lib/api/`, 02 and the roadmap say `apps/web/`. The kit still calls the section strip a `tablist`; 05 (`nav`) wins and parity tests must allow it. Every new route goes in `apps/api/tests/route_policy.py`.
+
+Owner verification pending: the three "on staging" criteria (WF-017 client, WF-018 under 2 minutes, WF-019 create a trip).
 
 ## Setup prompts
 
@@ -27,7 +42,7 @@ Same status values as above.
 | 03 | [Staging and production environments](03-deploy-environments.md) | WF-009 | Done (#13) |
 | 04 | [Database foundation and schemas](04-database-foundation.md) | WF-011, WF-012, WF-022, WF-021, WF-020 | Done (#15) |
 | 05 | [Sign-in, tenancy and row-level security](05-auth-and-tenancy.md) | WF-013, WF-014, WF-015, WF-016 | Done (#17) |
-| 06 | [Web app platform, sign-in and trips](06-web-app-and-trips.md) | WF-017, WF-130, WF-018, WF-019 | Not started |
+| 06 | [Web app platform, sign-in and trips](06-web-app-and-trips.md) | WF-017, WF-130, WF-018, WF-019 | In progress (phase1/p06-web-app-and-trips) |
 | 07 | [Entitlements, travelers, invites and roles](07-entitlements-and-collaboration.md) | WF-023, WF-024, WF-025, WF-026, WF-027, WF-028 | Not started |
 | 08 | [Currency, cached fares and price alerts](08-fares-and-alerts.md) | WF-029, WF-030, WF-031 | Not started |
 | 09 | [Itinerary, places, map, stays and notes](09-plan-and-stays.md) | WF-032, WF-033, WF-034, WF-035 | Not started |
