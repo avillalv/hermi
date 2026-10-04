@@ -57,14 +57,14 @@ Competitive context for these choices (TripIt, Trippy, Wanderlog and others) is 
 | `plus` | Plus | $5.99 a month, $39.99 a year | auto-renewing subscription, group `hermi_membership` | unlimited trips (fair use 25), 3 live routes checked daily within 120 days of departure, 60 credits a month, can invite collaborators |
 | `family` | Family | $8.99 a month, $59.99 a year | auto-renewing subscription, same group | Plus for up to 6 household members, 150 pooled credits, 5 live routes |
 | `pro` | Pro (launches later) | $11.99 a month, $99 a year | auto-renewing subscription, same group | 240 credits, 6 live routes, scheduled agent routines, priority queue |
-| `trip_pass` | Trip Pass | $9.99 | non-renewing subscription, 90 days | one trip: 2 live routes, max 60 live checks, 40 credits, up to 6 collaborators |
+| `trip_pass` | Trip Pass | $9.99 | non-renewing subscription, 90 days | one trip: 2 live routes, max 60 live checks, 40 credits (a pool for the trip), up to 6 collaborators |
 | `group_trip_pass` | Group Trip Pass | $19.99 | non-renewing subscription, 90 days | one trip: up to 12 travelers, 80 credits, polls, cost splitting, room-block request |
 | `credits_50` / `credits_150` / `credits_400` | Credit packs | $2.99 / $6.99 / $14.99 | consumable | purchased credits last 12 months and are spent last |
 | `advisor_seat` | Hermi for Advisors (year 2) | $29 a seat a month, $24 annual | Stripe on the web, not the App Store | client workspaces, branded presentations, proposals, commission tracking |
 
 Group tools (Phase 2): polls and manual cost splitting are in every paid plan (`plus`, `family`, `pro`) and
 both passes; Free users use them on trips that have them. The Group Trip Pass adds up to 12 travelers
-and the room-block request. Collecting money through Stripe (Phase 4) is for `group_trip_pass` and `pro`.
+and the room-block request. Collecting money through Stripe (Phase 3) is for `group_trip_pass` and `pro`.
 
 Phases: Phase 1 sells `free`, `plus`, `trip_pass` and the credit packs. `family`,
 `group_trip_pass` (with polls, manual cost splitting and the room-block request) and `pro` arrive in
@@ -73,7 +73,7 @@ above is the full ladder; each phase folder says which rows it builds.
 
 Rules: a trip's capabilities are the best of its owner's tier and any pass on that trip.
 Invitees join free and get the trip's capabilities on that trip. AI credits are charged to the
-person who starts the action (Family draws from the household pool). Apple Family Sharing is off.
+person who starts the action (Family draws from the household pool). Trip Pass credits are a pool for that trip. Apple Family Sharing is off.
 
 ### AI credits
 
@@ -88,6 +88,8 @@ person who starts the action (Family draws from the household pool). Apple Famil
 | `research` | 8 (1 from shared cache) | $0.16; 5 searches, 8 fetches |
 | `agent_run` (fare hunt or deep research) | 40 (8 from shared cache) | $0.80; 20 turns, 10 searches, 10 fetches, one at a time |
 
+`verify_plan` (Verify this plan) is billed per checked item at 1 credit, with the hard stop $0.02 per item; reading the pasted plan is an `explain`. Taster stop: $0.80.
+
 Monthly provider-spend ceilings: Free $0.25 (plus the one-time taster), Plus $2.25, Family $3.40
 pooled, Trip Pass $1.80, Group Trip Pass $3.60, Pro $5.50. Daily: Free $0.05, Plus, Family and
 passes $0.40, Pro $1.25. An agent run is admitted if the month has $0.80 of headroom, even above
@@ -99,8 +101,9 @@ research and agents.
 
 - **Affiliate links** on every tier, same places, clearly labeled "We earn a commission if you
   book here." All outbound partner links go through `/go/{click_id}`. Launch networks:
-  Travelpayouts, Viator partner API, Stay22; direct programs (Expedia Group for Vrbo, Booking.com,
-  Skyscanner, Airalo, GetYourGuide) from month 3. Airbnb has no program: plain links only, and
+  Travelpayouts, Viator partner API, Stay22; direct affiliate programs (Expedia Group for Vrbo,
+  Booking.com, Skyscanner, Airalo, GetYourGuide) are Phase 2. Phase 1 launches with Travelpayouts,
+  the Viator partner API and Stay22 only. Airbnb has no program: plain links only, and
   pasted listing links are never rewritten. The server never fetches Airbnb, Vrbo or Booking.com
   pages.
 - **Concierge**: an optional "Have a human book this" request on stays, cruises and complex trips,
@@ -118,11 +121,11 @@ research and agents.
 |---|---|
 | Backend | Python 3.13, FastAPI, SQLAlchemy 2, Alembic, Pydantic 2, uv |
 | Database | PostgreSQL 18 on Render, point-in-time recovery, row-level security as a second layer |
-| Jobs | Procrastinate (Postgres-backed queue); a scheduler process that enqueues due routines |
+| Jobs | Procrastinate (Postgres-backed queue); a scheduler process that enqueues due live fare checks |
 | Web and mobile client | React 19, Vite, React Router 7, TanStack Query, Tailwind CSS 4, Radix and shadcn components, MapLibre, FullCalendar, Recharts; wrapped for iOS with Capacitor (bundled, not a remote URL) |
 | Auth | Supabase Auth for sign-in only (Sign in with Apple, Google, email code); our own `users` table |
 | Payments | RevenueCat over StoreKit 2 for the app; Stripe for the web (advisors, group payments, print) |
-| AI | Anthropic Claude Messages API with tool use, server web search and web fetch tools |
+| AI | Anthropic Claude Messages API with tool use, server web search and web fetch tools, behind an `AiProvider` seam with three backends: `anthropic_api` (staging and production), `claude_cli` (the owner's own `claude` CLI, local development only) and `fake` (tests and CI), selected by `AI_PROVIDER` |
 | Hosting | Render (API, worker, scheduler, Postgres) behind Cloudflare (DNS, WAF, R2 storage, Pages for the web app) |
 | Observability | Sentry, structured JSON logs, Better Stack uptime, PostHog product analytics (no ad SDKs) |
 | Email and push | Resend for email, APNs direct for push |
@@ -166,5 +169,4 @@ Hermi is built on top of the existing **Trip Planner** repository, [https://gith
 carries over: flight route and fare logic, itinerary and lodging features, presentation mode,
 the design token plumbing (not its passport colors, which the Hermi palette replaces),
 Travelpayouts, Geoapify, Wikipedia and Frankfurter providers, the evidence rules in
-`services/agent_ingest.py`, and the agent prompts. What does not carry over: passcode auth, the Claude Code CLI runner and MCP bridge, APScheduler, Windows-only scripts, and
-Tailscale sharing. [phase-1-launch/02-architecture.md](phase-1-launch/02-architecture.md) maps each module.
+`services/agent_ingest.py`, and the agent prompts. The Claude Code CLI runner is adapted as the dev-only `claude_cli` provider (the runner, stream parser, environment stripping, fake `claude` for tests and the smoke script), and the old setup scripts are adapted into `npm run setup` and `npm run db:init`. What does not carry over: passcode auth, the MCP bridge (`agent_bridge/`), APScheduler and Tailscale sharing. [phase-1-launch/02-architecture.md](phase-1-launch/02-architecture.md) maps each module.

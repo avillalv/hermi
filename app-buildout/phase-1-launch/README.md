@@ -39,7 +39,7 @@ section 9 and are part of Phase 1:
 
 | Feature | Effort | Beats |
 |---|---|---|
-| "Verify this plan": paste an itinerary from ChatGPT, Gemini, Layla or Mindtrip; Hermi checks each place, opening hours and price with sources and marks what it could not confirm (`research` credits per checked item, capped per run) | M | Every AI planner |
+| "Verify this plan": paste an itinerary from ChatGPT, Gemini, Layla or Mindtrip; Hermi checks each place, opening hours and price with sources and marks what it could not confirm (`verify_plan`, 1 credit per checked item, capped per run: 5 on Free, 12 on Plus and Trip Pass) | M | Every AI planner |
 | Imports named for each rival: TripIt, Tripsy and Wanderlog entries on the import screen, and Google Maps saved-list import (pasted list link or exported file; never scraped) | S to M | TripIt, Tripsy, Wanderlog |
 | Evidence freshness: a "may be out of date" flag after 14 days and a one-tap recheck | S | AI planners |
 | Trust pages: "How we earn" (every affiliate partner and that nothing is ranked by commission), a plain billing page, and a one-tap cancel link in the app | S | Wanderlog, Layla, Tripsy |
@@ -60,6 +60,18 @@ how pasted imports perform in the beta.
 | Calendar feed imports | Opt-in "Keep checking this calendar"; polled every 6 hours; changes are shown as a preview the user confirms, never applied automatically |
 | Web purchases | None in Phase 1: the web paywall says "Upgrade in the iOS app". Web billing arrives with Android in Phase 2. |
 | Free collaborators | 1 per trip; share links (read-only, with the "Made with Hermi" footer) on every tier |
+| Trip Pass credits | The 40 credits are a pool for the trip: every member who may start AI on that trip spends from it, and the pass, not the person who taps, is the payer for the pool's provider-spend ceiling ($1.80 a month) |
+| Raw import file | The raw import file (calendar file, Takeout file, pasted text) is never stored. Only the parsed preview and the rows it creates are kept |
+| AI daily cap | Global AI daily cap is $150 (setting `setting_ai_global_daily_usd`, environment variable `AI_GLOBAL_DAILY_CAP_USD`). The taster stop is $0.80 |
+| HTTP 402 and 403 | A plan limit or a missing entitlement returns HTTP 402 (`limit_reached`, `entitlement_required`, `payment_required`) with a `paywall` hint. HTTP 403 is for role, account state and consent |
+| Customer API auth | Bearer only: no cookie session, no CSRF header. `X-Hermi-Client` (`web` or `ios`) is informational. The calendar feed token is in the path: `GET /v1/calendar/{token}.ics` (04 section 5.29 is the authority) |
+| Guest data | Local-only until sign-in. `POST /me/claim` carries the trip JSON and a claim id. There is no server-side guest user (`is_guest` and `GUEST_TOKEN_SECRET` are gone) |
+| Today and wrap-up | "Today" is a state of the trip Overview ("Happening now"), not a screen. The after-trip wrap-up belongs to the Phase 2 after-trip pack |
+| WF-122 and WF-129 | WF-122 (Google Maps export file import) leaves the cut list and is built. WF-129 stays on the cut list |
+| Heat-ink tokens | The heat-ink tokens and `--viz-band` are defined in 05 section 2.2 |
+| Component looks | `hermi.css` and the mockups in `design/` win over the prose of 05 sections 4 and 6. The token values in 05 section 2 still win over both |
+| Product AI provider | Chosen by `AI_PROVIDER`: `anthropic_api` in staging, TestFlight and production; `claude_cli` (the owner's own Claude Code CLI, local machine only, loopback only) behind the flag in local development; `fake` in tests, CI and smoke runs. Config allows `claude_cli` only when `ENVIRONMENT=local`, the server is bound to loopback, and `AUTH_MODE=dev` or the user is in `AI_CLI_ALLOWED_EMAILS` |
+| Local development | Native PostgreSQL 18 (no Docker), `AUTH_MODE=dev`, `ADMIN_AUTH_MODE=dev`, `PROVIDERS_MODE=fake`, `STORAGE_BACKEND=local` and `EMAIL_BACKEND=file`; `npm run setup` prepares a machine and `npm run doctor` reports what is set |
 
 ### Not in Phase 1
 
@@ -83,7 +95,7 @@ how pasted imports perform in the beta.
 
 | Month | Goal | Exit |
 |---|---|---|
-| 1 | Validate and set up: landing page and waitlist, 10 interviews, repo, CI, Docker, database, auth, tenancy | Demand signal; a signed-in user can create a trip on staging |
+| 1 | Validate and set up: landing page and waitlist, 10 interviews, repo, CI, container image, database, auth, tenancy | Demand signal; a signed-in user can create a trip on staging |
 | 2 | Core planning: trips, collaboration, flights (cached), stays, itinerary, places, map | Two people can plan a trip together on the web |
 | 3 | AI and credits: Claude API loop, explain, drafts, research, agent runs, taster, ledger, ceilings, shared cache, evidence labels | Agent run cost measured over 50 runs; ceilings enforced |
 | 4 | Money: RevenueCat, Plus, Trip Pass, packs, paywalls, affiliate redirect and reporting, checklist; imports; admin essentials | Sandbox purchases work end to end; clicks and conversions tracked |

@@ -25,7 +25,7 @@ Written 2026-09-30. This file is complete and self-contained for Phase 1: it def
 
 | Item | Rule |
 |---|---|
-| API base | `https://api.hermi.world/v1` in production, `https://api.staging.hermi.world/v1` in staging, `http://localhost:8000/v1` in development. All paths below are relative to it unless they start with `/go`, `/health` or `/.well-known` (those are served at the host root). |
+| API base | `https://api.hermi.world/v1` in production, `https://api.staging.hermi.world/v1` in staging, `http://localhost:8100/v1` locally (and in CI). All paths below are relative to it unless they start with `/go`, `/health` or `/.well-known` (those are served at the host root). |
 | Redirect host | `https://go.hermi.world/go/{click_id}` (same service, separate hostname so cookies and CSP never mix with the API). |
 | Format | JSON (`application/json; charset=utf-8`) in and out. Dates are `YYYY-MM-DD`, times `HH:MM:SS`, timestamps RFC 3339 in UTC (`2026-09-30T14:05:00Z`). Only the SSE and redirect endpoints return something else. |
 | Names | `snake_case` for fields, `kebab-case` for path segments, plural nouns for collections. |
@@ -37,7 +37,8 @@ Written 2026-09-30. This file is complete and self-contained for Phase 1: it def
 
 ### 1.2 Authentication
 
-- Sign-in happens in Supabase Auth (Sign in with Apple, Google, email code). The client sends the Supabase access token on every call: `Authorization: Bearer <jwt>`. The web build may instead send the HttpOnly session cookie; cookie requests must also send `X-Hermi-Client: web` and a same-origin `Origin` (CSRF guard carried over from `X-Trip-Planner: 1`).
+- Sign-in happens in Supabase Auth (Sign in with Apple, Google, email code). The client sends the Supabase access token on every call: `Authorization: Bearer <jwt>`. Auth is bearer only for web and iOS: there is no session cookie and no `POST /auth/session`.
+- `AUTH_MODE=dev` (02 section 7.1): the dev routes `GET /v1/dev/personas` and `POST /v1/dev/session` (body `{ persona }`) exist only when `AUTH_MODE=dev` and `ENVIRONMENT` is `local` or `ci`. They return a bearer token signed by the local key pair that `CurrentUser` verifies against the local JWKS. They are not registered otherwise and are not in the production OpenAPI.
 - One FastAPI dependency, `CurrentUser`, verifies signature (JWKS, cached 1 hour and refreshed at most once a minute on an unknown `kid`, 02 section 6), `iss`, `aud`, `exp` and `sub`, resolves `auth_identities(provider, subject)` to a `users` row, and rejects any status other than `active` with `403 account_inactive` (status `pending_deletion` gets `403 account_pending_deletion`, and only `POST /me/deletion/cancel` and `GET /me` work). A first-time valid JWT with no identity row is handled by `POST /me/bootstrap`, the only endpoint that accepts a JWT without a users row.
 - Agent workers do not use user tokens. The worker calls internal functions directly, not HTTP. The legacy `/api/agent/v1` bridge is removed.
 - Partner callers (webhooks) authenticate with signatures or shared secrets (section 6). Admin callers use the admin API (section 5.25).
@@ -71,7 +72,7 @@ type Problem = {
   errors?: { field: string; code: string; message: string }[]   // validation only
   retry_after_seconds?: number
   current?: unknown         // 409 version_conflict: the latest resource
-  paywall?: PaywallHint     // 402 and 403 gate errors: see 5.20
+  paywall?: PaywallHint     // 402 gate errors (`limit_reached`, `entitlement_required`, `insufficient_credits`, `payment_required`): see 5.20
   credits?: { needed: number; balance: number }                  // insufficient_credits
 }
 ```
@@ -91,7 +92,7 @@ GET /v1/trips?limit=50&cursor=eyJ0IjoiMDE5MS4uLiJ9
 
 ### 1.6 Idempotency keys
 
-`Idempotency-Key: <uuid>` (client generated) is **required** on every POST that spends credits or money, and optional but honored on all other POSTs. The required list: `/trips/{id}/ai/*`, `/trips/{id}/agent-runs`, `/trips/{id}/flights/live-search`, `/trips/{id}/lodging/rental-search`, `/imports/paste`, `/imports/ics-feed`, `/imports/{id}/confirm`, `/credits/packs/claim`, `/purchases/sync`, `/trips/{id}/agent-runs/{id}/cancel` (no cost, but it refunds).
+`Idempotency-Key: <uuid>` (client generated) is **required** on every POST that reserves credits or writes money, and optional but honored on all other POSTs. The required list: every `/trips/{id}/ai/*` action, `/trips/{id}/agent-runs` and its `cancel` (no cost, but it refunds), `/guest/ai/draft-day`, `/trips/{id}/flights/live-search`, `/trips/{id}/lodging/rental-search`, the verify and recheck routes (`/trips/{id}/verify-plan`, `/plan-verifications/{id}/check`, `/notes/{id}/recheck`, `/items/{id}/recheck`), referral and import rewards (`/imports/paste`, `/imports/ics-feed`, `/imports/{id}/confirm`, `/me/referral/redeem`) and purchase-bound routes (`/credits/packs/claim`, `/purchases/sync`, `/purchases/restore`, `/me/passes/{id}/bind`). The middleware and its tests live in WF-016.
 
 - Keys are stored for 24 hours with the request hash, the status and the response body (`idempotency_keys` holds one row per user and key with the method, path, request hash, state, status and response; credit spends also carry the key, prefixed with the user id, in `ai_usage.idempotency_key` and `credit_ledger.idempotency_key`, so a retry can never charge twice even if the row is gone). The same key with the same body replays the original response and adds `Idempotent-Replay: true`. The same key with a different body gets `422 idempotency_key_reused`. The same key while the first request is still running gets `409 idempotency_in_progress` with `Retry-After: 1`.
 - A missing key on a required route gets `400 idempotency_key_required`.
@@ -104,7 +105,7 @@ Every editable resource has an integer `version` starting at 1, incremented on e
 - `If-Match: "<version>"` header on `PATCH`, `PUT` and `DELETE` (preferred).
 - `version` in the body of a PATCH.
 
-If both are absent, the write is rejected with `428 precondition_required` for resources marked "versioned" below (trip, days, items, routes, lodging options, notes, checklist items). On mismatch the response is `409 version_conflict` with the latest resource in `current`, and the client shows its conflict sheet ("Sam changed this. Keep yours or use theirs."). Last-writer-wins applies only to the offline queue, per field, where the client re-sends with the new version. Lists return `ETag` over the collection state and support `If-None-Match` for cheap polling (every 15 to 30 seconds on a shared trip, plus on foreground).
+The middleware (`If-Match` parsing, `428`, `409`) and its tests live in WF-016. If both are absent, the write is rejected with `428 precondition_required` for resources marked "versioned" below (trip, days, items, routes, lodging options, notes, checklist items). On mismatch the response is `409 version_conflict` with the latest resource in `current`, and the client shows its conflict sheet ("Sam changed this. Keep yours or use theirs."). Last-writer-wins applies only to the offline queue, per field, where the client re-sends with the new version. Lists return `ETag` over the collection state and support `If-None-Match` for cheap polling (every 15 to 30 seconds on a shared trip, plus on foreground).
 
 ### 1.8 Rate limits and headers
 
@@ -142,7 +143,8 @@ A rejected call returns `429 rate_limited` with `Retry-After` (seconds). Startin
 | `X-Request-Id` | both | Client may send one (uuid); server always returns one and logs it with every line. |
 | `X-Client-Version` | request | `ios/1.2.0` or `web/2026.10.3`. The server answers `426 client_upgrade_required` only when below `min_client_version` from `GET /me`. |
 | `Accept-Language` | request | Locale for error `detail` and AI output. |
-| `X-Hermi-Client` | request | `web`, `ios`. Required with cookie auth. |
+| `X-Hermi-Client` | request | `web`, `ios`. Informational (analytics and the web paywall variant); never an auth or CSRF control. |
+| `X-Attest-Key-Id`, `X-Attest-Assertion` | request | App Attest key id and assertion; accepted only on `POST /guest/ai/draft-day` (5.1) in place of `Authorization`. |
 | `Idempotency-Key`, `If-Match`, `If-None-Match` | request | See 1.6 and 1.7. |
 | `Deprecation`, `Sunset` | response | Set on endpoints being retired. |
 | `Server-Timing` | response | `db;dur=12, ai;dur=840` for debugging. |
@@ -155,7 +157,7 @@ Anything longer than about 2 seconds (agent runs, exports, deletions, feed impor
 
 ### 1.11 CORS and security headers
 
-Allowed origins: the web app, `capacitor://localhost`, `https://localhost`. Allowed headers include `Authorization`, `Content-Type`, `Idempotency-Key`, `If-Match`, `If-None-Match`, `X-Hermi-Client`, `X-Client-Version`, `X-Request-Id`. Exposed headers: `ETag`, `RateLimit-*`, `Retry-After`, `Idempotent-Replay`, `X-Request-Id`, `Location`. HSTS, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: no-referrer` on all responses.
+Allowed origins: the web app, `capacitor://localhost`, `https://localhost`. Allowed headers include `Authorization`, `Content-Type`, `Idempotency-Key`, `If-Match`, `If-None-Match`, `X-Hermi-Client`, `X-Attest-Key-Id`, `X-Attest-Assertion`, `X-Client-Version`, `X-Request-Id`. Exposed headers: `ETag`, `RateLimit-*`, `Retry-After`, `Idempotent-Replay`, `X-Request-Id`, `Location`. HSTS, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: no-referrer` on all responses.
 
 ### 1.12 Tenant isolation and logging
 
@@ -195,7 +197,9 @@ type CreditReceipt = {
 ```
 
 ```ts
+type PaywallTrigger = "third_trip" | "second_route" | "track_live" | "alert_limit" | "invite" | "out_of_credits_draft" | "out_of_credits_research" | "out_of_credits_agent" | "out_of_credits_verify" | "export_footer" | "ninth_stay" | "lifecycle_14d"   // 07 section 6.2
 type PaywallHint = {
+  trigger?: PaywallTrigger    // the 07 section 6.2 trigger that fired; absent when none applies (traveler_limit, guest sign-up)
   reason: "trip_limit" | "sharing" | "live_routes" | "credits" | "agent_taster_used" | "traveler_limit"
   offer_url: string           // GET /v1/paywall/offer?reason=...&trip_id=...
   free_path: string           // what the user can still do for free, plain sentence
@@ -250,9 +254,9 @@ type Trip = {
 | 401 | `token_expired` | JWT past `exp` | Refresh and retry |
 | 402 | `insufficient_credits` | Balance below action price | Show credit sheet with `credits` and `paywall` |
 | 402 | `payment_required` | Feature needs a paid tier or pass | Show paywall from `paywall` |
+| 402 | `entitlement_required` | Tier or capability missing (`paywall` hint set) | Paywall moment |
+| 402 | `limit_reached` | Plan limit hit (active trips, routes, alerts, collaborators) (`paywall` hint set) | Paywall or explain |
 | 403 | `insufficient_role` | Member role too low | Hide control |
-| 403 | `entitlement_required` | Tier or capability missing (`paywall` set) | Paywall moment |
-| 403 | `limit_reached` | Quota hit (active trips, routes, alerts, collaborators) | Paywall or explain |
 | 403 | `account_inactive` | `users.status` is `suspended` (an owner decision in the admin console) or `deleted` | Show support contact |
 | 403 | `account_pending_deletion` | In 30 day grace | Offer cancel |
 | 403 | `ai_consent_required` | No `ai_processing` consent | Show consent screen |
@@ -265,9 +269,10 @@ type Trip = {
 | 409 | `already_member` | Invite for an existing member | Open trip |
 | 409 | `state_conflict` | Invalid transition (cancel a finished run) | Refresh |
 | 409 | `referral_already_redeemed` | The account already redeemed a referral code | Explain |
+| 410 | `claim_link_expired` | Legacy claim link used or past 7 days | Ask for a new link |
 | 410 | `invite_expired` | Invite past expiry, revoked or used up | Ask for a new invite |
 | 410 | `share_link_revoked` | Share link revoked or expired | Show gone page |
-| 410 | `import_expired` | Import preview older than 24 hours, discarded or already confirmed | Start the import again |
+| 410 | `import_expired` | Import preview older than 24 hours, discarded or already applied | Start the import again |
 | 412 | `precondition_failed` | `If-Match` not parseable | Bug |
 | 413 | `payload_too_large` | Body over limit (1 MB JSON, 2 MB calendar file, 10 MB other uploads) | Shrink |
 | 415 | `unsupported_media_type` | Import file is not a calendar file (`.ics`, `text/calendar`) | Explain, offer paste instead |
@@ -276,6 +281,7 @@ type Trip = {
 | 422 | `blocked_domain` | Link to a domain we never fetch (Airbnb, Vrbo, Booking.com), including a calendar feed URL on those hosts | Explain, save link without preview; for a feed, ask for a downloaded file instead |
 | 422 | `unsupported_currency` | Currency not in `fx_rates` | Pick another |
 | 422 | `feed_url_not_allowed` | Calendar feed URL failed the SSRF rules (5.26) | Ask for a public https calendar link |
+| 422 | `attestation_invalid` | App Attest attestation or nonce failed verification | Retry once, then continue without guest AI |
 | 422 | `referral_not_eligible` | Code is yours, expired, past the 14 day window or the account is not new | Explain |
 | 422 | `list_link_not_readable` | A Google Maps list link was sent where text or a file is needed; Hermi never opens it | Show how to export the list, keep the link as a note |
 | 422 | `plan_too_long` | Pasted plan over 8,000 characters | Ask for one trip at a time |
@@ -295,20 +301,20 @@ Webhook endpoints use a smaller set: `401 invalid_signature`, `400 bad_payload`,
 
 ## 4. Gates and costs at a glance
 
-Gate codes used in the endpoint tables. A call that fails a gate returns the error shown, with `paywall` set.
+Gate codes used in the endpoint tables. A call that fails a gate returns the error shown, with `paywall` set. Plan limits and missing entitlements are always 402 (the one exception is `verify_items`: a 402 `limit_reached` with no `paywall`, because the rest can be checked in another run); 403 is kept for `insufficient_role`, `account_inactive`, `account_pending_deletion`, `ai_consent_required` and `ai_disabled_for_trip`.
 
 | Gate | Passes when | Failure |
 |---|---|---|
 | none | Any signed-in user | n/a |
 | `member(role)` | Caller is a member at or above `role` | 404 or `insufficient_role` |
-| `can_invite` | Trip capabilities say a collaborator slot is free (`collaborators_used < max_collaborators`: Free owners 1, Plus and Trip Pass 6) | 403 `limit_reached`, reason `sharing` |
-| `active_trips` | Owner is under `plans.limits.active_trips` (Free 2, Plus 25); a trip with an active pass does not count (limit key `active_trips_bonus`, 03 section 7.5) | 403 `limit_reached`, reason `trip_limit` |
-| `live_route` | `live_routes_used < live_routes_max` and within 120 days of departure | 403 `limit_reached`, reason `live_routes` |
+| `can_invite` | Trip capabilities say a collaborator slot is free (`collaborators_used < max_collaborators`: Free owners 1, Plus and Trip Pass 6) | 402 `limit_reached`, reason `sharing` |
+| `active_trips` | Owner is under `plans.limits.active_trips` (Free 2, Plus 25); a trip with an active pass does not count (limit key `active_trips_bonus`, 03 section 7.5) | 402 `limit_reached`, reason `trip_limit` |
+| `live_route` | `live_routes_used < live_routes_max` and within 120 days of departure | 402 `limit_reached`, reason `live_routes` |
 | `ai` | `ai_processing` consent, trip `ai_enabled`, kill switch open | `ai_consent_required`, `ai_disabled_for_trip`, `feature_disabled` |
 | `credits(n)` | Spendable credits at least `n` (`reserve_credits`, which raises SQLSTATE `WF402` when short) and provider ceiling has headroom | 402 `insufficient_credits` or 429 `provider_budget_exhausted` |
 | `taster` | Free user has not used the lifetime deep run | 402 `payment_required`, reason `agent_taster_used` |
 | `import_reward` | The account has never received an import reward and the confirmed import meets the rules in 5.26 (at least 3 items including a flight or a stay, verified email, no active pass on the trip, no active Plus) | no error; the response carries `reward: null` |
-| `verify_items` | The number of items selected for a plan check is at most `plans.limits.verify_items_per_run` (Free 5, Plus and Trip Pass 12) | 403 `limit_reached` with no paywall (the cap is per run, so the rest can be checked in another run); the body says how many can be checked |
+| `verify_items` | The number of items selected for a plan check is at most `plans.limits.verify_items_per_run` (Free 5, Plus and Trip Pass 12) | 402 `limit_reached` with no paywall (the cap is per run, so the rest can be checked in another run); the body says how many can be checked |
 | `admin(role)` | Caller is an `admin_users` row with the role | 404 (routes are hidden) |
 
 Credit prices (README, final): `explain` 1, `live_search` 1, `draft_day` 1, `draft_trip` 4, `research` 8 (1 from shared cache), `agent_run` 40 (8 from shared cache), and `verify_plan` 1 per checked item (added from the competitive analysis; reading the pasted plan is 1 credit at the `explain` price; a one-tap evidence recheck is 1 credit at the `explain` price). Hard stops are enforced in the worker, not the API. Credit-spending endpoints reserve before work, settle after, and release on `provider_error`, `provider_timeout` or cancellation before a result.
@@ -323,7 +329,11 @@ Table columns: **Endpoint** (method and path), **Auth** (minimum role, all requi
 |---|---|---|---|---|
 | `POST /me/bootstrap` | JWT, no users row needed | none | `BootstrapIn` to `Me` (201 new, 200 existing; 409 `email_in_use` when the email belongs to another account) | Calls the `bootstrap_user` function (03), which creates `users`, `auth_identities`, the "Me" `people` row, a `free` `entitlements` row and the user's `referral_codes` row. A `referral_code` in the body is redeemed in the same call (5.27); a bad code is ignored and never fails sign-up. No credit grant is written yet: the 12 Free credits are written on the first credit use of each month (`ensure_free_monthly_grant`, 03 section 5.13) and the taster grant at its first offer. Records Apple relay email flag. Emits `user_signed_up`. |
 | `GET /me` | user | none | `Me` | Returns server clock, `min_client_version`, feature flags evaluated for the user, and pending deletion state. Polled on foreground. |
-| `POST /me/claim` | user | none | `{ guest_token, merge?: boolean }` to `ClaimResult` | Validates the signed guest token (App Attest assertion inside). Imports the guest's local trip (one) and people. If identity already owns data and `merge` is absent: `409 state_conflict` with counts in `detail`. |
+| `POST /me/claim` | user | none | `{ trip: TripJson, claim_id: Uuid, merge?: boolean }` to `ClaimResult` | Imports the guest's local trip (one) and people into new rows owned by the caller. `claim_id` is client generated once per claim, so a double submit returns the first result (`Idempotent-Replay: true`) instead of importing twice. If identity already owns data and `merge` is absent: `409 state_conflict` with counts in `detail`. There is no guest token; a guest holds no server credential. |
+| `POST /devices/attest/challenge` | none (rate limited per IP) | none | none to `{ nonce: string, expires_at: string }` | Issues a one-time App Attest challenge nonce (5 minutes). |
+| `POST /devices/attest` | none (rate limited per IP) | none | `{ key_id: string, attestation: string, nonce: string }` to 204 | Verifies the attestation (certificate chain, nonce, App ID hash) and stores `key_id`, the public key, the counter (0) and the environment (`development` or `production`) in `device_attestations` (03; the endpoint names are those of 10 section 2.4). `422 attestation_invalid` otherwise. |
+| `POST /guest/ai/draft-day` | App Attest assertion, no JWT | `credits(1)` (`draft_day`) from the guest allowance | `{ destination: string, day?: string, preferences?: string }` with `Idempotency-Key` and the assertion headers to `DraftDayResult` | The one guest AI route. Instead of `Authorization`, the request carries `X-Attest-Key-Id` and `X-Attest-Assertion`; the server checks the assertion against the stored public key and advances the counter in one statement (a replayed counter is `401 unauthenticated`). Spend is drawn from `guest_allowances` (one row per key and UTC month, which references `device_attestations`) through its definer function, never from `credit_grants`; an empty allowance is `402 insufficient_credits` with the sign-up prompt as the `paywall` hint. Guest consent to `ai_processing` is given on the device before the call, so there is deliberately no `ai` gate (no users row, no consent row). Nothing is stored for the guest beyond that row. |
+| `POST /me/legacy-claim` | JWT, no users row needed (like `POST /me/bootstrap`) | none | `{ token: string }` to `Me` | The claim link for WF-040. The one-time importer (`import-legacy`, 03 section 12) emails each pre-created owner account a link `https://app.hermi.world/claim/<token>` at its verified address. The token is random, stored only as a sha256 hash and expires in 7 days; it works once. 03 has no hashed-token table that fits (`trip_invites` and `trip_share_links` are trip-scoped), so the hash needs a small table or columns on the pre-created `users` row: follow-up for S1.4, kept out of 03 here. With a valid token the call attaches the signed-in identity (`auth_identities`) to the legacy `users` row and creates no second `users` row; `POST /me/bootstrap` must likewise not create a user for an email that a pending legacy row owns, it returns `409 email_in_use` and the client sends the person to the claim link. The owner's imported trips, people and lodging become theirs. `410 claim_link_expired` for a used or expired token (the client shows "Ask for a new link"). |
 | `POST /me/sign-out` | user | none | none to 204 | Revokes the current device's refresh token and unregisters its push token. |
 | `POST /me/sign-out-everywhere` | user, recent auth | none | none to 204 | Revokes all devices and sessions, marks `devices.revoked_at`. Audit event. |
 | `GET /me/devices` | user | none | none to `Device[]` | Lists signed-in devices. |
@@ -339,7 +349,7 @@ type BootstrapIn = {
   home_airports?: Iata[]; home_currency?: string
   age_confirmed: boolean                     // 13+ (16+ EU and UK locales)
   device?: DeviceIn
-  guest_token?: string                       // claim in one step
+  claim?: { trip: TripJson; claim_id: Uuid }  // claim the guest trip in one step (same rules as POST /me/claim)
   referral_code?: string                     // from a hermi.world/r/<code> link, see 5.27
 }
 type Me = {
@@ -359,6 +369,7 @@ type DeviceIn = {
   notifications?: { price_alerts: boolean; trip_changes: boolean; reminders: boolean }
 }
 type Device = DeviceIn & { id: Uuid; current: boolean; last_seen_at: string; revoked_at: string | null }
+type TripJson = unknown                      // the guest app's local trip document (trip, days, items, saved places, people), validated like TripCreate plus the guest caps (1 trip, 200 items)
 type ClaimResult = { trip_id: Uuid | null; people_imported: number; items_imported: number }
 ```
 
@@ -373,11 +384,12 @@ type ClaimResult = { trip_id: Uuid | null; people_imported: number; items_import
 | `PUT /me/consents/{kind}` | user | none | `{ version: string, granted: boolean }` to `Consent` | Kinds (`consents.kind`): `terms`, `privacy`, `ai_processing`, `marketing_email`, `push_notifications`, `analytics`. Appends a `consents` row (history kept). Withdrawing `ai_processing` makes every AI endpoint return `ai_consent_required`; running agent runs are cancelled. Marketing opt-out also honors one-click unsubscribe. |
 | `POST /me/export` | user, re-auth within 10 minutes | 1 per day | none to 202 `DataExport` | Inserts `data_exports`, enqueues the export job. Zip of JSON plus a CSV or PDF per trip, emailed as a signed link valid 7 days. `429 rate_limited` on a second request within a day. |
 | `GET /me/export` | user | none | none to `DataExport[]` | Status list (`data_exports.status`): `requested`, `processing`, `ready`, `expired`, `failed`. |
-| `GET /me/export/{export_id}/download` | user | none | 302 to a signed R2 URL (5 minutes) | `410` if expired. |
+| `GET /me/export/{export_id}/download` | user | none | 302 to a signed R2 URL (5 minutes), or to the local storage route below when `STORAGE_BACKEND=local` | `410` if expired. |
+| `GET /storage/{object_key}?expires=&sig=` | signed URL | none | none to the stored bytes | Local only: when `STORAGE_BACKEND=local` the API serves stored objects (exports, uploads) from `.data/storage` through this read route, with a short-lived signed URL (HMAC over key and expiry, 5 minutes), so exports work without R2. The route is not registered when `STORAGE_BACKEND=r2` and is not in the production OpenAPI. The key resolves under `.data/storage`; any path that escapes it (`..`, an absolute path) is `404`, as is a bad or expired signature. |
 | `POST /me/deletion` | user, re-auth within 10 minutes | 1 per day | `{ confirm: "DELETE", transfers?: { trip_id: Uuid, new_owner_id: Uuid }[], delete_trip_ids?: Uuid[] }` to 202 `DeletionRequest` | Inserts `deletion_requests`. At once: sessions and refresh tokens revoked, Apple token revoked, push tokens cleared, pending invites cancelled, status `pending_deletion`. Sole-owner trips with other members and no choice: 30 day wait for a member to accept a transfer, then deleted. Hard purge at 30 days (this includes `trip_imports`, stored feed URLs, `referral_codes` and calendar tokens). Does not cancel store subscriptions (response includes `manage_subscription_url`). |
 | `POST /me/deletion/cancel` | user | within grace | none to `Me` | Restores `active`. Sessions stay revoked; the user signs in again. |
 | `GET /me/deletion` | user | none | none to `DeletionRequest \| null` | Progress checklist and purge date. |
-| `DELETE /me/ai-history` | user | none | none to 204 | Deletes stored prompt and response content for the user's runs (metadata kept for billing). |
+| `DELETE /me/ai-history` | user | none | none to 204 | Deletes the caller's `runs`, `run_events` and AI-created `notes`. Financially required `ai_usage` rows are kept with `user_id` set to null (06 section 12.4). |
 
 ```ts
 type ProfileUpdate = Partial<{
@@ -408,7 +420,7 @@ Later: Phase 2 (households, the Family plan and pooled credits).
 | Endpoint | Auth | Gate and cost | Request and response | Errors and side effects |
 |---|---|---|---|---|
 | `GET /trips` | user | none | `?status=&include=joined,owned&limit&cursor&updated_since` to `Page<TripSummary>` | Trips where the caller is a member, excluding soft-deleted. `ETag` supported. |
-| `POST /trips` | user | `active_trips` | `TripCreate` to 201 `Trip` | Creates `trips`, the owner `trip_members` row, `trip_destinations`, and `trip_people` links. Free owner with 2 active trips gets 403 `limit_reached` (reason `trip_limit`, `free_path`: "Archive a trip or join trips other people plan"). Joined trips never count. |
+| `POST /trips` | user | `active_trips` | `TripCreate` to 201 `Trip` | Creates `trips`, the owner `trip_members` row, `trip_destinations`, and `trip_people` links. Free owner with 2 active trips gets 402 `limit_reached` (reason `trip_limit`, `free_path`: "Archive a trip or join trips other people plan"). Joined trips never count. |
 | `GET /trips/{trip_id}` | viewer | none | none to `Trip` | `ETag` is the trip version. |
 | `PATCH /trips/{trip_id}` | editor (status, `ai_enabled` and `editors_can_invite`: owner) | versioned | `TripUpdate` to `Trip` | Replaces destinations and travelers when sent. Changing dates re-derives `itinerary_days`; items on removed days become unscheduled, never deleted. Sets cover from the first destination image. |
 | `DELETE /trips/{trip_id}` | owner | none | none to 204 | Soft delete (`deleted_at`), 30 days in trash. Cancels active agent runs, revokes invites and share links, and disables the calendar feed token. |
@@ -478,7 +490,7 @@ type NearbyAirport = Airport & { distance_km: number }
 | `PATCH /trips/{trip_id}/members/{user_id}` | owner | none (the member already holds a collaborator slot) | `{ role: "editor" \| "viewer" }` to `Member` | Cannot set `owner` (use transfer). Limited trips cannot raise a role. Changing editor and viewer does not change `collaborators_used`. |
 | `DELETE /trips/{trip_id}/members/{user_id}` | owner | none | none to 204 | Access ends immediately. Linked person detached ("Former member" option). |
 | `PUT /trips/{trip_id}/members/me/traveler` | member | none | `{ person_id: Uuid }` to `Member` | Answers "Which traveler are you?"; sets `people.linked_user_id`. A person links to one user per trip. |
-| `POST /trips/{trip_id}/invites` | owner (editors: viewer invites only if `editors_can_invite`) | `can_invite` (free collaborator slot), 30 per day, 20 pending | `InviteCreate` to 201 `Invite` | Random 128 bit token, stored hashed. The raw token appears only in this response and the emailed link. Email sent when `email` set. Invite limit: a pending invite holds a slot until it is used, revoked or expires, and a link invite holds `max_uses` slots. A Free owner has 1 slot per trip, so a second invite gets 403 `limit_reached`, reason `sharing`, with a paywall hint (`free_path`: "Share a read-only link, or remove your collaborator"). Plus and Trip Pass trips have 6 slots. When an owner's paid tier lapses, members beyond the owner's slots stay on the trip as viewers (`limited: true`) and nobody is removed. |
+| `POST /trips/{trip_id}/invites` | owner (editors: viewer invites only if `editors_can_invite`) | `can_invite` (free collaborator slot), 30 per day, 20 pending | `InviteCreate` to 201 `Invite` | Random 128 bit token, stored hashed. The raw token appears only in this response and the emailed link. Email sent when `email` set. Invite limit: a pending invite holds a slot until it is used, revoked or expires, and a link invite holds `max_uses` slots. A Free owner has 1 slot per trip, so a second invite gets 402 `limit_reached`, reason `sharing`, with a paywall hint (`free_path`: "Share a read-only link, or remove your collaborator"). Plus and Trip Pass trips have 6 slots. When an owner's paid tier lapses, members beyond the owner's slots stay on the trip as viewers (`limited: true`) and nobody is removed. |
 | `GET /trips/{trip_id}/invites` | owner | none | none to `Invite[]` | No tokens. |
 | `DELETE /trips/{trip_id}/invites/{invite_id}` | owner | none | 204 | Revokes. |
 | `GET /invites/{token}` | none (rate limited) | none | none to `InvitePreview` | Public preview for the landing page: trip name, cover, inviter display name, role. No dates or places. `410 invite_expired` for bad tokens (same response for unknown and expired). |
@@ -526,7 +538,7 @@ A person is a traveler profile owned by a user. It is planning data, not an acco
 | `POST /people` | user | max 30 per user | `PersonIn` to 201 `Person` | `owner_user_id` is the caller. |
 | `PUT /people/{person_id}` | owner of the person | none | `PersonIn` to `Person` | Linked people can only be edited by their own user for name and airports. |
 | `DELETE /people/{person_id}` | owner of the person | none | 204 | `409 state_conflict` if the person is the only traveler on a trip the caller does not own; otherwise removed from `trip_people`, historic votes keep "Former traveler". |
-| `PUT /trips/{trip_id}/travelers` | editor | none | `{ person_ids: Uuid[] }` to `Person[]` | Replaces `trip_people` for the trip (capped by `travelers_per_trip`: Free 2, Plus and Trip Pass 8; over the cap is 403 `limit_reached`, reason `traveler_limit`). |
+| `PUT /trips/{trip_id}/travelers` | editor | none | `{ person_ids: Uuid[] }` to `Person[]` | Replaces `trip_people` for the trip (capped by `travelers_per_trip`: Free 2, Plus and Trip Pass 8; over the cap is 402 `limit_reached`, reason `traveler_limit`). |
 
 ```ts
 type PersonIn = { name: string /* 1..60 */; color: string /* #rrggbb */; home_airports: Iata[] /* max 6 */ }
@@ -540,11 +552,11 @@ Flight data follows the existing route and quote model. A route is a search defi
 | Endpoint | Auth | Gate and cost | Request and response | Errors and side effects |
 |---|---|---|---|---|
 | `GET /trips/{trip_id}/routes` | viewer | none | none to `Route[]` | |
-| `POST /trips/{trip_id}/routes` | editor | `routes_per_trip` cap (Free 1, Plus 5, Trip Pass 3; `limit_reached`, reason `live_routes` only when `mode: "live"`) | `RouteIn` to 201 `Route` | `mode: "cached"` (default) uses Travelpayouts only. `mode: "live"` needs a free live slot and departure within 120 days, else 403 `limit_reached`. Enqueues a first cached refresh. |
+| `POST /trips/{trip_id}/routes` | editor | `routes_per_trip` cap (Free 1, Plus 5, Trip Pass 3; `limit_reached`, reason `live_routes` only when `mode: "live"`) | `RouteIn` to 201 `Route` | `mode: "cached"` (default) uses Travelpayouts only. `mode: "live"` needs a free live slot and departure within 120 days, else 402 `limit_reached`. Enqueues a first cached refresh. |
 | `PUT /routes/{route_id}` | editor | versioned | `RouteIn` to `Route` | Switching `mode` to `live` re-checks the gate. Changing search fields clears nothing; old observations stay. |
 | `DELETE /routes/{route_id}` | editor | none | 204 | Frees the live slot. Observations kept 13 months for history. |
 | `POST /trips/{trip_id}/flights/refresh` | editor | none (cached only) | `{ route_ids?: Uuid[] }` to 202 `Job` | Refreshes cached fares for these routes (max 20). Does not call live providers. Per-trip limit 10 an hour. |
-| `POST /trips/{trip_id}/flights/live-search` | editor | `live_route` (route in `live` mode), `credits(1)` | `{ route_id: Uuid }` with `Idempotency-Key` to 202 `LiveSearchJob` | Reserves 1 credit (`live_search`), enqueues a SerpApi call, writes `provider_calls` and `fare_observations`. Settles on success; releases on `provider_error`. For trips with a pass, also increments `trip_passes.live_checks_used` (`live_checks_max`, 60). Returns `from_cache: true` and charges 0 when a fresh observation (under 6 hours) already exists in the shared cache. 402, 429 `provider_budget_exhausted`, 403 `limit_reached`. |
+| `POST /trips/{trip_id}/flights/live-search` | editor | `live_route` (route in `live` mode), `credits(1)` | `{ route_id: Uuid }` with `Idempotency-Key` to 202 `LiveSearchJob` | Reserves 1 credit (`live_search`), enqueues a SerpApi call, writes `provider_calls` and `fare_observations`. Settles on success; releases on `provider_error`. For trips with a pass, also increments `trip_passes.live_checks_used` (`live_checks_max`, 60). Returns `from_cache: true` and charges 0 when a fresh observation (under 6 hours) already exists in the shared cache. 402, 429 `provider_budget_exhausted`, 402 `limit_reached`. |
 | `GET /live-search/{job_id}` | the caller | none | none to `LiveSearchJob` | Poll until `done` or `failed`. |
 | `GET /trips/{trip_id}/flights/best` | viewer | none | `?route_id=&limit=20&include_hidden=false&sort=price` to `Fare[]` | Sorted by price ascending then observed time. `sort` accepts `price`, `duration`, `stops` only. |
 | `GET /trips/{trip_id}/flights/summary` | viewer | none | none to `RouteSummary[]` | Cheapest fare, last check time, fare count and chosen fare per route. `ETag`. |
@@ -558,7 +570,7 @@ Flight data follows the existing route and quote model. A route is a search defi
 | `GET /routes/{route_id}/booked-fare` | viewer | none | none to `BookedFare \| null` | What was paid, the cheapest matching fare now and the drop, for the route's booked flight. `null` until a flight is booked. Private amounts: the paid amount is shown to members only, never in share links or the calendar feed. |
 | `PUT /routes/{route_id}/booked-fare` | editor | booked flight | `{ paid: Money \| null, booked_at?: string }` to `BookedFare` | Sets or corrects what was paid. `paid: null` clears the amount and stops the drop alert (the flight stays booked). Currency must be in `fx_rates`. |
 | `GET /trips/{trip_id}/price-alerts` | viewer | none | none to `PriceAlert[]` | |
-| `POST /routes/{route_id}/price-alerts` | editor | `price_alerts` cap per account (Free 1, cached fares only; Plus 3; a pass gives 2 on its trip). The booked-fare drop alert does not count toward this cap | `PriceAlertIn` to 201 `PriceAlert` | Writes `price_alerts`. Free alerts run on cached fares only and never trigger live calls. `403 limit_reached` with a paywall hint otherwise. |
+| `POST /routes/{route_id}/price-alerts` | editor | `price_alerts` cap per account (Free 1, cached fares only; Plus 3; a pass gives 2 on its trip). The booked-fare drop alert does not count toward this cap | `PriceAlertIn` to 201 `PriceAlert` | Writes `price_alerts`. Free alerts run on cached fares only and never trigger live calls. `402 limit_reached` with a paywall hint otherwise. |
 | `PATCH /price-alerts/{alert_id}` | editor | none | `Partial<PriceAlertIn>` to `PriceAlert` | |
 | `DELETE /price-alerts/{alert_id}` | editor | none | 204 | |
 
@@ -960,10 +972,11 @@ Later: Phase 2 (concierge lane and room-block requests).
 | `POST /credits/packs/claim` | user | none | `{ product_id: string, transaction_id: string }` with `Idempotency-Key` to `CreditBalance` | Verifies the transaction through RevenueCat, grants credits keyed by `transaction_id` (never twice). Usually already granted by the webhook; this returns the balance. `409 state_conflict` if the transaction belongs to another user. |
 | `GET /trips/{trip_id}/pass` | viewer | none | none to `TripPass \| null` | Pass status and expiry for the trip settings screen. A reward pass shows `source: "import_reward"` and is not refundable. |
 | `GET /me/passes` | user | none | none to `TripPass[]` | Includes an unapplied pass waiting to be bound to a trip (a `store_transactions` row with `kind = 'pass'` and no `trip_passes` row yet). |
-| `POST /me/passes/{pass_id}/bind` | user (trip owner) | none | `{ trip_id: Uuid }` with `Idempotency-Key` to `TripPass` | Binds an unapplied pass to a trip the caller owns (the purchaser must be the owner): inserts `trip_passes` (`starts_at` now, `expires_at` plus 90 days, limits copied from `plans.limits`), writes the `trip_pass` credit grant, recomputes capabilities. `409 state_conflict` if the trip already has an active pass. A reward pass from an import (5.26) is bound to its trip when it is granted and needs no bind call. |
+| `POST /me/passes/{pass_id}/bind` | user (trip owner) | none | `{ trip_id: Uuid }` with `Idempotency-Key` to `BindResult` | Binds an unapplied pass to a trip the caller owns: inserts `trip_passes` (`starts_at` now, `expires_at` plus 90 days, limits copied from `plans.limits`), writes the `trip_pass` credit grant, recomputes capabilities, and returns `{ bound: true, pass, credits_granted: 0, support_ticket_id: null }`. The caller must be the trip's owner: otherwise `403 insufficient_role`. When a paid second pass cannot bind because the trip already has an active pass: returns `200 { bound: false, pass: null, credits_granted: 40, support_ticket_id, message }`, grants the pass's credits to the buyer (`trip_pass` grant, keyed by the store transaction, so a retry grants once), opens a `support_tickets` row for the refund, and the `message` tells the buyer that support sends the refund request ("This trip already has a Trip Pass. We added the 40 credits to your account and support will send you the refund request."). The purchase flow and the RevenueCat handler apply the same rule when `trip_id` names a trip the buyer does not own or that already has a pass. A reward pass from an import (5.26) is bound to its trip when it is granted and needs no bind call. |
 | `POST /me/passes/{pass_id}/move` | user (trip owner) | none | `{ trip_id: Uuid }` to `TripPass` | Moves an active pass to another trip the caller owns, once (`move_count`). Keeps `expires_at`, moves unspent pass credits and the live-check counter. `409 state_conflict` on a second move. |
 
 ```ts
+type BindResult = { bound: boolean; pass: TripPass | null; credits_granted: number; support_ticket_id: Uuid | null; message?: string }
 type Entitlements = {
   tier: Tier; source: "none" | "subscription" | "comp"
   product_id: string | null; status: "none" | "active" | "in_trial" | "in_grace" | "billing_retry" | "paused" | "expired" | "refunded" | "revoked"
@@ -1001,12 +1014,12 @@ The server decides which offer to show and why, so the client never hard codes p
 
 | Endpoint | Auth | Gate and cost | Request and response | Errors and side effects |
 |---|---|---|---|---|
-| `GET /paywall/offer` | user | none | `?reason=&trip_id=&surface=` to `PaywallOffer` | Logs `paywall_viewed` (no experiment cell is shown twice in one session). Returns 200 with `offer: null` when nothing should be shown (for example when the user already has the capability). |
+| `GET /paywall/offer` | user | none | `?trigger=&reason=&trip_id=&surface=` to `PaywallOffer` | Logs `paywall_viewed` (no experiment cell is shown twice in one session). Returns 200 with `offer: null` when nothing should be shown (for example when the user already has the capability). |
 | `POST /paywall/events` | user | none | `{ offer_id: Uuid, event: "viewed" \| "dismissed" \| "cta_tapped" \| "purchase_started" \| "purchased" \| "purchase_failed" \| "restore_tapped" }` to 204 | Analytics and experiment accounting only. |
 
 ```ts
 type PaywallOffer = {
-  offer_id: Uuid; reason: PaywallHint["reason"]
+  offer_id: Uuid; reason: PaywallHint["reason"] | null; trigger?: PaywallTrigger   // reason is null for the three client-initiated triggers
   purchasable: boolean                                       // false on the web app: there are no web purchases in Phase 1 and "lead" and "alternatives" are empty
   headline: string; body: string; why: string              // why this is shown now, plain words
   lead: { product_id: string; label: string; trial_days: number | null }
@@ -1019,7 +1032,7 @@ type PaywallOffer = {
 
 **Web app.** The web app cannot buy anything in Phase 1. When the request comes from the web client (`X-Hermi-Client: web`) the offer has `purchasable: false`, `lead.product_id` is omitted, and the headline is "Upgrade in the iOS app" with the same `why` and `free_path`; `cta` is an App Store link, never a purchase page or a price comparison. Web billing arrives with Android in Phase 2.
 
-Mapping (decision table the endpoint implements, detail in 07): `sharing` (a Free owner wants a second collaborator) leads with Trip Pass for a one-trip group or Plus annual for repeat planners; `live_routes` and `agent_taster_used` lead with Plus annual; `credits` shows credit packs first for Plus members and Plus for Free; `traveler_limit` shows Plus; `trip_limit` shows Plus and the option to archive. Credit packs are never shown beside an upsell on a trips home screen. `reason` on `GET /paywall/offer` accepts every `PaywallHint.reason` plus the client-initiated trigger codes `export_footer`, `ninth_stay`, `lifecycle_14d` and `alert_limit` ([07-monetization-spec.md](07-monetization-spec.md) section 6.2). Product ids in `lead` and `alternatives` are `store_products.product_id` values such as `hermi_plus_annual` and `hermi_trip_pass`.
+Mapping (decision table the endpoint implements, detail in 07): `sharing` (a Free owner wants a second collaborator) leads with Trip Pass for a one-trip group or Plus annual for repeat planners; `live_routes` and `agent_taster_used` lead with Plus annual; `credits` shows credit packs first for Plus members and Plus for Free; `traveler_limit` shows Plus; `trip_limit` shows Plus and the option to archive. Credit packs are never shown beside an upsell on a trips home screen. `GET /paywall/offer` takes `?trigger=` (any `PaywallTrigger`, exactly the 07 section 6.2 codes). The trigger sets the reason: `third_trip` gives `trip_limit`; `second_route`, `track_live` and `alert_limit` give `live_routes`; `invite` gives `sharing`; `out_of_credits_draft`, `out_of_credits_research`, `out_of_credits_verify` and `out_of_credits_agent` give `credits`; `out_of_credits_agent` for a Free user whose lifetime deep run is spent gives `agent_taster_used`. `export_footer`, `ninth_stay` and `lifecycle_14d` are client-initiated and have `reason: null`. A gate error maps the other way: `limit_reached` with reason `trip_limit`, `sharing` or `live_routes` sets the matching trigger; `traveler_limit` sets no trigger. `?reason=` alone is accepted and picks the default trigger for it. Product ids in `lead` and `alternatives` are `store_products.product_id` values such as `hermi_plus_annual` and `hermi_trip_pass`.
 
 ### 5.21 Affiliate: outbound links, redirect and offers
 
@@ -1029,7 +1042,7 @@ All outbound partner links go through `/go/{click_id}`. The server mints a click
 |---|---|---|---|---|
 | `POST /outbound` | user (viewer on the trip) | 60 an hour per user | `OutboundIn` to 201 `OutboundLink` | Checks trip access, picks the program (feature flags, geography, A/B cell, kill switch per partner), inserts `link_clicks` with a random 128 bit base62 `click_id` (and `short_id` of 8 to 12 characters where a network limits sub-id length), returns `https://go.hermi.world/go/<click_id>`. Repeat clicks for the same entity and surface within 30 seconds return the same link. `404 not_found` when no program applies (the client then shows the plain link). User id, trip id and email never appear in the URL. |
 | `POST /shared/{token}/outbound` | none (share token) | 30 an hour per IP | `{ offer_ref: string }` to 201 `OutboundLink` | For the "Book the plan" slide on share pages. No user is attached; the click row has `user_id` null, `entity_type = 'share_link'` and the share link id as `entity_id`. |
-| `GET /go/{click_id}` | none | known id; the affiliate redirect needs it fresh (under 10 minutes) and unused | none to `302 Location: <partner url>` | Sets `clicked_at`, `redirect_status`, `opened_in`, `country` and `platform` on `link_clicks`; marks the id used. Headers: `Cache-Control: no-store`, `Referrer-Policy: no-referrer`. Never renders a page, sets a cookie or runs a script. There is no `url=` parameter; an id that never existed gets `404` with an empty body and `X-Robots-Tag: noindex`, while a known id that is expired or already used gets a 302 to the plain non-affiliate destination so nobody is stranded. Partner kill switch on: the same 302 to the plain destination. |
+| `GET /go/{click_id}` | none | known id; the affiliate redirect needs it fresh (under 10 minutes) and unused | none to `302 Location: <partner url>` | Sets `clicked_at`, `redirect_status` (the HTTP status sent: 302 for a partner redirect and for the plain fallback; an unknown id has no row), `opened_in`, `country` and `platform` on `link_clicks`; marks the id used. Headers: `Cache-Control: no-store`, `Referrer-Policy: no-referrer`. Never renders a page, sets a cookie or runs a script. There is no `url=` parameter; an id that never existed gets `404` with an empty body and `X-Robots-Tag: noindex`, while a known id that is expired or already used gets a 302 to the plain non-affiliate destination so nobody is stranded. Partner kill switch on: the same 302 to the plain destination. |
 | `GET /trips/{trip_id}/offers` | viewer | none | `?context=&entity_id=` to `AffiliateOffer[]` | Offers per context: `destination`, `flight_chosen`, `lodging_shortlist`, `itinerary_day`, `place`, `checklist`, `presentation`. At most one card per screen view except user-requested lists. Sorting is always stated and is never by commission. Returns `[]` when the user set `hide_booking_links` (the client then renders plain links), for domestic trips on eSIM items, and before a chosen flight or booking on insurance. |
 | `GET /affiliate/disclosure` | none | none | none to `{ sentence, eu_uk_label: "Ad", booking_line: string, programs: {name: string, category: string}[], ranking_rule: string }` | Static content for the "How we earn money" page. `Cache-Control: public, max-age=3600`. |
 
@@ -1068,7 +1081,7 @@ Later: Phase 3 (Hermi for Advisors workspaces, seats and proposals).
 
 ### 5.25 Admin API (outline)
 
-Base path `/v1/admin`, hidden from the public OpenAPI schema, reachable only from the admin console origin behind Cloudflare Access, with a separate admin Supabase project claim and `admin_users.role` (`admin_role`: `owner`, `support`, `finance`, `engineer`, `content`). Every mutating call needs a `reason` string and writes `audit_log` (actor, route, target, before and after). Routes return `404` to non-admins. The route list above is a summary; the full table, limits and permissions are in [08-admin-control-center.md](08-admin-control-center.md) section 8, which is authoritative.
+Base path `/v1/admin`, hidden from the public OpenAPI schema, reachable only from the admin console origin behind Cloudflare Access, with a separate admin Supabase project claim and `admin_users.role` (`admin_role`: `owner`, `support`, `finance`, `engineer`, `content`). `ADMIN_AUTH_MODE=dev` (local and ci only) uses the fake-Access signer of 08: the same admin routes accept a token it signs, and nothing else changes. Every mutating call needs a `reason` string and writes `audit_log` (actor, route, target, before and after). Routes return `404` to non-admins. The route list above is a summary; the full table, limits and permissions are in [08-admin-control-center.md](08-admin-control-center.md) section 8, which is authoritative.
 
 | Area | Endpoints (all under `/v1/admin`) | Minimum role |
 |---|---|---|
@@ -1089,26 +1102,36 @@ An import brings an existing plan into Hermi in two steps: create a **preview** 
 Rules that hold for every source:
 
 1. The server never fetches Airbnb, Vrbo or Booking.com pages. A feed URL on those hosts (or any host in `BLOCKED_HOSTS`, 06 section 2.4) is refused with `422 blocked_domain` and the client suggests downloading the file and uploading it. URLs found inside calendar events or pasted text are kept as plain text in notes; they are never followed, rewritten or given an affiliate link.
-2. A preview belongs to the importing user, expires after 24 hours and stores only normalized candidates (`trip_imports.preview`), never the raw file or pasted text. Raw content and feed URLs never go to logs or Sentry.
+2. A preview belongs to the importing user, expires after 24 hours and stores only normalized candidates (`trip_imports.preview`). The raw file or pasted text is never stored (no file storage, no object key); it is parsed in memory and dropped. Raw content and feed URLs never go to logs or Sentry.
 3. Claude Haiku (06 section 5.3) is used only where text must be interpreted: pasted text, and calendar event descriptions that look like bookings. Dates, times, places and titles read straight from a calendar file are parsed without AI and cost nothing.
 4. Nothing is saved until confirm. Every row an import creates has `source: "import"` and appears in the trip's activity feed ("Maya imported 9 items").
 5. Google Maps is never scraped. A Google Maps list link (`maps.app.goo.gl`, `google.com/maps/placelists/...`) is never opened, resolved or fetched; sent where a file or text is needed it returns `422 list_link_not_readable`, and the screen explains how to export the list and offers to keep the link as a note on the trip. Places from a file or pasted text are matched by name through place search (Geoapify), with no AI and no credits; any Google Maps URL in the file stays as plain text in the item's notes.
 
+**Limits (one table; 01, 02 section 5.4 and 10 mirror it).**
+
+| Source | Maximum size | Maximum items | Rate limit |
+|---|---|---|---|
+| ICS file | 2 MB | 500 events; description extraction at most 3 AI calls (18 events) | 20 previews a day |
+| ICS feed body | 2 MB | 500 events; description extraction at most 3 AI calls (18 events) | 5 registrations a day, 4 refreshes a day per import; counts toward the 20 previews a day |
+| Pasted booking text | 12,000 characters | 1 AI call | 20 previews a day (file, paste and feed together) |
+| Google Maps file | 5 MB | 200 places | 20 previews a day |
+| Pasted places | 20,000 characters | 200 places | 20 previews a day |
+
 | Endpoint | Auth | Gate and cost | Request and response | Errors and side effects |
 |---|---|---|---|---|
-| `POST /imports/ics-file` | user | none; 20 previews a day | multipart form: `file` (max 2 MB, `.ics` or `text/calendar`), `trip_id?` (caller must be editor) to 201 `ImportPreview` | Parses in the worker sandbox and returns a `previewed` import (files are parsed locally, so no async step). `415 unsupported_media_type`, `413 payload_too_large`, `422 validation_failed` (`no_events`, `too_many_events`). Description extraction may spend credits (see parsing rules). |
-| `POST /imports/ics-feed` | user | none; 5 a day; SSRF rules below | `{ url: string, trip_id?: Uuid }` with `Idempotency-Key` to 202 `ImportPreview` (status `fetching`) | Validates the URL, holds it encrypted (only until the preview is confirmed or discarded, unless "Keep checking this calendar" is switched on later), enqueues the fetch job, sets `Location: /v1/imports/{id}`. Poll `GET /imports/{id}` until `previewed` or `failed`. `422 feed_url_not_allowed`, `422 blocked_domain`, `502 feed_fetch_failed` (as the failed import's `error_code`). |
+| `POST /imports/ics-file` | user | none; 20 previews a day | multipart form: `file` (max 2 MB, `.ics` or `text/calendar`), `trip_id?` (caller must be editor) to 201 `ImportPreview` | Parses in the worker sandbox and returns a `review` import (files are parsed locally, so no async step). `415 unsupported_media_type`, `413 payload_too_large`, `422 validation_failed` (`no_events`, `too_many_events`). Description extraction may spend credits (see parsing rules). |
+| `POST /imports/ics-feed` | user | none; 5 a day; SSRF rules below | `{ url: string, trip_id?: Uuid }` with `Idempotency-Key` to 202 `ImportPreview` (status `received`) | Validates the URL, holds it encrypted (only until the preview is confirmed or discarded, unless "Keep checking this calendar" is switched on later), enqueues the fetch job, sets `Location: /v1/imports/{id}`. Poll `GET /imports/{id}` until `review` or `failed`. `422 feed_url_not_allowed`, `422 blocked_domain`, `502 feed_fetch_failed` (as the failed import's `error_code`). |
 | `POST /imports/paste` | user | `ai`, `credits(1)` (`booking_import`, action code `explain`) | `{ text: string /* max 12000 */, trip_id?: Uuid }` with `Idempotency-Key` to 201 `ImportPreview` | Reserves 1 credit, redacts personal data, calls Haiku once with a strict JSON schema, builds candidates. Nothing recognized: the credit is refunded and the import has `warnings: [{ code: "unrecognized" }]`. `402 insufficient_credits`, `403 ai_consent_required`, `503 feature_disabled` (kill switch `ai.import`). The server never fetches a URL in the text. |
 | `POST /imports/maps-file` | user | none; 20 previews a day | multipart form: `file` (max 5 MB, `.csv`, `.json`, `.geojson` or `.kml`), `trip_id?`, `origin?` to 201 `ImportPreview` | Reads the Takeout list locally (title, note, comment; coordinates when present) and matches each title by place search. Up to 200 places, more is `422 too_many_events`. Candidates are `kind: "place"`. No AI, no credits. `415`, `413`. |
 | `POST /imports/places` | user | none; 20 previews a day | `{ text: string /* max 20000 */, trip_id?: Uuid, origin?: ImportOrigin }` to 201 `ImportPreview` | Pasted place names, one per line or a copied list. A single Google Maps list link returns `422 list_link_not_readable`. Matching by place search, no AI, no credits; up to 200 places. |
 | `GET /imports` | user | none | `?status=&limit&cursor` to `Page<ImportSummary>` | The caller's imports from the last 30 days and registered feeds. |
-| `GET /imports/{import_id}` | the importer | none | none to `ImportPreview` | Poll and review. `410 import_expired` for a preview older than 24 hours, discarded or already confirmed. |
+| `GET /imports/{import_id}` | the importer | none | none to `ImportPreview` | Poll and review. `410 import_expired` for a preview older than 24 hours (its status is then `discarded`), discarded or already `applied`. |
 | `POST /imports/{import_id}/refresh` | the importer | `ics_feed` only; 4 a day | none to 202 `ImportPreview` | Re-fetches the stored feed now and builds a change preview containing only events that are new or changed since the last confirm. Never applies anything by itself. |
 | `PUT /imports/{import_id}/polling` | the importer | `ics_feed` only, after confirm; at most 3 polled feeds per account | `{ enabled: boolean }` to 200 `ImportSummary` | "Keep checking this calendar": opt-in, off by default, never switched on for the person. On: the encrypted feed URL is kept and the worker polls every 6 hours (`trip_imports.poll_enabled`, `next_poll_at`). Off: the stored URL and any pending changes are deleted. Calls `set_import_polling()` (03 5.9). `409 polling_limit`, `503 feature_disabled` (kill switch `import.polling`). |
 | `GET /imports/{import_id}/changes` | the importer | none | none to `ImportChanges \| null` | The change preview found by polling or refresh: events added, changed and removed since the last confirm. `null` when there is nothing to review. |
 | `POST /imports/{import_id}/changes/confirm` | the importer (editor on the trip) | none | `{ include_keys: string[] }` with `Idempotency-Key` to 200 `ImportResult` | Applies only the ticked changes, matched by `import_uid`; removed events are never deleted silently (the item is shown as "Removed from your calendar" for the person to delete). Polling changes never count toward the reward. |
 | `DELETE /imports/{import_id}/changes` | the importer | none | none to 204 | Dismisses the change preview. |
-| `POST /imports/{import_id}/confirm` | the importer (editor on an existing target trip) | `active_trips` when a new trip is created; `routes_per_trip` for tracked fares | `ImportConfirm` with `Idempotency-Key` to 201 `ImportResult` | One transaction (rules below). Sets `trip_imports.status = 'confirmed'`, deletes the candidate payload and, unless polling is switched on, the stored feed address, and applies the reward when the account is eligible. `403 limit_reached` (reason `trip_limit`) when a Free owner has 2 active trips; the client then offers "Add to an existing trip". |
+| `POST /imports/{import_id}/confirm` | the importer (editor on an existing target trip) | `active_trips` when a new trip is created; `routes_per_trip` for tracked fares | `ImportConfirm` with `Idempotency-Key` to 201 `ImportResult` | One transaction (rules below). Sets `trip_imports.status = 'applied'`, deletes the candidate payload and, unless polling is switched on, the stored feed address, and applies the reward when the account is eligible. `402 limit_reached` (reason `trip_limit`) when a Free owner has 2 active trips; the client then offers "Add to an existing trip". |
 | `DELETE /imports/{import_id}` | the importer | none | none to 204 | Discards the preview, deletes the stored feed URL and candidates. Rows an earlier confirm created stay. Also turns polling off. |
 | `GET /me/import-reward` | user | none | none to `ImportReward` | Drives the onboarding card and the copy on the import screen. |
 
@@ -1143,7 +1166,7 @@ The grant is a `trip_passes` row bound to the trip: `plan_code = 'trip_pass'`, n
 ```ts
 type ImportSource = "ics_file" | "ics_feed" | "pasted_text" | "maps_file" | "places_text"
 type ImportOrigin = "tripit" | "tripsy" | "wanderlog" | "google_calendar" | "google_maps" | "other"
-type ImportStatus = "fetching" | "previewed" | "confirmed" | "discarded" | "expired" | "failed"
+type ImportStatus = "received" | "parsing" | "review" | "applied" | "failed" | "discarded"   // = 03 ck_trip_imports_status; a preview past 24 hours is `discarded`
 type ImportFlightDraft = {
   airline: string | null; flight_number: string | null
   origin: Iata | null; destination: Iata | null
@@ -1238,9 +1261,9 @@ These routes need no sign-in. They feed the pages search engines see: public sam
 
 | Endpoint | Auth | Gate and cost | Request and response | Errors and side effects |
 |---|---|---|---|---|
-| `GET /public/sample-trips` | none | none | `?destination=&limit&cursor` to `Page<SampleTripSummary>` | Staff-curated sample trips. A sample trip is an ordinary trip owned by a Hermi content account and published from the admin console; nothing else from that account is ever exposed. `Cache-Control: public, max-age=3600`. |
+| `GET /public/sample-trips` | none | none | `?destination=&tag=&limit&cursor` to `Page<SampleTripSummary>` | Staff-curated sample trips. `tag` filters on `sample_trips.tags` (the Beach, City, Mountains and Food chips). A sample trip is an ordinary trip owned by a Hermi content account and published from the admin console; nothing else from that account is ever exposed. `Cache-Control: public, max-age=3600`. |
 | `GET /public/sample-trips/{slug}` | none | none | none to `SampleTrip` | The presentation payload (5.15) with the same redaction as a share link (no people, no notes), labeled "Sample trip". Prices are shown as example prices with their observed date. `book_slide` is always `null`: sample pages carry no partner links. `404` for unpublished slugs. |
-| `POST /public/sample-trips/{slug}/copy` | user | `active_trips` | `{ start_date?: string }` with `Idempotency-Key` to 201 `Trip` | "Use this plan": copies days, items and saved places (never flights or prices) into a new trip owned by the caller, shifting dates to start at `start_date`. Items get `source: "manual"`. Emits `sample_trip_copied`. |
+| `POST /public/sample-trips/{slug}/copy` | user | `active_trips` | `{ start_date?: string }` with `Idempotency-Key` to 201 `Trip` | "Use this plan" (the one button label; event `sample_trip_copied`): copies days, items and saved places (never flights or prices) into a new trip owned by the caller, shifting dates to start at `start_date`. Items get `source: "manual"`. Emits `sample_trip_copied`. WF-133 builds the 5.28 sample routes and WF-107 reuses them. |
 | `GET /shared/{token}/meta` | none (per-IP and per-token limit) | none | none to `SharedMeta` | Title, description and cover for the page head and social cards, so the web app can render them at the edge. Returns `indexable` so the page sets `noindex` when it is false. `410 share_link_revoked` for revoked or expired links. |
 | `GET /public/sitemap` | none | none | `?cursor` to `Page<{ url: string; updated_at: string }>` | Sample trips and shared links with `indexable: true`, for the sitemap generator. `Cache-Control: public, max-age=3600`. |
 | `GET /public/status` | none (60 a minute per IP) | none | none to `PublicStatus` | The same component summary the public status page shows (web app, API, AI features, fare data, push), so the app can show a banner when something is degraded. `Cache-Control: public, max-age=30`. The hosted status page is separate and keeps working when the API is down (02 section 8.1). |
@@ -1249,7 +1272,7 @@ These routes need no sign-in. They feed the pages search engines see: public sam
 The shared-trip read itself is `GET /shared/{token}` in 5.6 (redacted presentation, `X-Robots-Tag: noindex` unless the link is `indexable`), with `POST /shared/{token}/outbound` and `POST /shared/{token}/report` beside it. A shared trip opts in to search only when the owner sets `indexable: true` on the link, and then the server keeps `people`, `notes` and `hotel_address` redaction on.
 
 ```ts
-type SampleTripSummary = { slug: string; title: string; destination_name: string; days: number; summary: string; cover: Trip["cover"] }
+type SampleTripSummary = { slug: string; title: string; destination_name: string; days: number; summary: string; cover: Trip["cover"]; tags: string[]; suits: string }   // tags and suits are sample_trips.tags and sample_trips.suits (03 5.19)
 type SampleTrip = {
   slug: string; label: "Sample trip"; title: string; summary: string
   presentation: Presentation; book_slide: null
@@ -1304,7 +1327,7 @@ A person pastes an itinerary from ChatGPT, Gemini, Layla, Mindtrip or any other 
 | `POST /trips/{trip_id}/verify-plan` | editor | `ai`, `credits(1)` (`explain`, run kind `verify_extract`; kill switch `ai.verify`) | `VerifyPlanIn` with `Idempotency-Key` to 201 `PlanVerification` (status `review`) | Redacts personal data, reads the text with Haiku (strict schema, no tools) and returns up to 25 items. Nothing recognized: the credit is refunded and `warnings` has `unrecognized`. `422 plan_too_long`, `402 insufficient_credits`, `403 ai_consent_required`, `503 feature_disabled`. The pasted text is not stored. |
 | `GET /trips/{trip_id}/plan-verifications` | viewer | none | `?limit&cursor` to `Page<PlanVerificationSummary>` | Verifications of the last 30 days on the trip. |
 | `GET /plan-verifications/{id}` | viewer on the trip | none | none to `PlanVerification` | Items, verdicts and evidence. Poll while `status` is `checking`. `410 import_expired` after 30 days. |
-| `PUT /plan-verifications/{id}/selection` | editor | `verify_items` | `{ item_ids: Uuid[] }` to `PlanVerification` | Chooses which items to check (at most `plans.limits.verify_items_per_run`: Free 5, Plus and Trip Pass 12). The default selection is the first items in plan order. `403 limit_reached` (no paywall) over the cap. |
+| `PUT /plan-verifications/{id}/selection` | editor | `verify_items` | `{ item_ids: Uuid[] }` to `PlanVerification` | Chooses which items to check (at most `plans.limits.verify_items_per_run`: Free 5, Plus and Trip Pass 12). The default selection is the first items in plan order. `402 limit_reached` (no paywall) over the cap. |
 | `POST /plan-verifications/{id}/check` | editor | `ai`, `credits(n)` where n is the number of selected items (`verify_plan`, 1 each; 6 or more needs the usual confirm), `verify_items`; one check at a time per verification | `Idempotency-Key` to 202 `PlanVerification` (status `checking`, `Location` the same resource, `events_url` the run stream) | Reserves n credits, creates the `verify_plan` run and enqueues the worker. Progress streams on `GET /agent-runs/{run_id}/stream` (5.13, events `item.checked`). Settles to the items that ended green, amber or red and refunds the rest. `409 state_conflict` when already checking, `402`, `429 provider_budget_exhausted`. |
 | `POST /plan-verifications/{id}/import` | editor | none | `{ include_item_ids: Uuid[] }` with `Idempotency-Key` to 201 `{ created: number, skipped: number }` | Writes the ticked items as itinerary items (`source: "verify_plan"`, with `check_url` and `checked_at` from the evidence, so the freshness flag and recheck apply). Free, no credits. Red items can be ticked but are never ticked by default. |
 | `DELETE /plan-verifications/{id}` | editor | none | 204 | Discards the result and its evidence. Items already imported stay. |
@@ -1341,7 +1364,7 @@ type PlanVerificationSummary = Pick<PlanVerification, "id" | "source_label" | "s
 All webhook endpoints are public routes (no bearer token), excluded from the cross-tenant test by an explicit allow-list, and served under `/v1/webhooks`. Shared processing rules:
 
 1. Read the raw body, verify the signature with a constant-time compare before parsing. Invalid: `401 invalid_signature`, log, never process.
-2. Insert into `webhook_events (provider, event_id, event_type, payload, received_at)` where `event_id` is the provider event id (RevenueCat `event.id`, Apple `notificationUUID`, network `txn` key); the primary key is `(provider, event_id)`. `INSERT ... ON CONFLICT DO NOTHING`. If the row already existed and `processed_at` is set (`status = 'processed'`), return `200` and stop. This is the idempotency guarantee.
+2. Insert into `webhook_events (provider, event_id, event_type, payload, received_at)` where `event_id` is the provider event id (RevenueCat `event.id`, network `txn` key, Resend `svix-id`, Supabase hook id); the primary key is `(provider, event_id)`. `INSERT ... ON CONFLICT DO NOTHING`. If the row already existed and `processed_at` is set (`status = 'processed'`), return `200` and stop. This is the idempotency guarantee.
 3. Process in one transaction, set `status = 'processed'` and `processed_at`, return `200`. Unknown event types are stored (`status = 'ignored'`) and acknowledged with `200`. A transient failure returns `500` so the sender retries (`attempts` is incremented); a permanent failure stores `error` with `status = 'failed'` and returns `200` and alerts (payment webhook failures page the on-call).
 4. Handlers are order independent: each applies the state carried in the event (and, for billing, re-reads the subscriber from RevenueCat) rather than assuming the previous event arrived.
 5. Payloads are untrusted data. Amounts come from our own `store_transactions`, never from a webhook field alone.
@@ -1349,8 +1372,11 @@ All webhook endpoints are public routes (no bearer token), excluded from the cro
 | Endpoint | Sender | Verification | Events handled and effects |
 |---|---|---|---|
 | `POST /webhooks/revenuecat` | RevenueCat | `Authorization: Bearer <REVENUECAT_WEBHOOK_SECRET>` compared in constant time; `environment` field must match the deployment (sandbox events are accepted only in staging) | `INITIAL_PURCHASE`, `RENEWAL`, `PRODUCT_CHANGE`, `CANCELLATION`, `UNCANCELLATION`, `BILLING_ISSUE`, `EXPIRATION`, `REFUND` (as `CANCELLATION` with reason), `NON_RENEWING_PURCHASE`, `TRANSFER`, `SUBSCRIBER_ALIAS`. Upserts `subscriptions` (unique on `store` and `original_transaction_id`) and `store_transactions` (unique on `store` and `store_transaction_id`), recomputes `entitlements`, grants the monthly credit allowance on renewal (`credit_grants.period_key` keeps it idempotent), binds a Trip Pass to the trip by inserting `trip_passes` (the purchase flow sent `trip_id` as a subscriber attribute; a pass with no trip stays `unapplied`, meaning a `store_transactions` row with no `trip_passes` row), grants credit packs keyed by the store transaction (`credit_grants.store_transaction_id` is unique), and claws back unspent credits on refund (`clawback` ledger rows; a shortfall blocks AI until later grants cover it). `app_user_id` is our user UUID. Emits `subscription_started`, `subscription_renewed`, `subscription_canceled`. |
-| `POST /webhooks/apple` | Apple App Store Server Notifications V2, only if used directly | Signed JWS (`signedPayload`); verify the x5c chain to Apple's root, check bundle id and environment, verify the nested `signedTransactionInfo` and `signedRenewalInfo` | `SUBSCRIBED`, `DID_RENEW`, `DID_FAIL_TO_RENEW`, `GRACE_PERIOD_EXPIRED`, `EXPIRED`, `REFUND`, `REVOKE`, `DID_CHANGE_RENEWAL_STATUS`, `CONSUMPTION_REQUEST` (answer through the App Store Server API). Runs the same entitlement code as the RevenueCat handler. Off by default while RevenueCat is the source; kept so a move to direct StoreKit needs no API change. |
-| `POST /webhooks/affiliate/{network}` | Travelpayouts, Impact, Stay22, Viator (where a network offers postbacks); `{network}` is an `affiliate_programs.network` value and the `webhook_events.provider` | Per network: Travelpayouts shared token in a header or query parameter plus IP allow-list; Impact HMAC signature; Stay22 and Viator by token. Reject unknown slugs with `404`. | Writes `affiliate_conversions` upserted on `(program_id, network_txn_id)`, matched to `link_clicks` by sub-id, status history (`pending`, `approved`, `rejected`, `paid`). An unmatched conversion is stored with `click_id = null` and counted toward the unmatched-share health metric. Postbacks are a supplement: the nightly network pull job is the source of truth. Conversions never change any user-visible feature. |
+| `POST /webhooks/affiliate/{network}` | Travelpayouts, Stay22, Viator (where a network offers postbacks); `{network}` is an `affiliate_programs.network` value and the `webhook_events.provider` | Per network: Travelpayouts shared token in a header or query parameter plus IP allow-list; Stay22 and Viator by token. Reject unknown slugs with `404`. | Writes `affiliate_conversions` upserted on `(program_id, network_txn_id)`, matched to `link_clicks` by sub-id, status history (`pending`, `approved`, `rejected`, `paid`). An unmatched conversion is stored with `click_id = null` and counted toward the unmatched-share health metric. Postbacks are a supplement: the nightly network pull job is the source of truth. Conversions never change any user-visible feature. |
+| `POST /webhooks/resend` | Resend | Svix signature (`svix-id`, `svix-timestamp`, `svix-signature`) verified with `RESEND_WEBHOOK_SECRET` in constant time; a timestamp more than 5 minutes old is refused | `email.bounced` and `email.complained`. Marks the address undeliverable (hard bounce) or stops marketing mail (complaint) and writes the delivery row; never changes an account's data. Other event types are stored as `ignored`. |
+| `POST /webhooks/supabase` | Supabase Auth hook | Shared secret in `Authorization: Bearer <SUPABASE_AUTH_HOOK_SECRET>` compared in constant time | The auth hook (for example after sign-in or an email change): keeps `auth_identities` and the verified-email flag in step with Supabase. Idempotent on the hook id. Never creates a `users` row (that stays `POST /me/bootstrap`). |
+
+RevenueCat is the only store feed: there is no Apple webhook, and every purchase event arrives on `POST /webhooks/revenuecat`. The providers (`webhook_events.provider`) are exactly `revenuecat`, `travelpayouts`, `viator`, `stay22`, `resend` and `supabase` (03 `ck_webhook_events_provider`; `/webhooks/affiliate/{network}` accepts `travelpayouts`, `viator` and `stay22`).
 
 Later: Phase 3 adds `POST /webhooks/stripe` (group payments, print orders, advisor seats). Phase 1 has no web purchases (the web paywall says "Upgrade in the iOS app") and no Stripe webhook: every purchase is an App Store purchase whose events arrive on the RevenueCat endpoint above. Web billing arrives with Android in Phase 2.
 
@@ -1478,7 +1504,7 @@ Jo (Free, new account, signed in with Apple) exports a TripIt trip as `lisbon.ic
 
 ```
 POST /v1/imports/ics-file      (multipart: file=lisbon.ics)
--> 201 { "id": "0192b000-...", "source": "ics_file", "status": "previewed",
+-> 201 { "id": "0192b000-...", "source": "ics_file", "status": "review",
          "trip": { "mode": "new_trip", "draft": { "name": "Lisbon", "start_date": "2027-04-10", "end_date": "2027-04-17", "destinations": [{ "name": "Lisbon", "country_code": "PT", ... }] } },
          "candidates": [ { "key": "e1", "kind": "flight", "include": true, "confidence": "high", "origin": "calendar_and_ai",
                            "draft": { "flight_number": "TP204", "origin": "JFK", "destination": "LIS", "depart_local": "2027-04-10T21:05",
@@ -1501,4 +1527,4 @@ POST /v1/imports/0192b000-.../confirm        Idempotency-Key: 3a8d0f52-...
 
 **3. The price falls.** Days later the cached refresh for the route sees a matching fare for the same dates. The worker compares it with `paid_amount_minor` (48900) and, because the fall is over 5% and over the equivalent of 10 USD, sends a push: "You paid $489. It is now $431. Check the airline's change and credit rules." `GET /v1/routes/0192b020-.../booked-fare` shows `paid`, `current`, `drop: { amount_minor: 5800, currency: "USD" }` and `alert_active: true`.
 
-**4. Subscribe and invite.** Jo turns on the calendar feed (`POST /v1/trips/0192b010-.../calendar-token` returns the URL once) and invites a partner (`POST /v1/trips/0192b010-.../invites`). The reward pass gives the trip 6 collaborator slots. Without a pass, a Free trip has 1 slot and a second invite returns `403 limit_reached` with reason `sharing`.
+**4. Subscribe and invite.** Jo turns on the calendar feed (`POST /v1/trips/0192b010-.../calendar-token` returns the URL once) and invites a partner (`POST /v1/trips/0192b010-.../invites`). The reward pass gives the trip 6 collaborator slots. Without a pass, a Free trip has 1 slot and a second invite returns `402 limit_reached` with reason `sharing`.
