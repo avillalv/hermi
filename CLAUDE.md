@@ -1,6 +1,10 @@
 # Hermi
 
-Specification, design kit, brand files and build prompts for Hermi, a collaborative trip planner for iOS and the web. All of it lives under `app-buildout/`. There is no application code yet, so no manifest, no build, lint or test command and no CI. Prompt 01 (`app-buildout/prompts/01-repo-foundation.md`) scaffolds the monorepo at the repo root; add a Commands section only after those commands have been run. Only Phase 1 is being built.
+Specification, design kit, brand files and build prompts for Hermi, a collaborative trip planner for iOS and the web. All of it lives under `app-buildout/`. Prompt 01 (`app-buildout/prompts/01-repo-foundation.md`) scaffolds the monorepo at the repo root. Only Phase 1 is being built.
+
+## Commands
+
+Run from the repo root (Windows or Linux). Verified: `npm run doctor`, `npm run setup`, `npm run db:init`, `npm run dev` (API 8100, web 5173), `npm start`, `npm run lint`, `npm test`, `npm run test:api`, `npm run test:web`, `npm run test:e2e:smoke` (needs `npm run dev` running). Other scripts are stubs until their ticket lands. The local run check is the `run-hermi-locally` skill.
 
 ## Conventions
 

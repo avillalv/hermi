@@ -1,0 +1,82 @@
+# WF-007. Playwright smoke set on pull requests labeled `e2e` and on main. Not part of the `ci`
+# aggregator (it is label-gated); the autopilot adds the label at ship time.
+# shortcut: until WF-130 lands Playwright, `npm run test:e2e:smoke` is the fetch-based smoke test
+# against the dev servers. Swap the browser install and command here then.
+name: e2e
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "1"
+  ENVIRONMENT: ci
+  AI_PROVIDER: fake
+  PROVIDERS_MODE: fake
+  AUTH_MODE: dev
+  SCHEDULER_ENABLED: "false"
+
+jobs:
+  smoke:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'e2e')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://hermi_api_login:ci-throwaway@localhost:5432/hermi
+      DATABASE_URL_SYSTEM: postgresql+psycopg://hermi_worker_login:ci-throwaway@localhost:5432/hermi
+      DATABASE_URL_ADMIN: postgresql+psycopg://hermi_admin_login:ci-throwaway@localhost:5432/hermi
+      MIGRATION_DATABASE_URL: postgresql+psycopg://hermi_migrate_login:ci-throwaway@localhost:5432/hermi
+      TEST_DATABASE_URL: postgresql+psycopg://hermi_api_login:ci-throwaway@localhost:5432/hermi_test
+      TEST_DATABASE_URL_SYSTEM: postgresql+psycopg://hermi_worker_login:ci-throwaway@localhost:5432/hermi_test
+      TEST_MIGRATION_DATABASE_URL: postgresql+psycopg://hermi_migrate_login:ci-throwaway@localhost:5432/hermi_test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install PostgreSQL 18 client tools
+        run: |
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-18
+      - run: npm ci
+      - run: uv sync --all-packages --frozen
+      - name: Create database roles
+        run: PGPASSWORD=postgres npm run db:init
+      - name: Start dev servers
+        run: |
+          mkdir -p .autopilot/tmp
+          nohup npm run dev > .autopilot/tmp/dev.log 2>&1 &
+          node scripts/wait-ready.mjs 90
+      - name: Smoke test
+        run: npm run test:e2e:smoke
+      - name: Dev server log
+        if: failure()
+        run: cat .autopilot/tmp/dev.log
