@@ -5,8 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from hermi import api_v1, db, errors, health
-from hermi.config import Settings, load_settings
+from hermi.config import LOCAL_ENVIRONMENTS, Settings, load_settings
 from hermi.logging_setup import setup_logging
+from hermi.modules.auth.router import dev_router
 from hermi.modules.notifications import waitlist
 from hermi.security.jwt import TokenVerifier
 
@@ -55,6 +56,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(errors.RequestIdMiddleware)  # last added = outermost, wraps CORS
     waitlist.register(app)
     app.include_router(api_v1.router)
+    if settings.auth_mode == "dev" and settings.environment in LOCAL_ENVIRONMENTS:
+        app.include_router(dev_router, prefix="/v1")  # absent from every other OpenAPI
     return app
 
 

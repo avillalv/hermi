@@ -85,6 +85,7 @@ def mint_dev_token(
     *,
     provider: str = "email",
     email: str | None = None,
+    provider_subject: str | None = None,
     ttl_seconds: int = 3600,
 ) -> str:
     """A bearer token for the dev routes (WF-013.2). Same claim shape as a Supabase token."""
@@ -102,6 +103,8 @@ def mint_dev_token(
     }
     if email:
         claims["email"] = email
+    if provider_subject:  # where Supabase puts the upstream Apple or Google id
+        claims["user_metadata"] = {"provider_id": provider_subject}
     return jwt.encode(claims, keys.private, algorithm="ES256", headers={"kid": keys.kid})
 
 

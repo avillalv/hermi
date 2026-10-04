@@ -88,4 +88,11 @@ def _db_session(request: Request, user: CurrentUser) -> Iterator[Session]:
         yield session
 
 
+def _db_session_grace(request: Request, user: CurrentUserOrPendingDeletion) -> Iterator[Session]:
+    with request_transaction(request.app.state.engine, user.id) as session:
+        yield session
+
+
 DbSession = Annotated[Session, Depends(_db_session)]
+# The same transaction for the routes that still work in the grace period (GET /me, POST /me/deletion/cancel).
+DbSessionOrPendingDeletion = Annotated[Session, Depends(_db_session_grace)]
