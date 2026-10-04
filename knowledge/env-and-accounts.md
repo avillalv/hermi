@@ -10,7 +10,7 @@ where to get it. Keep it in step with `.env.example`: a variable is added to bot
 
 **Where a value goes.** Local keys go in `.env` (gitignored, never read by an agent). Production secrets go in
 Render env groups (`hermi-prod-shared`, `hermi-prod-api`, `hermi-prod-worker`, 02 section 7.2). GitHub holds only
-deploy credentials through OIDC, `SENTRY_AUTH_TOKEN` and the iOS signing secrets. The process environment beats
+deploy credentials (`RENDER_API_KEY`, service ids and the Cloudflare token pair; Render has no OIDC, see DECISIONS), `SENTRY_AUTH_TOKEN` and the iOS signing secrets. The process environment beats
 `.env`, so tests force fakes without touching your file.
 
 **Local need.** *Required* means the app will not start without it, and `.env.example` already has a local value
