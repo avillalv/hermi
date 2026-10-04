@@ -4,6 +4,7 @@
 @import "@fontsource-variable/atkinson-hyperlegible-next";
 @import "@fontsource-variable/atkinson-hyperlegible-mono";
 @import "./tokens.css";
+@import "./hermi.css";
 
 html {
   font: var(--tp-type-body);

@@ -1,0 +1,850 @@
+/* Hermi component classes, extracted from the approved E artboards ("Boarding Pass on the map").
+ *
+ * Read tokens.css first: every color here is a token var(). Naming is .h-<block>, with elements __x and
+ * modifiers --y. Each block has one comment line naming the 05-ui-ux-spec.md section 4 component it implements and
+ * the React component it should become. State comes from ARIA where there is an ARIA attribute
+ * (aria-selected, aria-pressed, aria-current), and from a --modifier where there is not.
+ *
+ * Layout values are px to match the 390 pt artboards. Text sizes are rem. Icons come from a lucide sprite
+ * (<symbol id="i-...">), drawn by .h-icon. Illustrations are inline SVG that use the shape classes below.
+ */
+
+/* ------------------------------------------------------------------ Base */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font: var(--tp-type-body);
+}
+
+button { font: inherit; color: inherit; cursor: pointer; }
+
+/* Focus ring (05 section 4: --ring, visible on every interactive element). */
+:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------------ Map theme switches (private, h-* custom properties)
+   Dark map: land steps one surface up, the coast halo turns sky, water thins, the plane ring turns ink.
+   This is how e-07 differs from e-03. Same three scopes as tokens.css. */
+:root, .light {
+  --h-land: var(--tp-paper);
+  --h-land-alt: var(--tp-sunken);
+  --h-halo: var(--tp-paper);
+  --h-halo-o: 0.65;
+  --h-water-o: 0.2;
+  --h-ring: var(--tp-sheet);
+}
+.dark {
+  --h-land: var(--tp-sunken);
+  --h-land-alt: var(--tp-sheet);
+  --h-halo: var(--tp-sky);
+  --h-halo-o: 0.85;
+  --h-water-o: 0.12;
+  --h-ring: var(--tp-ink);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --h-land: var(--tp-sunken);
+    --h-land-alt: var(--tp-sheet);
+    --h-halo: var(--tp-sky);
+    --h-halo-o: 0.85;
+    --h-water-o: 0.12;
+    --h-ring: var(--tp-ink);
+  }
+}
+
+/* ------------------------------------------------------------------ Utilities */
+.h-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.h-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* Line icon from the sprite: <svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg> */
+.h-icon { flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.h-icon--bold { stroke-width: 2.5; }
+.h-icon--heavy { stroke-width: 3; }
+
+/* 3 Logo usage -> <Logo> */
+/* The Hermi mark (hermi-mark.svg as a sprite symbol). Never recolor it. */
+.h-mark { display: block; flex: none; }
+
+/* 2.4 Type helpers */
+.h-label,
+.h-field__label { font: var(--tp-type-label); letter-spacing: var(--tp-track-label); text-transform: uppercase; color: var(--tp-ink-soft); }
+.h-display { margin: 0; font: var(--tp-type-display); line-height: 1.05; letter-spacing: var(--tp-track-display); }
+.h-display__line { display: block; }
+.h-title { margin: 0; font: var(--tp-type-title); letter-spacing: var(--tp-track-title); }
+.h-heading { margin: 0; font: var(--tp-type-heading); }
+.h-heading--section { margin: 6px 0 4px; }
+.h-stack + .h-heading--section { margin-top: 8px; }
+.h-heading--sm { font-size: 1.125rem; }
+.h-lead { margin: 0; font: var(--tp-type-body-lg); }
+.h-soft { font: 400 0.8125rem/1.3 var(--tp-font-body); color: var(--tp-ink-soft); }
+.h-mono { font: 600 0.8125rem/1.3 var(--tp-font-mono); font-variant-numeric: tabular-nums; }
+/* Mono figure inside running text: keeps the size and line height of the sentence. */
+.h-num { font-family: var(--tp-font-mono); font-weight: 600; font-variant-numeric: tabular-nums; }
+.h-num--ink { color: var(--tp-ink); }
+
+/* 4.1 Button, link variant -> <Link> */
+/* Inline text link with a 44 pt hit area that does not move the text. */
+.h-link { display: inline-block; padding: 13px 5px; margin: -13px -3px; color: var(--tp-brand); text-decoration: underline; }
+.h-link:hover { color: var(--tp-ink); }
+.h-fine { margin: 0; font: 400 0.8125rem/1.4 var(--tp-font-body); color: var(--tp-ink-soft); text-align: center; text-wrap: balance; }
+/* 4.12 Chip -> <Chip> */
+/* Small status or tier label ("Free"). */
+.h-chip { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 11px; background: var(--tp-sunken); color: var(--tp-ink); font: 600 0.75rem/1 var(--tp-font-body); }
+/* A stacked list with the 6 px rhythm of the sheet body. */
+.h-stack { display: flex; flex-direction: column; gap: 6px; }
+.h-stack--tight { gap: 4px; }
+.h-stack--roomy { gap: 8px; }
+.h-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.h-row--sort { gap: 8px; height: 40px; }
+.h-row--baseline { align-items: baseline; gap: 8px; margin-top: 3px; }
+
+/* ------------------------------------------------------------------ Screen frame */
+/* Mockup frame, no 05 component */
+/* Mockups only: a 390 by 844 phone frame. The app never renders this; the Capacitor webview is the frame. */
+.h-screen {
+  --h-sheet-top: 166px;
+  position: relative;
+  width: 390px;
+  height: 844px;
+  overflow: hidden;
+  background: var(--tp-paper);
+  color: var(--tp-ink);
+  font-family: var(--tp-font-body);
+}
+
+/* Centered once the window is wider than a phone. */
+@media (min-width: 640px) { .h-screen { margin: 0 auto; } }
+
+/* ------------------------------------------------------------------ Map */
+/* 4.21 Map -> <TripMap> */
+/* MapLibre in the app; this is the illustrated stand-in. Markers are HTML children placed
+   in map coordinates with left and top, so they port to MapLibre markers. The map is decorative as a whole. */
+.h-map { position: absolute; left: 0; top: 0; width: 100%; height: calc(var(--h-sheet-top) + 28px); }
+.h-map--full { height: 100%; }
+.h-map__svg { position: absolute; left: 0; top: 0; display: block; width: 100%; height: 100%; }
+.h-map__water { fill: var(--tp-sky); fill-opacity: var(--h-water-o); }
+.h-map__halo { fill: none; stroke: var(--h-halo); stroke-opacity: var(--h-halo-o); stroke-width: 14; stroke-linejoin: round; }
+.h-map__land { fill: var(--h-land); stroke: var(--tp-rule); stroke-width: 1.5; stroke-linejoin: round; }
+.h-map__land--alt { fill: var(--h-land-alt); }
+.h-map__land--islet { stroke-width: 1.2; }
+.h-map__land--bare { stroke: none; }
+.h-map__ground { fill: var(--h-land-alt); }
+.h-map__coast { fill: none; stroke: var(--tp-rule); stroke-width: 1.5; stroke-linejoin: round; }
+.h-map__relief { fill: none; stroke: var(--tp-edge); stroke-opacity: 0.38; stroke-width: 1.2; }
+.h-map__relief--fill { fill: var(--tp-rule); }
+.h-map__hill { fill: var(--h-land-alt); fill-opacity: 0.6; }
+.h-map__lake { fill: var(--tp-sky); fill-opacity: 0.24; stroke: var(--tp-rule); stroke-width: 1.5; stroke-linejoin: round; }
+.h-map__river { fill: none; stroke: var(--tp-sky); stroke-opacity: 0.32; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.h-map__peak { fill: var(--tp-ink-soft); }
+/* The logo badge that sits on the map above the sheet. */
+.h-map__badge { position: absolute; left: 16px; top: calc(var(--h-sheet-top) - 44px); width: 28px; height: 28px; border-radius: 8px; box-shadow: 0 0 0 3px var(--tp-sheet); }
+/* Place or airport label on the map. Anchor: middle (default), --start (left edge at left), --end (right edge at left). */
+.h-map__chip {
+  position: absolute; display: flex; align-items: center; height: 24px; padding: 0 12px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--tp-rule); border-radius: 12px; background: var(--tp-sheet); color: var(--tp-ink);
+  font: 600 0.75rem/1 var(--tp-font-body); white-space: nowrap;
+}
+.h-map__chip--start { transform: translate(0, -50%); }
+.h-map__chip--end { transform: translate(-100%, -50%); }
+.h-map__chip--code { font: 700 0.75rem/1 var(--tp-font-display); letter-spacing: var(--tp-track-code); }
+
+/* 4.21 Map pin -> <MapPin> */
+/* Position with left and top. */
+.h-pin { position: absolute; transform: translate(-50%, -50%); }
+/* Numbered stop. Ring color is the activity group (--culture, --food, --outdoors, --shopping, --neutral). */
+.h-pin--num {
+  --h-pin-ring: var(--tp-sheet);
+  display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--tp-ink); color: var(--tp-sheet); box-shadow: 0 0 0 3.5px var(--h-pin-ring);
+  font: 600 0.875rem/1 var(--tp-font-display);
+}
+.h-pin--culture { --h-pin-ring: var(--cat-culture); }
+.h-pin--food { --h-pin-ring: var(--cat-food); }
+.h-pin--outdoors { --h-pin-ring: var(--cat-outdoors); }
+.h-pin--shopping { --h-pin-ring: var(--cat-shopping); }
+.h-pin--neutral { --h-pin-ring: var(--cat-neutral); }
+/* Flight stop (a connection): a hollow ring. */
+.h-pin--stop { width: 20px; height: 20px; border-radius: 50%; background: var(--tp-sheet); }
+.h-pin--stop::after { content: ""; position: absolute; left: 50%; top: 50%; width: 15px; height: 15px; transform: translate(-50%, -50%); border: 3px solid var(--tp-ink); border-radius: 50%; background: var(--tp-sheet); }
+/* Where a traveler starts (the larger dot at the foot of a route). */
+.h-pin--start { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 0 2px var(--tp-sheet); }
+.h-pin--a { background: var(--tp-route-a); }
+.h-pin--b { background: var(--tp-route-b); }
+/* Price pin: the point is the anchor, so the pin sits above its left and top. --price-active is the selected stay. */
+.h-pin--price,
+.h-pin--price-active {
+  transform: translate(-50%, -100%);
+  display: flex; align-items: center; justify-content: center; min-width: 62px; height: 31.5px; margin-top: -0.25px; padding: 0 12px;
+  border: 1.5px solid var(--tp-ink); border-radius: 15px; background: var(--tp-sheet); color: var(--tp-ink);
+  font: 600 0.8125rem/1 var(--tp-font-mono); font-variant-numeric: tabular-nums;
+}
+.h-pin--price::after,
+.h-pin--price-active::after { content: ""; position: absolute; left: 50%; top: calc(100% - 2px); margin-left: -6px; border: 6px solid transparent; border-top: 8px solid var(--tp-ink); border-bottom: 0; }
+.h-pin--price-active { background: var(--tp-ink); color: var(--tp-sheet); }
+
+/* 2.9 Route pattern plane -> <PlaneMarker> */
+/* The plane on a route: "you are here". Rotate the glyph with transform on the <use> so it points along the route. */
+.h-plane-disc {
+  position: absolute; transform: translate(-50%, -50%);
+  display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--tp-sky); box-shadow: 0 0 0 3px var(--h-ring);
+}
+.h-plane-disc--sm { width: 26px; height: 26px; }
+.h-plane-disc--lg { width: 48px; height: 48px; }
+.h-plane-disc svg { width: 81%; height: 81%; fill: var(--tp-cream); stroke: var(--tp-cream); stroke-width: 3; stroke-linejoin: round; }
+
+/* 2.9 Route pattern -> <RoutePath> */
+/* Route strokes for SVG: Ana's pink and Leo's yellow dotted lines. Set pathLength to (dots * 11) so dots fit the path
+   exactly, or leave it off for a loose pitch. --lg is the welcome route, --sm is the small route in the airport codes. */
+.h-route { fill: none; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 0 11; }
+.h-route--a { stroke: var(--tp-route-a); }
+.h-route--b { stroke: var(--tp-route-b); }
+.h-route--lg { stroke-width: 5.5; stroke-dasharray: 0 12; }
+.h-route--sm { stroke-width: 4; stroke-dasharray: 0 9; }
+
+/* ------------------------------------------------------------------ Sheet and navigation */
+/* 4.19 Bottom sheet -> <Sheet> */
+/* vaul on phones. Level 3 elevation. Tops at --h-sheet-top, set on .h-screen. */
+.h-sheet {
+  position: absolute; left: 0; right: 0; top: var(--h-sheet-top); bottom: 0; overflow: hidden;
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0; background: var(--tp-sheet); box-shadow: var(--tp-shadow-3);
+}
+.h-sheet__grabber { width: 36px; height: 5px; margin: 8px auto 0; border-radius: 3px; background: var(--tp-edge); }
+.h-sheet__body { display: flex; flex-direction: column; gap: var(--h-gap, 6px); padding: var(--h-pad-top, 8px) 16px 0; }
+.h-sheet__body--tight { --h-pad-top: 6px; }
+.h-sheet__body--snug { --h-pad-top: 6px; --h-gap: 5px; }
+.h-sheet__body--flush { --h-gap: 0px; }
+
+/* 5.2 Navigation bar buttons -> <NavButton> */
+/* Round floating back and menu buttons on the map. Level 2 elevation. */
+.h-navbtn {
+  position: absolute; top: 55px; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0;
+  border: 1px solid var(--tp-rule); border-radius: 22px; background: var(--tp-sheet); color: var(--tp-ink); text-decoration: none; box-shadow: var(--tp-shadow-2);
+}
+.h-navbtn--back { left: 16px; }
+.h-navbtn--menu { right: 16px; }
+
+/* 4.20 Tab bar -> <TabBar> */
+/* Floating pill over a fade; the active item is brand-soft. Hide it in full-screen sheets. */
+.h-tabbar { position: absolute; left: 0; right: 0; bottom: 0; height: 83px; background: linear-gradient(to bottom, transparent, var(--tp-sheet) 62%); }
+.h-tabbar__bar {
+  position: absolute; left: 12px; right: 12px; bottom: 22px; display: flex; gap: 2px; height: 58px; padding: 4px;
+  border: 1px solid var(--tp-rule); border-radius: 29px; background: var(--tp-sheet); box-shadow: var(--tp-shadow-2);
+}
+.h-tabbar__item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 25px;
+  color: var(--tp-ink-soft); text-decoration: none; font: 600 0.6875rem/13px var(--tp-font-body);
+}
+.h-tabbar__item--active { background: var(--tp-brand-soft); color: var(--tp-brand); }
+.h-tabbar__item--active .h-icon { stroke-width: 2.2; }
+
+/* 5.2 Section strip -> <SectionTabs> */
+/* Six scrollable pill tabs under the trip header; 44 pt hit area, 34 px pill. */
+.h-strip { display: flex; align-items: center; flex: none; height: 44px; margin: 0 -16px; padding: 0 6px; overflow-x: auto; scrollbar-width: none; }
+.h-strip::-webkit-scrollbar { display: none; }
+.h-strip__tab { position: relative; isolation: isolate; display: flex; flex: none; align-items: center; height: 44px; padding: 0 9px; color: var(--tp-ink-soft); text-decoration: none; font: 600 0.875rem/1 var(--tp-font-body); }
+.h-strip__tab::before { content: ""; position: absolute; inset: 5px 0; z-index: -1; border-radius: 17px; }
+.h-strip__tab[aria-selected="true"] { color: var(--tp-paper); }
+.h-strip__tab[aria-selected="true"]::before { background: var(--tp-ink); }
+
+/* 4.21 Segmented control -> <SegmentedControl> */
+/* 44 pt target, 34 px visual. Use for List or Map style view toggles. */
+.h-seg { display: flex; flex: none; height: 44px; padding: 0 5px; border-radius: 22px; background: var(--tp-sunken); }
+.h-seg--narrow { width: 176px; }
+.h-seg__item { position: relative; isolation: isolate; flex: 1; display: flex; align-items: center; justify-content: center; height: 44px; padding: 0; border: 0; background: none; color: var(--tp-ink-soft); font: 600 0.875rem/1 var(--tp-font-body); }
+.h-seg__item::before { content: ""; position: absolute; inset: 5px 0; z-index: -1; border: 1px solid transparent; border-radius: 17px; }
+.h-seg__item[aria-selected="true"] { color: var(--tp-ink); }
+.h-seg__item[aria-selected="true"]::before { background: var(--tp-sheet); border-color: var(--tp-edge); }
+
+/* 4.7 Calendar day chips -> <DayChips> */
+/* A scrolling row of D1 to D12; the selected day is ink. */
+.h-daychips { display: flex; flex: none; gap: 6px; margin: 0 -16px; padding: 0 16px; overflow-x: auto; scrollbar-width: none; }
+.h-daychips::-webkit-scrollbar { display: none; }
+.h-daychip {
+  display: flex; flex: none; align-items: center; justify-content: center; width: 46px; height: 44px;
+  border: 1px solid var(--tp-rule); border-radius: 14px; background: var(--tp-paper); color: var(--tp-ink); text-decoration: none;
+  font: 600 1rem/1 var(--tp-font-display);
+}
+.h-daychip[aria-selected="true"] { border-color: var(--tp-ink); background: var(--tp-ink); color: var(--tp-paper); }
+
+/* ------------------------------------------------------------------ Ticket */
+/* 4.4 Trip card -> <TripTicket> */
+/* The boarding-pass shape: a masked card with round notches on both edges at each tear,
+   a hairline that follows the notches (the drop-shadow chain on the wrapper), and a sunken stub.
+   Markup: .h-ticket (wrapper, outline) > .h-ticket__card (a, article or div, masked) > __head? __body __stub.
+   Notches are positioned by custom properties set by the modifiers: --h-tear-a (head tear), --h-stub-h (stub height),
+   --h-stub-w (side stub width), --h-r and --h-nr (corner and notch radius). */
+.h-ticket {
+  --h-r: 18px; --h-nr: 9px;
+  --h-head-h: 92px; --h-stub-h: 40px; --h-stub-w: 72px;
+  --h-tear-a: -99px;   /* off the card until --sky puts it under the head */
+  --h-outline: drop-shadow(1px 0 0 var(--tp-rule)) drop-shadow(-1px 0 0 var(--tp-rule)) drop-shadow(0 1px 0 var(--tp-rule)) drop-shadow(0 -1px 0 var(--tp-rule));
+  filter: var(--h-outline);
+}
+.h-ticket--sky { --h-tear-a: var(--h-head-h); --h-stub-h: 42px; }
+.h-ticket--lg { --h-r: 24px; --h-nr: 10px; }
+.h-ticket--two-line { --h-stub-h: 50px; }
+.h-ticket--actions { --h-stub-h: 48px; }
+.h-ticket--fare { --h-stub-h: 60px; }
+.h-ticket--cta { --h-stub-h: 176px; --h-head-h: 88px; }
+/* Floating on a map: pinned to the bottom of the screen with elevation 2 under the outline. */
+.h-ticket--float { position: absolute; left: 16px; right: 16px; bottom: 34px; filter: var(--h-outline) drop-shadow(var(--tp-shadow-2)); }
+
+.h-ticket__card {
+  position: relative; display: block; overflow: hidden; border-radius: var(--h-r); background: var(--tp-paper); color: var(--tp-ink); text-decoration: none;
+  -webkit-mask:
+    radial-gradient(circle var(--h-nr) at 0 var(--h-tear-a), transparent calc(var(--h-nr) - 0.5px), black var(--h-nr)),
+    radial-gradient(circle var(--h-nr) at 100% var(--h-tear-a), transparent calc(var(--h-nr) - 0.5px), black var(--h-nr)),
+    radial-gradient(circle var(--h-nr) at 0 calc(100% - var(--h-stub-h)), transparent calc(var(--h-nr) - 0.5px), black var(--h-nr)),
+    radial-gradient(circle var(--h-nr) at 100% calc(100% - var(--h-stub-h)), transparent calc(var(--h-nr) - 0.5px), black var(--h-nr));
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(circle var(--h-nr) at 0 var(--h-tear-a), transparent calc(var(--h-nr) - 0.5px), black var(--h-nr)),
+    radial-gradient(circle var(--h-nr) at 100% var(--h-tear-a), transparent calc(var(--h-nr) - 0.5px), black var(--h-nr)),
+    radial-gradient(circle var(--h-nr) at 0 calc(100% - var(--h-stub-h)), transparent calc(var(--h-nr) - 0.5px), black var(--h-nr)),
+    radial-gradient(circle var(--h-nr) at 100% calc(100% - var(--h-stub-h)), transparent calc(var(--h-nr) - 0.5px), black var(--h-nr));
+  mask-composite: intersect;
+}
+a.h-ticket__card:active { transform: translateY(1px); }
+.h-ticket__card:focus-visible { outline-offset: -6px; }   /* the mask would clip an outside ring */
+
+/* Head: the sky band. 05 2.9 puts the route pattern on sky; the plane and codes sit on it. */
+.h-ticket__head { position: relative; display: flex; flex-direction: column; gap: 2px; height: var(--h-head-h); padding: 8px 16px 0; }
+.h-ticket__head--sky { background: var(--tp-sky); color: var(--tp-sky-ink); }
+.h-ticket__head--sky::after { content: ""; position: absolute; left: 22px; right: 22px; bottom: -2px; height: 4px; opacity: 0.8; background: radial-gradient(circle 2px at 2px 2px, var(--tp-sky-rule) 1.5px, transparent 2px) 0 0 / 10px 4px repeat-x; }
+.h-ticket__head--sky .h-field__label { color: inherit; }
+.h-ticket__head--sky .h-field__value { line-height: 1.2; }
+.h-ticket__head--center { flex-direction: row; align-items: center; justify-content: center; gap: 10px; padding: 0; }
+
+/* Body */
+.h-ticket__body { display: flex; flex-direction: column; gap: 2px; padding: 8px 16px 6px; }
+.h-ticket__body--roomy { gap: 10px; padding: 22px 22px 20px; }
+.h-ticket__body--row { flex-direction: row; align-items: flex-start; gap: 10px; padding: 8px 12px; }
+.h-ticket__body--split { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+.h-ticket__top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.h-ticket__name { margin: 0; font: 600 1.375rem/1.15 var(--tp-font-display); }
+.h-ticket__name--lg { font-size: 1.625rem; line-height: 1.1; letter-spacing: var(--tp-track-title); }
+.h-ticket__dates { font: 500 0.8125rem/1.3 var(--tp-font-mono); color: var(--tp-ink-soft); }
+.h-ticket__head--sky .h-ticket__dates { color: inherit; }
+.h-ticket__fields { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 22px; margin: 0; }
+.h-ticket__id { display: flex; flex-direction: column; gap: 3px; }
+.h-ticket__body--fare { gap: 3px; padding-bottom: 8px; }
+.h-ticket__figure { display: flex; flex-direction: column; gap: 2px; }
+
+/* Stub: the sunken tear-off. The tear is a dotted line drawn with a repeating radial-gradient. */
+.h-ticket__stub { position: relative; display: flex; align-items: center; gap: 10px; height: var(--h-stub-h); padding: 0 14px 0 16px; background: var(--tp-sunken); }
+.h-ticket__tear {
+  position: absolute; left: 20px; right: 20px; top: -2px; height: 4px; opacity: 0.6; pointer-events: none;
+  background: radial-gradient(circle 2px at 2px 2px, var(--tp-edge) 1.5px, transparent 2px) 0 0 / 10px 4px repeat-x;
+}
+.h-ticket__note { flex: 1; min-width: 0; font: 400 0.8125rem/1.3 var(--tp-font-body); }
+.h-ticket__note--stack { display: flex; flex-direction: column; gap: 1px; }
+.h-ticket__note strong { font-weight: 600; }
+.h-ticket__go { flex: none; color: var(--tp-ink-soft); }
+.h-ticket--actions .h-ticket__stub { gap: 8px; padding: 0 10px 0 12px; }
+.h-ticket--fare .h-ticket__stub { gap: 14px; padding: 0 16px; }
+.h-ticket--cta .h-ticket__stub { flex-direction: column; align-items: stretch; justify-content: center; gap: 8px; padding: 12px 16px; }
+.h-ticket--cta .h-fine { margin: 4px 8px 0; }
+
+/* Side stub: the same ticket turned 90 degrees. The tear is vertical and the notches sit top and bottom.
+   Timeline items use the 72 px stub, provider rows (--stub-wide) use a 168 px stub that holds a button. */
+.h-ticket--side { --h-r: 14px; --h-nr: 7px; }
+.h-ticket--stub-wide { --h-stub-w: 168px; }
+.h-ticket--side .h-ticket__card {
+  display: flex; height: var(--h-side-h, 48px);
+  -webkit-mask:
+    radial-gradient(circle var(--h-nr) at calc(100% - var(--h-stub-w)) 0, transparent calc(var(--h-nr) - 0.5px), black var(--h-nr)),
+    radial-gradient(circle var(--h-nr) at calc(100% - var(--h-stub-w)) 100%, transparent calc(var(--h-nr) - 0.5px), black var(--h-nr));
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(circle var(--h-nr) at calc(100% - var(--h-stub-w)) 0, transparent calc(var(--h-nr) - 0.5px), black var(--h-nr)),
+    radial-gradient(circle var(--h-nr) at calc(100% - var(--h-stub-w)) 100%, transparent calc(var(--h-nr) - 0.5px), black var(--h-nr));
+  mask-composite: intersect;
+}
+.h-ticket--side .h-ticket__body { flex: 1; min-width: 0; justify-content: center; gap: 4px; padding: 0 6px 0 12px; }
+.h-ticket--side .h-ticket__stub { flex: none; flex-direction: column; justify-content: center; width: var(--h-stub-w); height: auto; gap: 4px; padding: 0; }
+.h-ticket--side .h-ticket__stub .h-label { line-height: 1; }
+.h-ticket--side .h-ticket__tear { left: -2px; right: auto; top: 10px; bottom: 10px; width: 4px; height: auto; background: radial-gradient(circle 2px at 2px 2px, var(--tp-edge) 1.5px, transparent 2px) 0 0 / 4px 9px repeat-y; }
+.h-ticket--stub-wide .h-ticket__body { gap: 2px; padding: 0 8px 0 14px; }
+.h-ticket--stub-wide .h-ticket__stub { align-items: stretch; padding: 0 8px 0 10px; }
+
+/* 4.21 Ticket stub status tag -> <StatusStub> */
+/* Text plus icon, never color alone. Notched left edge, three perforation dots. */
+.h-stub {
+  position: relative; display: inline-flex; flex: none; align-items: center; gap: 5px; height: 28px; padding: 0 12px 0 22px; border-radius: 6px 10px 10px 6px;
+  background: var(--tp-sunken); color: var(--tp-ink); font: 600 0.75rem/1 var(--tp-font-body); white-space: nowrap;
+  -webkit-mask: radial-gradient(circle 5px at 0 50%, transparent 4.5px, black 5px);
+  mask: radial-gradient(circle 5px at 0 50%, transparent 4.5px, black 5px);
+}
+.h-stub::before { content: ""; position: absolute; left: 10px; top: 5px; width: 4px; height: 18px; opacity: 0.7; background: radial-gradient(circle 1.3px at 2px 2px, currentColor 1.2px, transparent 1.3px) 0 0 / 4px 7px repeat-y; }
+.h-stub--booked { background: var(--tp-success); color: var(--tp-brand-ink); }
+.h-stub--planning { background: var(--tp-brand-soft); color: var(--tp-ink); }
+.h-stub--done { background: var(--tp-ink-soft); color: var(--tp-paper); }
+.h-stub--votes { background: var(--tp-brand-soft); color: var(--tp-ink); }
+
+/* 4.4 Labeled value -> <Field> */
+/* A label over a value; the value is mono unless --text. */
+.h-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.h-field__value { margin: 0; font: 600 0.875rem/24px var(--tp-font-mono); font-variant-numeric: tabular-nums; }
+.h-field--text .h-field__value { font-family: var(--tp-font-body); font-variant-numeric: normal; }
+
+/* 4.4 Trip card codes -> <RouteCodes> */
+/* 2.4 type-code: big codes joined by the small twin route and a plane.
+   --md and --lg are the fare and hero sizes. 05 section 2.4 allows 24 to 48 px, with 36 to 48 px on tickets and passes; the kit uses 36, 40 and 44 px. */
+.h-codes { --h-code-size: 2.25rem; --h-route-h: 28px; display: flex; align-items: center; gap: 6px; }
+.h-codes--md { --h-code-size: 2.5rem; --h-route-h: 32px; }
+.h-codes--lg { --h-code-size: 2.75rem; --h-route-h: 36px; }
+.h-codes__code { font: 700 var(--h-code-size)/1 var(--tp-font-display); letter-spacing: var(--tp-track-code); }
+.h-codes__route { flex: 1; min-width: 0; height: var(--h-route-h); }
+.h-codes__start--a { fill: var(--tp-route-a); }
+.h-codes__start--b { fill: var(--tp-route-b); }
+.h-codes__plane { fill: var(--tp-ink); stroke: var(--tp-ink); stroke-width: 3; stroke-linejoin: round; }
+.h-ticket__head--sky .h-codes__plane { fill: var(--tp-cream); stroke: var(--tp-cream); }
+
+/* 6.1 Splash and onboarding lockup -> <Lockup> */
+/* Welcome lockup on the sky head. In the build use the wordmark file, not live text (05 section 3 rule 4). */
+.h-lockup__name { font: 600 2.625rem/1 var(--tp-font-display); letter-spacing: var(--tp-track-title); }
+
+/* ------------------------------------------------------------------ People: avatar and vote */
+/* 4.21 Avatar and avatar stack -> <Avatar>, <AvatarStack> */
+/* Initials on the traveler color (--t1 to --t8). */
+.h-avatar {
+  --h-av: 28px;
+  display: flex; flex: none; align-items: center; justify-content: center; width: var(--h-av); height: var(--h-av);
+  border: 2px solid var(--h-avatar-ring, var(--tp-paper)); border-radius: 50%;   /* ring matches the surface: set --h-avatar-ring on a non-paper parent */
+  background: var(--tp-traveler-1); color: var(--tp-traveler-ink-1); font: 700 0.6875rem/1 var(--tp-font-body);
+}
+.h-avatar--sm { --h-av: 24px; border: 0; font-size: 0.625rem; }
+.h-avatar--xs { --h-av: 22px; border: 0; font-size: 0.625rem; }
+.h-avatar--t1 { background: var(--tp-traveler-1); color: var(--tp-traveler-ink-1); }
+.h-avatar--t2 { background: var(--tp-traveler-2); color: var(--tp-traveler-ink-2); }
+.h-avatar--t3 { background: var(--tp-traveler-3); color: var(--tp-traveler-ink-3); }
+.h-avatar--t4 { background: var(--tp-traveler-4); color: var(--tp-traveler-ink-4); }
+.h-avatar--t5 { background: var(--tp-traveler-5); color: var(--tp-traveler-ink-5); }
+.h-avatar--t6 { background: var(--tp-traveler-6); color: var(--tp-traveler-ink-6); }
+.h-avatar--t7 { background: var(--tp-traveler-7); color: var(--tp-traveler-ink-7); }
+.h-avatar--t8 { background: var(--tp-traveler-8); color: var(--tp-traveler-ink-8); }
+.h-avatars { display: flex; align-items: center; }
+.h-avatars .h-avatar + .h-avatar { margin-left: -5px; }
+
+/* 4.10 Heart toggle -> <VoteButton> */
+/* Hearts are the only vote. State comes from aria-pressed; the heart fills with the
+   voter's traveler color (--t1 to --t8). 44 pt target. */
+.h-vote {
+  --h-vote-color: var(--tp-traveler-1);
+  display: flex; align-items: center; gap: 4px; height: 44px; padding: 0 10px 0 8px;
+  border: 1.5px solid var(--tp-edge); border-radius: 22px; background: var(--tp-sheet);
+}
+.h-vote__heart { flex: none; fill: none; stroke: var(--tp-ink-soft); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.h-vote[aria-pressed="true"] { border-color: var(--tp-brand); background: var(--tp-brand-soft); }
+.h-vote[aria-pressed="true"] .h-vote__heart { fill: var(--h-vote-color); stroke: var(--tp-ink); }
+.h-vote--t1 { --h-vote-color: var(--tp-traveler-1); }
+.h-vote--t2 { --h-vote-color: var(--tp-traveler-2); }
+.h-vote--t3 { --h-vote-color: var(--tp-traveler-3); }
+.h-vote--t4 { --h-vote-color: var(--tp-traveler-4); }
+.h-vote--t5 { --h-vote-color: var(--tp-traveler-5); }
+.h-vote--t6 { --h-vote-color: var(--tp-traveler-6); }
+.h-vote--t7 { --h-vote-color: var(--tp-traveler-7); }
+.h-vote--t8 { --h-vote-color: var(--tp-traveler-8); }
+
+/* ------------------------------------------------------------------ Overview blocks */
+/* 4.3 Summary tile -> <SummaryTile> */
+/* A quiet card link with a label, a mono value and one line of context. */
+.h-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.h-tile { display: flex; flex-direction: column; gap: 2px; min-height: 68px; padding: 6px 12px; border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-paper); color: var(--tp-ink); text-decoration: none; }
+.h-tile__value { font: 600 1.125rem/1.25 var(--tp-font-mono); font-variant-numeric: tabular-nums; }
+.h-tile__unit { font: 400 0.8125rem/1.3 var(--tp-font-body); }
+.h-tile__progress { display: block; width: 131px; height: 14px; }
+.h-tile__progress-done { fill: var(--tp-brand); }
+.h-tile__progress-open { fill: none; stroke: var(--tp-edge); stroke-width: 1.5; }
+.h-tile__progress-plane { fill: var(--tp-ink); stroke: var(--tp-ink); stroke-width: 3; stroke-linejoin: round; }
+
+/* 4.3 List card (Next steps) -> <NextSteps> */
+/* A list card: eyebrow, then rows of check, text, chevron. */
+.h-listcard { padding: 8px 0 0; border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-paper); }
+.h-listcard__title { margin: 0 14px 2px; }
+.h-listcard__row { box-sizing: content-box; display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px 0 14px; color: var(--tp-ink); text-decoration: none; }
+.h-listcard__row + .h-listcard__row { border-top: 1px solid var(--tp-rule); }
+.h-listcard__check { color: var(--tp-edge); }
+.h-listcard__text { flex: 1; font: 600 0.9375rem/1.2 var(--tp-font-body); }
+.h-listcard__go { color: var(--tp-ink-soft); }
+
+/* 4.11 Credit cost chip -> <CreditChip> */
+/* Coin, number in mono, the word credit or credits. */
+.h-credit { display: inline-flex; flex: none; align-items: center; gap: 5px; height: 28px; padding: 0 10px; border-radius: 14px; background: var(--tp-sunken); color: var(--tp-ink); font: 400 0.8125rem/1 var(--tp-font-body); }
+.h-credit--lg { height: 32px; padding: 0 12px; border-radius: 16px; }
+.h-credit--warn { border: 1.5px solid var(--tp-warning); background: var(--tp-sheet); color: var(--tp-warning-ink); }
+.h-credit__n { font: 600 0.8125rem/1 var(--tp-font-mono); }
+
+/* 4.11 AI entry with credit balance -> <AiEntry> */
+/* A card row with the balance; --pill is the outlined button form ("Explain this fare"). */
+.h-ai-entry { display: flex; align-items: center; gap: 10px; width: 100%; height: 48px; padding: 0 8px; border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-paper); color: var(--tp-ink); text-align: left; text-decoration: none; }
+.h-ai-entry__icon { display: flex; flex: none; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--tp-brand-soft); color: var(--tp-brand); }
+.h-ai-entry__text { flex: 1; font: 600 0.9375rem/1.2 var(--tp-font-body); }
+.h-ai-entry--pill { height: 44px; padding: 0 8px 0 14px; border: 1.5px solid var(--tp-edge); border-radius: 22px; background: var(--tp-sheet); }
+.h-ai-entry--pill .h-ai-entry__icon { width: auto; height: auto; background: none; }
+.h-ai-entry--pill .h-ai-entry__text { line-height: 1; }
+
+/* ------------------------------------------------------------------ Buttons */
+/* 4.1 Button -> <Button> */
+/* --primary is the one 48 px brand pill per screen, --secondary is the edge outline pill.
+   --text is a quiet inline action, --icon makes it a 44 px circle. --sm, --lead and --stub are the compact forms. */
+.h-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; padding: 0 18px; border: 0; border-radius: 24px;
+  font: 600 1rem/1 var(--tp-font-body); text-decoration: none; cursor: pointer;
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+.h-btn:active { transform: translateY(1px); }
+.h-btn:disabled,
+.h-btn[aria-disabled="true"] { opacity: 0.5; }
+.h-btn--primary { background: var(--tp-brand); color: var(--tp-brand-ink); }
+.h-btn--secondary { border: 1.5px solid var(--tp-edge); background: var(--tp-sheet); color: var(--tp-ink); }
+.h-btn--text { flex: none; gap: 4px; height: 44px; padding: 0 0 0 8px; border-radius: 0; background: none; color: var(--tp-brand); font-size: 0.875rem; white-space: nowrap; }
+.h-btn--icon { flex: none; width: 44px; height: 44px; padding: 0; border-radius: 22px; }
+.h-btn--sm { height: 44px; padding: 0 16px 0 12px; border-radius: 22px; gap: 6px; font-size: 0.875rem; }
+.h-btn--lead { flex: none; padding: 0 18px 0 14px; }
+.h-btn--stub { flex: 1; width: 100%; height: auto; padding: 0 8px; border-radius: 22px; gap: 5px; font-size: 0.8125rem; line-height: 1.15; text-align: center; white-space: nowrap; }
+.h-btn--wrap { white-space: normal; }
+
+/* ------------------------------------------------------------------ Chart */
+/* 4.6 Price chart -> <PriceChart> */
+/* Recharts in the app; this is the static plot. Series color follows the price source
+   through --live, --cached, --agent, --google, never its rank. */
+.h-chart { padding: 5px 11px 3px; border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-paper); }
+.h-chart__head { display: flex; align-items: center; justify-content: space-between; height: 16px; }
+.h-chart__title { margin: 0; }
+.h-chart__legend { display: flex; align-items: center; gap: 5px; font: 400 0.8125rem/1.2 var(--tp-font-body); }
+.h-chart__swatch { width: 8px; height: 8px; margin: 0 1px; border-radius: 50%; background: var(--h-series, var(--viz-cached)); }
+.h-chart__plot { display: block; width: 100%; height: 52px; }
+.h-chart__grid { stroke: var(--tp-rule); stroke-width: 1; }
+.h-chart__axis { font: 400 0.8125rem/1 var(--tp-font-mono); fill: var(--tp-ink-soft); }
+.h-chart__line { fill: none; stroke: var(--h-series, var(--viz-cached)); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.h-chart__dot { fill: var(--h-series, var(--viz-cached)); }
+.h-chart__dot--ring { fill: var(--tp-paper); stroke: var(--h-series, var(--viz-cached)); stroke-width: 2; }
+.h-chart__callout { font: 400 0.8125rem/1 var(--tp-font-mono); fill: var(--tp-ink); paint-order: stroke; stroke: var(--tp-paper); stroke-width: 5; }
+.h-chart--live, .h-chart__line--live, .h-chart__dot--live, .h-chart__swatch--live { --h-series: var(--viz-live); }
+.h-chart--cached, .h-chart__line--cached, .h-chart__dot--cached, .h-chart__swatch--cached { --h-series: var(--viz-cached); }
+.h-chart--agent, .h-chart__line--agent, .h-chart__dot--agent, .h-chart__swatch--agent { --h-series: var(--viz-agent); }
+.h-chart--google, .h-chart__line--google, .h-chart__dot--google, .h-chart__swatch--google { --h-series: var(--viz-google); }
+
+/* ------------------------------------------------------------------ Timeline */
+/* 4.8 Day card timeline -> <DayTimeline> */
+/* An <ol> of rows on a 44 / 30 / 1fr grid: time, node, item. The item is a
+   side ticket. __spine between rows is the pair of dotted routes, drawn with repeating radial-gradients. The row's
+   activity group (--outdoors, --food, ...) colors the node ring and the category icon. */
+.h-timeline { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.h-timeline__row { --h-cat: var(--cat-neutral); display: grid; grid-template-columns: 44px 30px minmax(0, 1fr); column-gap: 4px; align-items: center; height: 56px; }
+.h-timeline__row .h-ticket { --h-side-h: 56px; }
+.h-timeline__row--link { height: 26px; }
+.h-timeline__row--link-short { height: 16px; }
+.h-timeline__row--link-end { height: 12px; }
+.h-timeline__row--add { height: 44px; }
+.h-timeline__row--add .h-btn { justify-self: start; }
+.h-timeline__row--culture { --h-cat: var(--cat-culture); }
+.h-timeline__row--food { --h-cat: var(--cat-food); }
+.h-timeline__row--outdoors { --h-cat: var(--cat-outdoors); }
+.h-timeline__row--shopping { --h-cat: var(--cat-shopping); }
+.h-timeline__time { display: flex; flex-direction: column; gap: 2px; }
+.h-timeline__clock { font: 600 0.875rem/1 var(--tp-font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.h-timeline__ampm { font: 700 0.6875rem/1 var(--tp-font-body); letter-spacing: var(--tp-track-label); color: var(--tp-ink-soft); }
+.h-timeline__node {
+  display: flex; align-items: center; justify-content: center; justify-self: center; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--tp-ink); color: var(--tp-paper); box-shadow: 0 0 0 3px var(--h-cat); font: 600 0.8125rem/1 var(--tp-font-display);
+}
+.h-timeline__node--open { width: 14px; height: 14px; border: 2px solid var(--tp-edge); background: var(--tp-paper); box-shadow: none; }
+.h-timeline__spine {
+  align-self: stretch;
+  background:
+    radial-gradient(circle 2px at 2px 2px, var(--tp-route-a) 1.5px, transparent 2px) 8.5px 0 / 4px 8px repeat-y,
+    radial-gradient(circle 2px at 2px 2px, var(--tp-route-b) 1.5px, transparent 2px) 17.5px 0 / 4px 8px repeat-y;
+}
+.h-timeline__travel { display: flex; align-items: center; gap: 6px; color: var(--tp-ink-soft); font: 500 0.8125rem/1 var(--tp-font-mono); }
+.h-timeline__title { font: 600 0.9375rem/1.2 var(--tp-font-body); }
+.h-timeline__meta { display: flex; align-items: center; gap: 5px; font: 400 0.8125rem/1.2 var(--tp-font-body); color: var(--tp-ink-soft); }
+.h-timeline__meta .h-icon { color: var(--h-cat); }
+.h-timeline__dur { font: 500 0.8125rem/1.2 var(--tp-font-mono); color: var(--tp-ink); }
+.h-timeline__by { display: flex; align-items: center; gap: 4px; font: 600 0.8125rem/1 var(--tp-font-body); }
+.h-timeline__by--t1 { color: var(--tp-route-a-ink); }
+.h-timeline__by--t2 { color: var(--tp-route-b-ink); }
+
+/* ------------------------------------------------------------------ Smaller blocks */
+/* 4.9 Photo placeholder -> <PhotoPlaceholder> */
+/* Used when a listing or place has no photo yet. */
+.h-photo-ph { display: flex; flex: none; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: 64px; height: 64px; border-radius: 12px; background: var(--tp-sunken); color: var(--tp-ink-soft); font: 400 0.75rem/1.1 var(--tp-font-body); text-align: center; }
+
+/* 4.13 Disclosure line -> <Disclosure> */
+/* Always visible under the actions it explains, never truncated. */
+.h-disclosure { margin: 0; font: 400 0.8125rem/1.35 var(--tp-font-body); color: var(--tp-ink-soft); }
+.h-disclosure--legal { margin-top: 2px; line-height: 1.4; }
+.h-disclosure--balance { text-wrap: balance; }
+
+/* 5.2 Navigation bar, large title -> <PageHeader> */
+/* Mark, large title with a quiet meta line, one round action. */
+.h-pagehead { display: flex; align-items: center; gap: 10px; height: 54px; }
+.h-pagehead__text { display: flex; flex: 1; flex-direction: column; gap: 3px; }
+.h-pagehead__title { margin: 0; font: 600 1.875rem/1 var(--tp-font-display); letter-spacing: var(--tp-track-title); }
+.h-pagehead__meta { display: flex; align-items: center; gap: 8px; height: 22px; }
+
+/* 4.8 Day card header -> <DayHeader> */
+/* A big day number, the date and place, the typical weather. */
+.h-dayhead { display: flex; flex: none; align-items: flex-start; gap: 18px; padding: 0 0 2px; }
+.h-dayhead__col { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.h-dayhead__col--grow { flex: 1; }
+.h-dayhead__col--num { gap: 2px; }
+.h-dayhead__num { margin: 0; font: 700 2.75rem/1 var(--tp-font-display); }
+.h-dayhead__date { font: 600 0.9375rem/1.25 var(--tp-font-mono); }
+.h-dayhead__place { font: 600 0.9375rem/1.25 var(--tp-font-body); }
+.h-dayhead__weather { display: flex; align-items: flex-start; gap: 6px; font: 400 0.8125rem/1.3 var(--tp-font-body); }
+.h-dayhead__weather .h-icon { color: var(--tp-ink-soft); }
+.h-dayhead__temp { font: 600 0.9375rem/1.2 var(--tp-font-body); }
+
+/* 4.5 Fare figure and trend -> <FareFigure>, <TrendText> */
+/* The fare is a hero number; a fall is success, a rise is warning. */
+.h-figure { font: var(--tp-type-figure); font-size: 2.25rem; letter-spacing: var(--tp-track-figure); font-variant-numeric: tabular-nums; }
+.h-trend { display: flex; align-items: center; gap: 4px; font: 600 0.8125rem/1.3 var(--tp-font-body); }
+.h-trend--down { color: var(--tp-success); }
+.h-trend--up { color: var(--tp-warning-ink); }
+
+/* 4.13 Provider row -> <ProviderRow> */
+/* A side ticket with a name, a price with its age, and a Book button in the stub. */
+.h-provider__name { font: 600 0.9375rem/1.2 var(--tp-font-body); }
+.h-provider__price { display: flex; align-items: baseline; gap: 6px; font: 400 0.8125rem/1.2 var(--tp-font-body); color: var(--tp-ink-soft); }
+.h-provider__amount { font: 700 1rem/1.2 var(--tp-font-mono); color: var(--tp-ink); }
+
+/* 4.10 Lodging card with votes -> <StayTicket> */
+/* Photo, name and source, price block, then the votes in the stub. */
+.h-stay__main { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; min-height: 44px; color: var(--tp-ink); text-decoration: none; }
+.h-stay__name { margin: 0; font: 600 0.9375rem/1.2 var(--tp-font-body); }
+.h-stay__meta { display: flex; align-items: center; gap: 6px; }
+.h-stay__rating { display: flex; align-items: center; gap: 3px; font: 600 0.8125rem/1.2 var(--tp-font-mono); }
+.h-stay__price { display: flex; flex: none; flex-direction: column; align-items: flex-end; gap: 1px; width: 98px; text-align: right; }
+.h-stay__night-row { display: flex; align-items: baseline; gap: 4px; }
+.h-stay__night { font: 700 1.25rem/1.2 var(--tp-font-mono); letter-spacing: -0.02em; }
+.h-stay__total { font: 600 0.8125rem/1.4 var(--tp-font-mono); }
+.h-stay__each { font: 500 0.8125rem/1.4 var(--tp-font-mono); color: var(--tp-ink-soft); }
+.h-stay__count { display: flex; flex-direction: column; gap: 1px; font: 600 0.8125rem/1.3 var(--tp-font-body); }
+.h-stay__count-n { font: 700 0.8125rem/1.3 var(--tp-font-mono); }
+.h-stay__votes { display: flex; gap: 6px; margin-left: auto; }
+.h-stay__where { display: flex; flex-direction: column; gap: 1px; }
+.h-stay__where-name { font: 600 0.8125rem/1.3 var(--tp-font-body); }
+.h-stay__where-dates { font: 500 0.8125rem/1.3 var(--tp-font-mono); color: var(--tp-ink-soft); }
+
+/* ------------------------------------------------------------------ Modal surfaces: scrim, paywall, AI sheet */
+/* 4.19 Scrim and dimmed screen -> <Scrim>, <InertScreen> */
+/* A modal sheet sits over the screen it came from. That screen stays in the DOM, hidden from assistive tech (aria-hidden)
+   and not focusable (inert), under a scrim (--tp-scrim: 45% ink in light, 60% black in dark). */
+.h-dim { position: absolute; inset: 0; overflow: hidden; }
+.h-scrim { position: absolute; inset: 0; background: var(--tp-scrim); }
+.h-sheet--paywall { top: 118px; }
+.h-sheet--ai { top: 84px; }
+.h-sheet__body--roomy { --h-pad-top: 14px; }
+
+/* 4.14 Paywall sheet -> <PaywallSheet> */
+/* The head is sky with the two routes meeting at a plane, a display headline, one line of what you get, and a
+   ticket tear (two sheet-colored notches and a dotted line) where the offers begin. */
+.h-sheet__head { position: relative; padding: 8px 16px 20px; }
+.h-sheet__head--sky { background: var(--tp-sky); color: var(--tp-sky-ink); }
+.h-sheet__head .h-sheet__grabber { margin-top: 0; }
+.h-sheet__head--sky .h-sheet__grabber { background: var(--tp-sky-ink); opacity: 0.4; }
+.h-sheet__head--sky::before,
+.h-confirm::before {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -9px; height: 18px;
+  background:
+    radial-gradient(circle 9px at 0 50%, var(--tp-sheet) 8.5px, transparent 9px),
+    radial-gradient(circle 9px at 100% 50%, var(--tp-sheet) 8.5px, transparent 9px);
+}
+.h-confirm::before { bottom: auto; top: -9px; }
+.h-sheet__head--sky::after { content: ""; position: absolute; left: 22px; right: 22px; bottom: -2px; height: 4px; opacity: 0.8; background: radial-gradient(circle 2px at 2px 2px, var(--tp-sky-rule) 1.5px, transparent 2px) 0 0 / 10px 4px repeat-x; }
+.h-sheet__route { display: block; width: 390px; max-width: none; height: 62px; margin: 2px -16px 0; }
+.h-sheet__ring { fill: var(--tp-cream); }
+.h-sheet__dot--a { fill: var(--tp-route-a); }
+.h-sheet__dot--b { fill: var(--tp-route-b); }
+.h-sheet__head .h-display { margin: 4px 0 0; }
+.h-sheet__lead { margin: 8px 0 0; font: 400 0.9375rem/1.4 var(--tp-font-body); }
+
+/* 4.14 Paywall plan option -> <PlanOption> */
+/* A side-stub ticket that is a radio: the offer and what it includes on the left, the price in the stub.
+   Selected is the checked input: a 2 px brand outline and a brand-soft body. */
+.h-ticket--plan { --h-stub-w: 100px; --h-side-h: 92px; }
+.h-ticket--plan .h-ticket__card { background: var(--tp-paper); cursor: pointer; }
+.h-ticket--plan .h-ticket__body { flex-direction: row; align-items: flex-start; justify-content: flex-start; gap: 10px; padding: 8px 6px 8px 12px; }
+.h-ticket--plan .h-ticket__stub { gap: 2px; }
+.h-ticket--plan .h-ticket__tear { top: 12px; bottom: 12px; }
+.h-plan__input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.h-plan__radio { display: flex; flex: none; align-items: center; justify-content: center; width: 24px; height: 24px; margin-top: 1px; border: 2px solid var(--tp-edge); border-radius: 50%; background: var(--tp-paper); color: var(--tp-brand-ink); }
+.h-plan__radio .h-icon { display: none; }
+.h-plan__text { display: flex; flex-direction: column; gap: 1px; }
+.h-plan__name { font: 600 1.25rem/1.2 var(--tp-font-display); }
+.h-plan__line { font: 400 0.8125rem/1.3 var(--tp-font-body); color: var(--tp-ink-soft); }
+.h-plan__price { font: 700 1.375rem/1.1 var(--tp-font-mono); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.h-plan__unit { font: 400 0.8125rem/1.2 var(--tp-font-body); color: var(--tp-ink-soft); }
+.h-ticket--plan:has(.h-plan__input:checked) {
+  filter: drop-shadow(2px 0 0 var(--tp-brand)) drop-shadow(-2px 0 0 var(--tp-brand)) drop-shadow(0 2px 0 var(--tp-brand)) drop-shadow(0 -2px 0 var(--tp-brand));
+}
+.h-ticket--plan:has(.h-plan__input:checked) .h-ticket__card { background: var(--tp-brand-soft); }
+.h-ticket--plan:has(.h-plan__input:checked) .h-plan__line { color: var(--tp-ink); }
+.h-ticket--plan:has(.h-plan__input:checked) .h-plan__radio { border-color: var(--tp-brand); background: var(--tp-brand); }
+.h-ticket--plan:has(.h-plan__input:checked) .h-plan__radio .h-icon { display: block; }
+.h-ticket--plan:has(.h-plan__input:focus-visible) { outline: 3px solid var(--ring); outline-offset: 3px; border-radius: 18px; }
+
+/* 4.14 More options row -> <MoreOptions> */
+/* A disclosure button (aria-expanded) that names the next offer so the person need not open it to know it exists. */
+.h-more { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; height: 44px; padding: 0 2px 0 4px; border: 0; background: none; text-align: left; }
+.h-more__label { font: 600 0.875rem/1 var(--tp-font-body); color: var(--tp-brand); }
+.h-more__value { display: flex; align-items: center; gap: 4px; font: 400 0.8125rem/1.2 var(--tp-font-body); color: var(--tp-ink-soft); }
+.h-more__value .h-icon { color: var(--tp-ink-soft); }
+
+/* 4.14 Paywall actions -> <PaywallActions> */
+/* The purchase is the one primary. "Not now" and the free route are real buttons of the same size, side by side. */
+.h-btn__price { font: 700 1rem/1 var(--tp-font-mono); font-variant-numeric: tabular-nums; }
+.h-btnpair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.h-btnpair .h-btn { padding: 0 10px; font-size: 0.9375rem; line-height: 1.15; text-align: center; }
+.h-linkrow { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.h-linkrow__item {
+  display: flex; align-items: center; justify-content: center; min-width: 44px; height: 44px; padding: 0 2px; border: 0; background: none;
+  color: var(--tp-brand); font: 600 0.8125rem/1 var(--tp-font-body); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap;
+}
+
+/* 4.11 AI actions sheet -> <AiSheet> */
+/* A title with the balance, then one list card of actions. Each row names what it does and what it costs; one row is
+   selected, and the confirm stub below says the cost and what is left. */
+.h-sheet__bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 52px; padding: 6px 16px 0; }
+.h-sheet__bar-text { display: flex; flex-direction: column; gap: 1px; }
+.h-sheet__title { margin: 0; font: 600 1.5rem/1.15 var(--tp-font-display); letter-spacing: var(--tp-track-title); }
+.h-sheet__sub { font: 400 0.8125rem/1.3 var(--tp-font-body); color: var(--tp-ink-soft); }
+.h-sheet__balance { display: flex; align-items: center; height: 44px; color: var(--tp-ink); text-decoration: none; }
+.h-actionlist { margin: 8px 16px 0; overflow: hidden; border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-paper); }
+.h-action { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 5px 12px 5px 14px; border: 0; background: transparent; color: var(--tp-ink); text-align: left; }
+.h-action + .h-action { border-top: 1px solid var(--tp-rule); }
+.h-action:focus-visible { outline-offset: -3px; }
+.h-action[aria-pressed="true"] { background: var(--tp-brand-soft); box-shadow: inset 0 0 0 2px var(--tp-brand); }
+.h-action__text { display: flex; flex: 1; flex-direction: column; gap: 1px; min-width: 0; }
+.h-action__title { font: 600 0.9375rem/1.2 var(--tp-font-body); }
+.h-action__desc { font: 400 0.8125rem/1.3 var(--tp-font-body); color: var(--tp-ink-soft); }
+.h-action__desc--cache { display: flex; align-items: center; gap: 5px; color: var(--tp-success); }
+.h-action__desc--cache::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--tp-success); }
+.h-action__side { display: flex; flex: none; flex-direction: column; align-items: flex-end; gap: 2px; }
+.h-action__note { font: 600 0.8125rem/1.2 var(--tp-font-body); color: var(--tp-warning-ink); }
+
+/* 4.11 Spend confirmation -> <ConfirmStub> */
+/* Required at 6 credits or more. A sunken stub pinned to the bottom of the sheet: the question, the cost, the balance
+   after, then the spend button (it carries the cost) beside Cancel. 34 px at the bottom is the home indicator. */
+.h-confirm { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 3px; padding: 14px 16px 34px; background: var(--tp-sunken); }
+.h-confirm::after { content: ""; position: absolute; left: 20px; right: 20px; top: -2px; height: 4px; opacity: 0.6; background: radial-gradient(circle 2px at 2px 2px, var(--tp-edge) 1.5px, transparent 2px) 0 0 / 10px 4px repeat-x; }
+.h-confirm__title { margin: 0; font: 600 1.125rem/1.2 var(--tp-font-display); }
+.h-confirm__text { margin: 0 0 8px; font: 400 0.9375rem/1.4 var(--tp-font-body); }
+.h-confirm__actions { display: flex; gap: 8px; }
+.h-confirm .h-btn--secondary { flex: none; width: 112px; }
+.h-btn--spend { flex: 1; justify-content: space-between; padding: 0 8px 0 18px; }
+
+/* ------------------------------------------------------------------ Agent run */
+/* 4.21 Run timeline and outcome ticket -> <RunTicket> */
+/* The outcome ticket for a finished run: sky head (what ran, elapsed, credits), the route of steps with the plane
+   landed at the end, then a stub that lands with touchdown. --run sets the 96 px head and 52 px stub. */
+.h-screen--run { --h-sheet-top: 104px; }
+.h-ticket--run { --h-head-h: 96px; --h-stub-h: 52px; }
+.h-ticket--run .h-ticket__head { gap: 0; }
+.h-ticket--run .h-ticket__name { margin-top: 1px; }
+.h-ticket--run .h-label--onsky { padding-top: 6px; line-height: 13.2px; }
+.h-ticket--run .h-ticket__stub { padding: 0 14px; }
+.h-ticket__fields--run { gap: 24px; margin-top: 7px; }
+.h-run { padding: 9px 16px 5px; }
+.h-run__route { display: block; width: 326px; max-width: 100%; height: 30px; overflow: visible; }
+.h-run__dot { fill: var(--tp-brand); animation: h-fade-in var(--motion-base) var(--ease-out) both; }
+.h-run__stop-ring { fill: var(--tp-paper); }
+.h-run__stop-core { fill: var(--tp-ink); }
+.h-run__stop-check { fill: none; stroke: var(--tp-paper); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.h-run__plane { animation: h-glide 1.2s var(--ease-out) both; }
+.h-run__plane-ring { fill: var(--tp-sheet); }
+.h-run__plane-core { fill: var(--tp-sky); }
+.h-run__plane-glyph { fill: var(--tp-cream); stroke: var(--tp-cream); stroke-width: 3; stroke-linejoin: round; }
+.h-run__steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 3px 0 0; padding: 0; list-style: none; }
+.h-run__step { display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center; font: 600 0.8125rem/1.2 var(--tp-font-body); }
+.h-run__time { font: 500 0.8125rem/1.2 var(--tp-font-mono); color: var(--tp-ink-soft); }
+/* Route draw-on: the dots appear in order, 45 ms apart (05 section 2.8). Keep a run route to 40 dots or fewer. */
+.h-run__dots .h-run__dot:nth-child(1) { animation-delay: 0ms; }
+.h-run__dots .h-run__dot:nth-child(2) { animation-delay: 45ms; }
+.h-run__dots .h-run__dot:nth-child(3) { animation-delay: 90ms; }
+.h-run__dots .h-run__dot:nth-child(4) { animation-delay: 135ms; }
+.h-run__dots .h-run__dot:nth-child(5) { animation-delay: 180ms; }
+.h-run__dots .h-run__dot:nth-child(6) { animation-delay: 225ms; }
+.h-run__dots .h-run__dot:nth-child(7) { animation-delay: 270ms; }
+.h-run__dots .h-run__dot:nth-child(8) { animation-delay: 315ms; }
+.h-run__dots .h-run__dot:nth-child(9) { animation-delay: 360ms; }
+.h-run__dots .h-run__dot:nth-child(10) { animation-delay: 405ms; }
+.h-run__dots .h-run__dot:nth-child(11) { animation-delay: 450ms; }
+.h-run__dots .h-run__dot:nth-child(12) { animation-delay: 495ms; }
+.h-run__dots .h-run__dot:nth-child(13) { animation-delay: 540ms; }
+.h-run__dots .h-run__dot:nth-child(14) { animation-delay: 585ms; }
+.h-run__dots .h-run__dot:nth-child(15) { animation-delay: 630ms; }
+.h-run__dots .h-run__dot:nth-child(16) { animation-delay: 675ms; }
+.h-run__dots .h-run__dot:nth-child(17) { animation-delay: 720ms; }
+.h-run__dots .h-run__dot:nth-child(18) { animation-delay: 765ms; }
+.h-run__dots .h-run__dot:nth-child(19) { animation-delay: 810ms; }
+.h-run__dots .h-run__dot:nth-child(20) { animation-delay: 855ms; }
+.h-run__dots .h-run__dot:nth-child(21) { animation-delay: 900ms; }
+.h-run__dots .h-run__dot:nth-child(22) { animation-delay: 945ms; }
+.h-run__dots .h-run__dot:nth-child(23) { animation-delay: 990ms; }
+.h-run__dots .h-run__dot:nth-child(24) { animation-delay: 1035ms; }
+.h-run__dots .h-run__dot:nth-child(25) { animation-delay: 1080ms; }
+.h-run__dots .h-run__dot:nth-child(26) { animation-delay: 1125ms; }
+.h-run__dots .h-run__dot:nth-child(27) { animation-delay: 1170ms; }
+.h-run__dots .h-run__dot:nth-child(28) { animation-delay: 1215ms; }
+.h-run__dots .h-run__dot:nth-child(29) { animation-delay: 1260ms; }
+.h-run__dots .h-run__dot:nth-child(30) { animation-delay: 1305ms; }
+.h-run__dots .h-run__dot:nth-child(31) { animation-delay: 1350ms; }
+.h-run__dots .h-run__dot:nth-child(32) { animation-delay: 1395ms; }
+.h-run__dots .h-run__dot:nth-child(33) { animation-delay: 1440ms; }
+.h-run__dots .h-run__dot:nth-child(34) { animation-delay: 1485ms; }
+.h-run__dots .h-run__dot:nth-child(35) { animation-delay: 1530ms; }
+.h-run__dots .h-run__dot:nth-child(36) { animation-delay: 1575ms; }
+.h-run__dots .h-run__dot:nth-child(37) { animation-delay: 1620ms; }
+.h-run__dots .h-run__dot:nth-child(38) { animation-delay: 1665ms; }
+.h-run__dots .h-run__dot:nth-child(39) { animation-delay: 1710ms; }
+.h-run__dots .h-run__dot:nth-child(40) { animation-delay: 1755ms; }
+
+/* The touchdown: a stub settles from 1.15 to 1 and fades in, after the plane lands. */
+.h-touchdown { display: inline-flex; flex: none; animation: h-touchdown 280ms var(--ease-touchdown) 1.2s both; }
+@keyframes h-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes h-glide { from { transform: translateX(-236px); } to { transform: none; } }
+@keyframes h-touchdown { from { opacity: 0; transform: scale(1.15); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .h-run__dot, .h-run__plane, .h-touchdown { animation: none; }
+}
+
+/* 4.21 Evidence row -> <EvidenceTicket> */
+/* One fact an agent found, with its source and age. The whole source line is a link. The stub holds the three
+   choices: open the source, save the note to the trip, dismiss it. */
+.h-ticket--evidence { --h-stub-h: 44px; }
+.h-ticket--evidence .h-ticket__body { gap: 2px; padding: 7px 14px 5px; }
+.h-ticket--evidence .h-ticket__stub { gap: 0; padding: 0 6px; }
+.h-evidence__top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.h-evidence__title { margin: 0; font: 600 0.9375rem/1.2 var(--tp-font-body); }
+.h-evidence__kind { line-height: 1; }
+.h-evidence__source { display: flex; align-items: center; gap: 6px; font: 400 0.8125rem/1.3 var(--tp-font-body); color: var(--tp-ink); }
+.h-evidence__icon { display: flex; flex: none; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 5px; background: var(--tp-sunken); color: var(--tp-ink-soft); }
+.h-evidence__link { display: block; padding: 14px 0; margin: -14px 0 -13px; color: var(--tp-brand); font: 400 0.8125rem/1.3 var(--tp-font-body); text-decoration: underline; text-underline-offset: 2px; }
+.h-evidence__quote { font: 400 0.8125rem/1.3 var(--tp-font-body); color: var(--tp-ink-soft); }
+.h-ticket__action { display: flex; flex: 1; align-items: center; justify-content: center; gap: 4px; height: 44px; padding: 0 4px; border: 0; background: none; color: var(--tp-ink); font: 600 0.8125rem/1 var(--tp-font-body); text-decoration: none; white-space: nowrap; }
+.h-ticket__action--brand { color: var(--tp-brand); }
+.h-ticket__action--soft { color: var(--tp-ink-soft); }
+.h-label--section { margin: 4px 2px 0; }
+.h-label--onsky { color: inherit; }
+.h-label .h-num { font-weight: 700; letter-spacing: 0; }

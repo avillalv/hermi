@@ -2,7 +2,7 @@ from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
 from pathlib import Path
-import os, tempfile
+import os, re, tempfile
 
 HERE = Path(__file__).resolve().parent
 OUT = str(HERE) + "/"
@@ -52,21 +52,59 @@ d,wid,cap=wordmark("Hermi",fp,300,TRACK)
 MS=0.42     # mark scale in the lockup (mark is 430 px)
 PAD=90      # outer padding
 GAP=64      # mark to wordmark
-def lockup(dark):
+def lockup(dark, bg=True):
     ink = INK_DARK if dark else INK
     bgc = NIGHT if dark else PAPER
     msize=1024*MS
     H=int(msize+2*PAD)
     base=PAD+msize/2+cap/2   # cap height centered on the mark's horizontal axis
     W=int(PAD+msize+GAP+wid+PAD)
-    body=(f'<rect width="{W}" height="{H}" fill="{bgc}"/>\n  '
+    fill=f'<rect width="{W}" height="{H}" fill="{bgc}"/>\n  ' if bg else ''
+    body=(fill +
           f'<g transform="translate({PAD} {PAD}) scale({MS})">{mark(rounded=True)}</g>\n  '
           f'<path transform="translate({PAD+msize+GAP:.1f} {base:.1f})" fill="{ink}" d="{d}"/>')
     return W,H,body
 W,H,b=lockup(False); write("hermi-logo.svg",W,H,b,"Hermi")
 W,H,b=lockup(True); write("hermi-logo-dark.svg",W,H,b,"Hermi")
+# Transparent lockups for the app (the page behind them is the paper or night token).
+W,H,b=lockup(False,False); write("hermi-logo-transparent.svg",W,H,b,"Hermi")
+W,H,b=lockup(True,False); write("hermi-logo-dark-transparent.svg",W,H,b,"Hermi")
 d2,wid2,cap2=wordmark("Hermi",fp,200,TRACK)
 write("hermi-wordmark.svg",int(wid2+8),int(cap2*1.5),f'<path transform="translate(4 {cap2*1.25:.1f})" fill="{INK}" d="{d2}"/>',"Hermi")
+write("hermi-wordmark-light.svg",int(wid2+8),int(cap2*1.5),f'<path transform="translate(4 {cap2*1.25:.1f})" fill="{INK_DARK}" d="{d2}"/>',"Hermi")
+
+# Web icon set into apps/web/public/ (needs Pillow). Drawn straight from the mark geometry.
+def _bez(p0,p1,p2,p3,n=12):
+    return [tuple((1-t)**3*a+3*(1-t)**2*t*b+3*(1-t)*t*t*c+t**3*e for a,b,c,e in zip(p0,p1,p2,p3)) for t in (i/n for i in range(1,n+1))]
+def _plane_pts():
+    nums=lambda s:[float(x) for x in re.findall(r"-?[\d.]+",s)]
+    pts=[]; cur=(0,0)
+    for cmd,args in re.findall(r"([MLCZ])([^MLCZ]*)",PLANE):
+        n=nums(args)
+        if cmd in "ML": cur=(n[0],n[1]); pts.append(cur)
+        elif cmd=="C":
+            c=[(n[i],n[i+1]) for i in range(0,6,2)]; pts+=_bez(cur,*c); cur=c[2]
+    return pts
+def icon_png(size, rounded=True, inset=1.0, bg=SKY):
+    from PIL import Image, ImageDraw
+    K=2048; u=K/1024; im=Image.new("RGBA",(K,K),(0,0,0,0)); d=ImageDraw.Draw(im)
+    if rounded: d.rounded_rectangle((0,0,K-1,K-1),radius=228*u,fill=bg)
+    else: d.rectangle((0,0,K,K),fill=bg)
+    a=inset; o=512*(1-a)  # shrink the art around the center (maskable safe zone)
+    T=lambda x,y:((o+x*a)*u,(o+y*a)*u)
+    def dot(x,y,r,c): d.ellipse((*T(x-r,y-r),*T(x+r,y+r)),fill=c)
+    for x,c in ((236,PINK),(788,YELLOW)):
+        for y in range(192,693,100): dot(x,y,46,c)
+        dot(x,809,70,c)
+    for x in (328,696): dot(x,500,22,CREAM)
+    pts=[T(512-(py-50)*3,500+(px-50)*3) for px,py in _plane_pts()]  # rotate(90) scale(3) about (50,50)
+    d.polygon(pts,fill=CREAM); d.line(pts+pts[:1],fill=CREAM,width=int(9*a*u),joint="curve")
+    return im.resize((size,size),Image.LANCZOS)
+PUB=HERE.parent.parent/"apps"/"web"/"public"
+(PUB/"favicon.svg").write_bytes((HERE/"hermi-mark.svg").read_bytes())
+icon_png(32).save(PUB/"favicon-32.png"); icon_png(192).save(PUB/"icon-192.png"); icon_png(512).save(PUB/"icon-512.png")
+icon_png(180,rounded=False).convert("RGB").save(PUB/"apple-touch-icon.png")
+icon_png(512,rounded=False,inset=0.8).save(PUB/"icon-maskable-512.png")
 
 # Review page for the preview PNG. Written outside the repo (PREVIEW_HTML, default: system temp).
 def uri(n): return (HERE/n).as_uri()
