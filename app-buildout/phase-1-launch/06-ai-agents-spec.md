@@ -6,7 +6,9 @@ Written 2026-09-30. Phase 1 adds the booking import extraction (5.3) for pasted 
 
 ## 1. Scope and vocabulary
 
-Hermi has one AI integration: the Anthropic Messages API, called from the worker process. Nothing in the API process, the web client or the iOS client calls Anthropic. Clients call our REST API (see [04-api-spec.md](04-api-spec.md)), which reserves credits, enqueues a job and streams progress back from `run_events`.
+Hermi has one AI integration seam, called from the worker process. In staging, TestFlight and production it is the Anthropic Messages API. Nothing in the API process, the web client or the iOS client calls a model. Clients call our REST API (see [04-api-spec.md](04-api-spec.md)), which reserves credits, enqueues a job and streams progress back from `run_events`.
+
+**Provider.** A provider is a backend behind the `AiProvider` protocol (`single_call`, `agent_run`), chosen by `AI_PROVIDER`: `anthropic_api`, `claude_cli` or `fake`. Do not confuse it with a fare or places provider (`provider_calls`). Unless a section says otherwise, sections 2 to 12 describe the `anthropic_api` backend. The `claude_cli` and `fake` backends differ as section 2.7 lists.
 
 Two code systems are used and must not be confused.
 
@@ -55,11 +57,13 @@ client (web / iOS)                API (FastAPI)                       worker (Pr
                                                                       credit_ledger, shared_research_cache)
 ```
 
-- The worker is the only process holding `ANTHROPIC_API_KEY`. It lives in a secret manager and is injected as an environment variable. A separate admin key (for the Usage and Cost reconciliation job, section 6.8) is held only by the scheduler (periodic jobs) process.
+- The worker is the only process holding `ANTHROPIC_API_KEY`. It lives in a secret manager and is injected as an environment variable. A separate admin key, `ANTHROPIC_ADMIN_API_KEY` (for the Usage and Cost reconciliation job, section 6.8), is held only by the scheduler (periodic jobs) process.
 - Interactive jobs (single calls, research, agent runs the user is watching) run in the `ai` lane at priority 10. Background work (cache warming and nightly evals) goes through the Batch API in the `batch` lane (lane names from [02-architecture.md](02-architecture.md)). Paid tiers (Plus and passes) are claimed before Free within a queue. The API process never waits on a job; it returns the `runs.id` and the client subscribes to `GET /v1/agent-runs/{id}/stream` (server-sent events that tail `run_events`, [04-api-spec.md](04-api-spec.md) section 5.13).
-- Workers run 4 concurrent agent loops each by default (async tasks; each holds one open stream). Concurrency is a config value, `AI_WORKER_CONCURRENCY`.
+- Workers run several concurrent agent loops each (async tasks; each holds one open stream). Concurrency is a config value, `WORKER_CONCURRENCY_AI` (02 section 7.1 has the default and the local value). The `claude_cli` backend is capped by `AI_CLI_MAX_CONCURRENCY` instead (2.7).
 
 ### 2.2 The client library
+
+This is the `anthropic_api` path. `claude_cli` equivalent: `SingleCall` and `AgentLoop` are replaced by one `claude -p` process per call (2.7); both entry points keep their signatures and the metering below.
 
 Use the official Anthropic Python SDK (`anthropic`), async client, with `max_retries=2`. Wrap it in `ai/client.py` exposing exactly two entry points, so every call is metered:
 
@@ -69,6 +73,8 @@ Use the official Anthropic Python SDK (`anthropic`), async client, with `max_ret
 Nothing else may import the SDK (enforced by a lint rule). Both entry points take a `MeterContext` (user, trip, run, feature, reservation id) and, for every response, add its tokens and cost to the action's `ai_usage` row (and to `runs.cost_usd_micros`) in the same transaction as a `run_events` row of type `info` with `payload.kind = 'usage'`. `ai_usage` holds one row per metered action (unique `idempotency_key`), not one per response; the per-response detail lives in the event payload.
 
 ### 2.3 The tool loop
+
+This loop is the `anthropic_api` path. `claude_cli` equivalent: the CLI runs its own loop, and our code watches its stream-json for the spend, search, fetch, turn and deadline stops (2.7); there is no `finish_run` client tool, the final JSON is validated in code.
 
 The loop is written by hand (about 150 lines) because it needs a dollar check between turns, `pause_turn` handling and ownership binding in the tool executor.
 
@@ -129,6 +135,8 @@ Rules that keep the loop correct:
 
 ### 2.4 Server tools
 
+These are the `anthropic_api` path. `claude_cli` equivalent: the built-in `WebSearch` and `WebFetch` tools, blocked by `--disallowedTools` rules generated from `BLOCKED_HOSTS` (2.7).
+
 ```json
 [
   {
@@ -151,12 +159,14 @@ Rules that keep the loop correct:
 ```
 
 - `max_uses` comes from the feature spec: agent run 10 and 10, research question 5 and 8 (counted across all requests of one question), taster 6 and 6. Booking import and plan extraction use no server tools; a plan check uses 1 and 1 per item and a recheck 0 searches and 1 fetch (5.11, 5.12).
-- The real blocked list has about 25 hostnames (bare and `www` for every Airbnb country domain in use, plus `vrbo.com`, `booking.com` and their `www` forms), under the 64-per-list limit. The list is one constant, `BLOCKED_HOSTS`, in `ai/policy.py`, shared with the ingest validators. Use `blocked_domains` only; the API forbids `allowed_domains` in the same config. Plain hostnames, no wildcards.
-- Defense in depth: `blocked_domain(host)` and `source_problem(url)` (carried over from the existing `agent_ingest.py`) still run on every cited URL, because they catch country domains the list misses (for example `airbnb.co.kr`).
+- `BLOCKED_HOSTS` in `ai/policy.py` is one code constant, with no admin-editable copy. It holds the three brands `airbnb`, `vrbo` and `booking`, and a host is refused when its registrable-domain label equals a brand, with any ending and any subdomain (so `airbnb.co.kr`, `www.airbnb.co.uk`, `vrbo.com` and `secure.booking.com` are refused). One test covers those four hosts. Everything below is generated from it: the `blocked_domains` list sent to the API (about 25 hostnames, bare and `www` for every country domain in use, under the 64-per-list limit), the ingest validators and the CLI `--disallowedTools` rules (2.7). Use `blocked_domains` only; the API forbids `allowed_domains` in the same config. Plain hostnames, no wildcards.
+- Defense in depth: `blocked_domain(host)` and `source_problem(url)` (carried over from the existing `agent_ingest.py`) still run on every cited URL with the same brand match, because the server list cannot name every country domain or deeper subdomain (for example `airbnb.co.kr`).
 - Search results and fetched pages enter the model's context. They are never echoed into a later user message or the system prompt (section 4.3).
 - Dollar cost of search is counted from `usage.server_tool_use.web_search_requests` at $0.01 each. Fetch has no per-call fee beyond tokens.
 
 ### 2.5 Client tools (executed in-process)
+
+These are the `anthropic_api` path. `claude_cli` equivalent: no client tools; the run ends with a final JSON object (`--json-schema`) that code validates with the same `agent_ingest` checks and saves.
 
 All five are plain Python functions registered in `ai/tools.py`. There is no localhost hop, no MCP bridge and no ingest API key: the executor holds a database session and the `Run` row.
 
@@ -295,6 +305,48 @@ The executor stores the report in `runs.report` and sets `run.finished`. The run
 
 Managed Agents is deferred: custom tools still need our worker, the loop is opaque, the per-turn dollar check and ledger granularity would be coarser, and lock-in is highest. The Claude Agent SDK runs the Claude Code binary per run and has no per-turn hook. Revisit Managed Agents if a rubric-graded quality loop or a browsing sandbox becomes a product requirement.
 
+The `claude_cli` backend (2.7) is for local development only and is not the Agent SDK: it runs the plain `claude -p` command line, one process per call, with no SDK code, no hooks and no in-process tools.
+
+### 2.7 Provider backends and the CLI recipe
+
+**Protocol.** `apps/api/hermi/providers/ai/` holds the `AiProvider` protocol with two methods, `single_call` (one request, structured output) and `agent_run` (a multi-turn run with web tools and stop limits). `modules/ai/client.py` is a facade (the `SingleCall` and `AgentLoop` entry points of 2.2) that gets a backend from a factory. Metering is provider-neutral (section 6).
+
+| Backend | `AI_PROVIDER` | Where | What it does |
+|---|---|---|---|
+| Anthropic API | `anthropic_api` | staging, TestFlight, production | Sections 2.2 to 2.5: the Messages API with server web tools and in-process client tools |
+| Claude CLI | `claude_cli` | local development only | One `claude` process per call, built-in `WebSearch` and `WebFetch`, final JSON validated in code (recipe below) |
+| Fake | `fake` | tests, CI, smoke runs | Replays recorded fixtures; never calls the network, the CLI or Anthropic. Its `agent_run` also emits the stream shapes the CLI path parses |
+
+**Selection and the guard.** `AI_PROVIDER` picks the backend. Config allows `claude_cli` only when `ENVIRONMENT=local`, the server is bound to loopback (`127.0.0.1`, `::1`, `localhost`), and `AUTH_MODE=dev` or the user is in `AI_CLI_ALLOWED_EMAILS`. The factory re-checks the user part on every call (a request from a user outside the list falls to an error, never to the CLI). `/health/ready` reports the provider in use. `render.yaml` pins `AI_PROVIDER=anthropic_api`. A matrix test over `ENVIRONMENT`, bind address, `AUTH_MODE` and the allow list proves that every refused combination refuses. In staging, TestFlight and production `ANTHROPIC_API_KEY` is required, because a personal subscription may only serve its owner.
+
+**The CLI recipe.** The command is built once, in one function, from these parts:
+
+```
+claude.exe -p --model <full model id> --output-format stream-json --verbose
+  --safe-mode --restricted --strict-mcp-config --no-session-persistence
+  --permission-mode dontAsk --permission-prompts none --disable-slash-commands
+  --system-prompt-file <tmp> --tools ""
+```
+
+- No-tool calls keep `--tools ""`. Web calls use `--tools "WebSearch,WebFetch" --allowedTools WebSearch WebFetch` (without the allow list `dontAsk` denies them).
+- Always add `--disallowedTools` rules generated from `BLOCKED_HOSTS` (2.4) plus `localhost`, `127.0.0.1` and the cloud metadata address. Measured on 2.1.288: `WebFetch(domain:x)` matches the exact host only, and `*` matches one label. So for each brand (`airbnb`, `vrbo`, `booking`) emit four forms: `WebFetch(domain:<brand>.*)`, `WebFetch(domain:<brand>.*.*)`, `WebFetch(domain:*.<brand>.*)` and `WebFetch(domain:*.<brand>.*.*)`. The `.*.*` forms cover endings such as `.co.kr` and `.co.uk`.
+- Stream backstop: check every `WebFetch` input URL in the stream with the same brand match as the API blocklist (the registrable-domain label equals a brand, any ending, any subdomain). A match kills the run and fails it with `blocked_domain`. This catches hosts the rule patterns miss, such as deeper subdomains.
+- Add `--json-schema <schema>`, `--max-budget-usd <hard stop>` and `--max-turns N`. The prompt goes on stdin. The working directory is an empty scratch directory under `AI_CLI_SCRATCH_DIR`. The binary comes from `CLAUDE_CLI_PATH` or `find_claude`; parallel processes are capped by `AI_CLI_MAX_CONCURRENCY`.
+- The environment is stripped: no `ANTHROPIC_API_KEY` (or any other `ANTHROPIC_*`), no `CLAUDE_CODE_*` (keep `CLAUDE_CODE_GIT_BASH_PATH` if set), no `CLAUDECODE`, and none of the app's own secrets (database URLs, keys, tokens).
+- After the `init` event assert three things, and fail the run if any differs: the model id equals the requested one; the tool list equals the requested tools, plus `StructuredOutput` whenever `--json-schema` is passed (a no-tool call with a schema shows exactly `["StructuredOutput"]`); and `apiKeySource` is `none` (an inherited API key silently switches billing to the API).
+- Haiku (`AI_MODEL_FAST`) is allowed for `WebFetch` summaries.
+- Cancel kills the whole process tree (`taskkill /T /F` on Windows), never only the parent.
+
+**Per feature.**
+
+- No-tool calls (`explain`, `packing_list`, `booking_import`, `verify_extract`, `draft_day`, `draft_trip`) use `--tools ""` plus `--json-schema`, and code validates the output.
+- `recheck` uses our own SSRF-safe fetcher (no CLI web tools).
+- `research`, `verify_plan` and `agent_run` use stream counters that enforce the search and fetch caps from the credit action prices (03 `credit_action_prices`), an 8-minute watchdog and a cancel that kills the process tree. The final JSON is checked by the ported `agent_ingest` checks plus an `EvidenceCollector`. The collector reads the `WebFetch` input URLs and the `WebSearch` result links. On 2.1.288 the links come back as a JSON array after `Links:` in the tool result, not as markdown, and the ported fake `claude` must emit that same shape.
+- Batch and `cache_warm` run synchronously (no Batch API on this backend).
+- The stream-json events go into `run_events`.
+
+**Cost.** The cost of a CLI run is `total_cost_usd` times 1,000,000 micro-dollars. It is notional (the owner's subscription pays), and `ai_usage.provider` and `runs.provider` record `claude_cli` (03). Credits and ceilings work as for `anthropic_api` using that number. There is no usage reconcile for `claude_cli` (6.8).
+
 ## 3. Models, effort and Sonnet 5.5 constraints
 
 ### 3.1 Model per feature
@@ -311,7 +363,7 @@ Managed Agents is deferred: custom tools still need our worker, the loop is opaq
 | `agent_fare_hunt`, `agent_deep_research`, `taster` | `claude-sonnet-5-5` | `medium` | adaptive | agent loop |
 | `cache_warm` | `claude-sonnet-5-5` (warming research) | `low` | adaptive | Batch |
 
-Model IDs are exact strings with no date suffix. They are read from config (`AI_MODEL_SONNET`, `AI_MODEL_HAIKU`), and every response's `model` field is asserted against a per-feature allowlist; a mismatch aborts the run and raises an alert.
+Model IDs are exact strings with no date suffix. They are read from config (`AI_MODEL_MAIN` for Sonnet, `AI_MODEL_FAST` for Haiku), and every response's `model` field is asserted against a per-feature allowlist; a mismatch aborts the run and raises an alert.
 
 ### 3.2 Constraints of Claude Sonnet 5.5 that shape the code
 
@@ -337,6 +389,7 @@ Model IDs are exact strings with no date suffix. They are read from config (`AI_
 | HTTP 400 from a config error (model mismatch, schema) | Fail without retry, page on-call, and trip the feature's automatic kill switch if 5 occur in 10 minutes. |
 | Deadline or turn cap | Keep everything already saved (ingest saves as it goes); mark `partial` (`timed_out` when the 8-minute deadline ended it); settle per section 6.3. |
 | Anthropic outage | Provider health check fails 3 times: engage the `provider.anthropic` kill switch; cached data and non-AI features keep working. |
+| `claude_cli` failure (missing binary, signed out, non-zero exit, `init` assertion failed, `blocked_domain`, watchdog or budget stop) | Mapped to the same refusal and failure codes as the rows above through `explain_failure`, so the user sees the same messages and the same settlement as for `anthropic_api` (a refusal is `refused`, a stop is `partial` or `timed_out`, anything else is `failed` and refunded). The raw CLI text goes to `run_events` only. |
 
 ## 4. Shared prompt building blocks
 
@@ -777,7 +830,7 @@ Start now. Remember to call finish_run at the end.
 - **Purpose.** Let a Free user see one full deep agent run before paying.
 - **Trigger.** A one-time "Try a deep research run free" offer on a Free user's trip (deep research only, never fare hunt, because fare hunts produce personal route data that cannot be served from cache).
 - **Rules.** One per user for life. The taster is a one-time `promo` row in `credit_grants` (`restricted_action = 'agent_run'`, `period_key = 'taster'`, no `expires_at`, credits equal to the `agent_run` price; `plans.limits.taster_agent_runs = 1` on `free`), so the unique index on (`user_id`, `kind`, `period_key`) gives once per user. It is spent when the run is admitted and stays spent, even after a refund of a failed run, unless the run saved nothing and failed for our reasons, in which case `settle_credits(reservation, 0)` returns it once. The user pays nothing; the run is metered against a separate taster allowance of $0.80 outside the monthly Free ceiling (README: "Free $0.25 plus the one-time taster").
-- **Served from cache when possible.** The key is computed as for deep research. A hit costs nothing and does not consume the taster (the UI says "Someone researched this recently. Here it is."). A miss runs the real loop with caps of 6 searches, 6 fetches, 12 turns and a $0.50 stop so the offer is cheap, and the result is written to the cache for everyone.
+- **Served from cache when possible.** The key is computed as for deep research. A hit costs nothing and does not consume the taster (the UI says "Someone researched this recently. Here it is."). A miss runs the real loop with caps of 6 searches, 6 fetches, 12 turns and the $0.80 taster stop so the offer is cheap, and the result is written to the cache for everyone.
 - **Everything else** (prompt, tools, ingest, labels) is the deep research feature. After the run the UI shows the normal credit and plan choices; no paywall appears before the result.
 
 ### 5.10 Scheduled routines and weekly digest
@@ -894,20 +947,24 @@ Output schema: `{"result": enum(confirmed, changed, not_shown, unreachable), "cu
 
 ### 6.1 What is metered and where it is stored
 
+Metering is provider-neutral: the same `ai_usage` and `runs` rows are written whichever backend served the call, and both carry `provider` (`anthropic_api`, `claude_cli` or `fake`; 03 section 5.6). A `claude_cli` row holds a notional cost (2.7); a `fake` row costs 0.
+
 | Table | Written by | Holds |
 |---|---|---|
-| `ai_usage` | API at admission, worker as it runs and at settle; one row per metered action | `user_id`, `trip_id`, `run_id`, `action`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `web_searches`, `via_batch`, `cost_usd_micros`, `credits_reserved`, `credits_charged`, `state` (`reserved`, `settled`, `released`), `cache_hit`, `reservation_id`, `idempotency_key`, `purpose` (platform work only) |
+| `ai_usage` | API at admission, worker as it runs and at settle; one row per metered action | `user_id`, `trip_id`, `run_id`, `provider`, `action`, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `web_searches`, `via_batch`, `cost_usd_micros`, `credits_reserved`, `credits_charged`, `state` (`reserved`, `settled`, `released`), `cache_hit`, `reservation_id`, `idempotency_key`, `purpose` (platform work only) |
 | `run_events` | worker, one row per response, tool call and ingest decision | `run_id`, `seq`, `type`, `tool_name`, `summary`, `payload`; per-response detail (`response.id` as `request_id`, turn, tokens split by cache TTL, `stop_reason`, `stop_details.category`) is in the payload of `info` rows with `payload.kind = 'usage'` |
 | `provider_calls` | fare and places provider wrappers | non-LLM provider spend (SerpApi, Geoapify) in `cost_usd_micros`, attributed to a user; Claude cost lives in `ai_usage` |
 | `credit_ledger` | `reserve_credits`, `settle_credits`, `expire_credit_grants` and the grant writers | integer `delta` with `entry_type`, `charged`, `reservation_id`, `idempotency_key` |
 | `credit_grants` | monthly and pass grants and purchases | pools with `credits`, `remaining` and `expires_at`, used for spend order |
 | `runs` | API and worker | lifecycle, `cost_usd_micros`, counts, `report`, `served_from_cache`, `cache_key`, `reservation_id`, `cancel_requested` |
 
-Columns this spec relies on are the ones in 03 section 5.11 to 5.13 (03 wins on any difference): `ai_usage(user_id, trip_id, run_id, action, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, web_searches, via_batch, cost_usd_micros, credits_reserved, credits_charged, state, cache_hit, reservation_id, idempotency_key, purpose)`, where `cache_hit` is true for a shared-cache hit (the `hit`, `miss`, `refresh` and `bypass` split in the admin dashboards is derived: a bypass is a run with no `cache_key`, a refresh is a background refresh of a stale row); `credit_ledger(user_id, grant_id, entry_type, delta, charged, reservation_id, action, run_id, trip_id, usage_id, idempotency_key, note)` where `entry_type` is one of `grant`, `reserve`, `settle`, `refund`, `expire`, `clawback`, `adjust`. There is no `balance_after`; balances come from `credit_grants` and the `credit_balances` view.
+Columns this spec relies on are the ones in 03 sections 5.6 and 5.8 (03 wins on any difference): `ai_usage(user_id, trip_id, run_id, provider, action, model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, web_searches, via_batch, cost_usd_micros, credits_reserved, credits_charged, state, cache_hit, reservation_id, idempotency_key, purpose)`, where `cache_hit` is true for a shared-cache hit (the `hit`, `miss`, `refresh` and `bypass` split in the admin dashboards is derived: a bypass is a run with no `cache_key`, a refresh is a background refresh of a stale row); `credit_ledger(user_id, grant_id, entry_type, delta, charged, reservation_id, action, run_id, trip_id, usage_id, idempotency_key, note)` where `entry_type` is one of `grant`, `reserve`, `settle`, `refund`, `expire`, `clawback`, `adjust`. There is no `balance_after`; balances come from `credit_grants` and the `credit_balances` view.
 
 Model prices are a versioned constant in `ai/pricing.py` (per-million prices for input, 5-minute write, 1-hour write, read and output per model, search fee, batch multiplier), with an `effective_from` date. A price change is a code change with a new version; old `ai_usage` rows are never recomputed. The price version is implicit in `ai_usage.cost_usd_micros` by date.
 
 ### 6.2 Cost from `response.usage`
+
+This is the `anthropic_api` calculation. For `claude_cli` the cost is `total_cost_usd * 1_000_000` micro-dollars from the stream's `result` event (2.7).
 
 ```python
 def cost_usd_micros(usage, model, batch: bool) -> int:
@@ -961,7 +1018,7 @@ sequenceDiagram
 
 Steps in detail:
 
-1. **Admission** (API, one transaction). (a) Kill switch check (6.6). (b) The feature must be allowed for the caller's capability on this trip (see [01-product-spec.md](01-product-spec.md)). (c) For `agent_run` and `research`, reject if another `runs` row for this account is `queued` or `running` and of kind `agent_run` (one at a time per account; up to 3 research or workflow runs, including plan checks, may run together). (d) Lock the payer's balance rows and confirm the balance covers the price. The payer is the person who starts the action. (e) Ceiling checks: monthly spend plus the feature's hard stop must fit in the ceiling (agent run: $0.80 of monthly headroom; other features: their hard stop), and the daily budget must be open unless this is an admitted agent run. (f) In one transaction insert the `ai_usage` row (unique `idempotency_key`), call `reserve_credits(user, trip, price, action, run, idem)` (it writes the negative `reserve` rows, and raises SQLSTATE `WF402` when the pools cannot cover the price, which the API returns as 402 `insufficient_credits`) and insert the `runs` row; the client may retry the POST with the same `Idempotency-Key` without a second reservation.
+1. **Admission** (API, one transaction). (a) Kill switch check (6.6). (b) The feature must be allowed for the caller's capability on this trip (see [01-product-spec.md](01-product-spec.md)). (c) For `agent_run` and `research`, reject if another `runs` row for this account is `queued` or `running` and of kind `agent_run` (one at a time per account; up to 3 research or workflow runs, including plan checks, may run together). (d) Take the per-account advisory lock, and for a trip with an active Trip Pass the per-trip lock second (03 section 7.4), then lock the balance rows and confirm the balance covers the price. Credits come from the pools of 6.3 item 5: the person who starts the action pays from their own pools, and on a trip with an active Trip Pass its credits are a pool for the trip, spendable by every member who may start AI there. The pass, not the person who taps, is the payer for provider-spend ceilings on that trip. (e) Ceiling checks: spend for the calendar month (UTC) plus the feature's hard stop must fit in the ceiling (agent run: $0.80 of monthly headroom; other features: their hard stop), and the daily budget must be open unless this is an admitted agent run. Spend counts settled cost plus the hard stop of every reservation still open, read under the lock, so two parallel requests cannot both pass on the same headroom. A parallel admission test (two simultaneous starts on the last headroom: exactly one is admitted) is part of the suite. (f) In one transaction insert the `ai_usage` row (unique `idempotency_key`), call `reserve_credits(user, trip, price, action, run, idem)` (it writes the negative `reserve` rows, and raises SQLSTATE `WF402` when the pools cannot cover the price, which the API returns as 402 `insufficient_credits`) and insert the `runs` row; the client may retry the POST with the same `Idempotency-Key` without a second reservation.
 2. **Run.** The worker updates the action's `ai_usage` totals as it goes.
 3. **Settle.** Exactly one settlement path, `settle_credits(reservation_id, credits_charged, usage_id)`, which is idempotent (a second call returns 0) and also sets `ai_usage.state` and `credits_charged`:
    - Saved something (an accepted quote or at least one note) and ended `ok`, `partial` or at a stop: charge the full reservation (`credits_charged` = reserved). Spend is by feature price, not by actual tokens, so pricing is predictable.
@@ -970,7 +1027,7 @@ Steps in detail:
    - Stopped at the $0.80 limit: billed in full only if it saved something, else refunded.
 4. **Crash safety.** A reaper job finds `runs` in `running` whose `runs.heartbeat_at` (stamped by the worker every 15 seconds, 02 section 5) is older than 2 minutes (5 in the `ai` lane), marks them `interrupted` with `runs.failure_code = 'worker_lost'` and settles at 0. `release_stale_reservations()` (every minute, 30 minute default) is the backstop for reservations whose worker never came back.
 5. **Spend order.** `reserve_credits` takes credits from `credit_grants` in this order: `monthly`, then `promo` (the one-time taster and referral rewards), then `trip_pass` credits for the trip (if any), then `adjustment`, then `purchase` oldest expiry first. Each draw is a `reserve` ledger row with its `grant_id`, so a refund returns credits to the same grants (and an expired grant returns nothing, which the UI explains).
-6. **Free users** have credits too. The monthly grant of 12 is written lazily at first use by `ensure_free_monthly_grant(user)` (a `monthly` grant with `period_key` `YYYY-MM`, unique per user; 03 section 5.13), so idle accounts cost no writes.
+6. **Free users** have credits too. The monthly grant of 12 is written lazily at first use by `ensure_free_monthly_grant(user)` (a `monthly` grant with `period_key` `YYYY-MM`, unique per user; 03 section 5.8), so idle accounts cost no writes.
 7. **Per-item pricing (`verify_plan`).** The reservation is `credits x selected items` (at most `verify_items_per_run`), settled to the items that ended green, amber or red; the settle writes refund rows for the rest, so the price the person saw first is the most they can pay. `release_stale_reservations()` covers a worker that never returns.
 8. **Shared-cache hits** reserve the lower price (1 for research, 8 for agent run), are settled immediately and write an `ai_usage` row with `cache_hit = true` and cost 0 so the hit rate is reportable.
 
@@ -981,7 +1038,7 @@ Credits and ledger rules for purchases, grants, expiry and refunds are in [07-mo
 | Run type | Turns | Searches | Fetches | Dollar stop | Other |
 |---|---|---|---|---|---|
 | `agent_run` (fare hunt or deep research) | 20 | 10 | 10 | $0.80 | 8-minute deadline, one at a time per account |
-| `taster` | 12 | 6 | 6 | $0.50 | once per user |
+| `taster` | 12 | 6 | 6 | $0.80 | once per user |
 | `research` | 3 requests | 5 in total | 8 in total | $0.16 | task budget 60,000 tokens |
 | `draft_trip` | 1 | 0 | 0 | $0.10 | `max_tokens` 6,000 |
 | `draft_day` | 1 | 0 | 0 | $0.03 | `max_tokens` 1,500 |
@@ -1002,13 +1059,14 @@ The amounts below are the `monthly_ceiling_micros` and `daily_ceiling_micros` ke
 | Plus | $2.25 | $0.40 |
 | Trip Pass | $1.80 per pass | $0.40 |
 
-- The ceiling covers all provider spend attributed to the account: Claude and search fees from `ai_usage`, SerpApi and Geoapify from `provider_calls`. The query in 03 section 7.4 sums both for the calendar month in UTC (subscribers: the billing period); the API role reads it through `my_provider_spend_micros(since)`. It powers the ceiling check and the in-app usage meter. The trip's capabilities come from the best of owner tier and pass (see [07-monetization-spec.md](07-monetization-spec.md)); spend on a pass is attributed to the pass while the pass is active.
+- The ceiling covers all provider spend attributed to the account: Claude and search fees from `ai_usage`, SerpApi and Geoapify from `provider_calls`. The query in 03 section 7.4 sums both, plus every open reservation at its hard stop, for the calendar month in UTC (never a rolling 30 days); the API role reads it through `my_provider_spend_micros(since)`. It powers the ceiling check and the in-app usage meter. The trip's capabilities come from the best of owner tier and pass (see [07-monetization-spec.md](07-monetization-spec.md)); spend on a pass is attributed to the pass while the pass is active (summed over every member of the trip, against the pass ceiling), and not to the actor's tier ceiling.
 - Purchased credits raise the ceiling by their cost value ($0.02 per credit spent), because that spend is separately paid. No other credits do: monthly allowances, the taster, the first-import Trip Pass, Trip Pass credits and referral credits (20 each, promo credits) never raise a ceiling.
 - When a ceiling is hit, live and AI actions stop and cached data keeps working. The message says when it resets or offers a credit pack. Background work (cache warming) pauses first, user-started actions last.
 - Daily budget exception: a plan check (`verify_plan`) is admitted when the month has headroom for its hard stop (items x $0.02) in the same way. An agent run is admitted when the month has $0.80 of headroom even if the daily budget is lower; its spend still counts toward the day, so no other paid action runs until the next UTC day.
 - Headroom rule in code: `allowed = month_spend + stop_usd <= month_ceiling` for agent runs and plan checks; `allowed = day_spend + stop_usd <= day_budget and month_spend + stop_usd <= month_ceiling` for everything else.
 - The daily allowance for scheduled live fare checks (provider calls, not AI) is the monthly headroom divided by the days left (the same shape as the existing `serpapi_budget.py`, generalized to `budget.py`). The app tells the user which routes will be checked less often.
 - Fallback order when a budget is exhausted, always telling the user: a stale shared-cache result; API-only fare data with no agent; Haiku-only answers with no web search; a credit pack offer or the reset date. Never lower the evidence standard to save money: no unsourced prices, no unverified fare shown as checked.
+- Global daily cap: total AI spend across all users is capped at $150 a day. The setting `setting_ai_global_daily_usd` defaults to 150 and may only lower the hard maximum `AI_GLOBAL_DAILY_CAP_USD` (02 section 7.1). The 80% and 95% breakers in 6.6 are percentages of it.
 - If the ledger or spend view cannot be read, paid calls fail closed.
 
 ### 6.6 Kill switches
@@ -1041,7 +1099,7 @@ Separate Anthropic workspaces for production, staging and evals, each with its o
 
 ### 6.8 Reconciliation
 
-A daily job pulls the Anthropic Usage and Cost Admin API for the production workspace (admin key held only by the scheduler), sums our `ai_usage.cost_usd_micros` for the same day and alerts if the gap exceeds 3%. A dashboard in the admin console shows cost per feature, tier and user, cache hit ratio and refusal rate. The monthly repricing job compares credits sold with real cost per feature and opens a task when a feature drifts more than 20%.
+There is no usage reconcile for `claude_cli` (its cost is notional) or `fake`; the job compares `anthropic_api` rows only. A daily job pulls the Anthropic Usage and Cost Admin API for the production workspace (`ANTHROPIC_ADMIN_API_KEY`, held only by the scheduler; the job logs and skips when it is empty), sums our `ai_usage.cost_usd_micros` for the same day and alerts if the gap exceeds 3%. A dashboard in the admin console shows cost per feature, tier and user, cache hit ratio and refusal rate. The monthly repricing job compares credits sold with real cost per feature and opens a task when a feature drifts more than 20%.
 
 ### 6.9 Capacity
 
@@ -1050,6 +1108,8 @@ A daily job pulls the Anthropic Usage and Cost Admin API for the production work
 ## 7. Prompt caching
 
 ### 7.1 Why the layout matters
+
+This section applies to `anthropic_api` only. The `claude_cli` backend has no cache control of ours (the CLI manages its own prompt caching) and the `fake` backend has none.
 
 An agent run re-reads a growing context every turn. Cached reads cost $0.20 per million tokens on Sonnet 5.5 against $2 uncached, so the layout decides most of the run's cost. A typical run costs about $0.56 and a run at the caps about $0.72, where the old design without caps cost $2.36.
 
@@ -1074,7 +1134,7 @@ The existing `task_prompt()` put the date and run name ahead of the task JSON; i
 
 ## 8. Shared research cache
 
-The same destination, window and topic is researched once and served to everyone. Table: `shared_research_cache` (03 section 5.11).
+The same destination, window and topic is researched once and served to everyone. Table: `shared_research_cache` (03 section 5.6).
 
 ### 8.1 Columns the code relies on
 
@@ -1139,6 +1199,8 @@ A nightly Batch job in the `batch` lane warms the most requested keys: for each 
 
 ## 9. Batch API
 
+This section applies to `anthropic_api` only. The `claude_cli` backend runs cache warming and eval jobs synchronously, one at a time within `AI_CLI_MAX_CONCURRENCY`, at no discount.
+
 Batch fits cache warming and nightly evals (latency up to 24 hours, usually much less). It does not fit interactive features or multi-turn agent loops. Scheduled scans and the digest are Later: Phase 2.
 
 - Key requests `custom_id = warm:{key}` (cache warming) and `eval:{suite}:{case_id}` (evals). Results arrive in any order: always match by `custom_id`.
@@ -1150,6 +1212,10 @@ Batch fits cache warming and nightly evals (latency up to 24 hours, usually much
 ## 10. Evals and release gates
 
 Fare correctness is the trust core. Build these before launch and run them through Batch at half price. Suites live in `backend/evals/` with versioned fixtures (saved pages as text, never fetched live).
+
+Live evals run only with `EVALS_LIVE=1` and `--max-usd <dollars>` (the run stops when its spend reaches it). There is one path, `npm run evals`, with `--provider anthropic_api|claude_cli|fake`. Tests force `fake` and never read `.env`.
+
+shortcut: the `claude_cli` `WebFetch` tool returns summaries, not page text, so the fare and plan-check suites (WF-057 and WF-119) are certified only on `anthropic_api`, and numbers from `claude_cli` are provisional. Ceiling: no release gate rests on a CLI number. Upgrade trigger: the CLI returns raw page text.
 
 | Eval | Set | Metric | Gate |
 |---|---|---|---|
@@ -1210,6 +1276,7 @@ Before `booking_import` and `verify_extract` (pasted text and calendar event des
 ### 12.4 Consent, retention and disclosure
 
 - First use of any AI feature shows the consent screen ("Your trip details and questions are sent to Anthropic to generate suggestions"), stores a `consents` row (`kind = 'ai_processing'`, `version`, `granted`, timestamp), and respects an "AI off" switch (withdrawing that consent, or `trips.ai_enabled` per trip) that disables every feature in this file. The switch is checked at admission.
+- Consent applies to every backend. `claude_cli` traffic goes through the owner's own subscription terms and only ever carries the owner's data on the owner's machine (the guard in 2.7 refuses it anywhere else).
 - Anthropic's API does not train on API traffic by default; retention is per the commercial terms. Confirm the retention and data processing terms before launch and document them in the privacy policy ([10-quality-security-launch.md](10-quality-security-launch.md)).
 - Every AI result is labeled ("AI suggestion, check details before booking" or "Found by AI, check the source"), links to its sources, and has thumbs up and down that double as the report channel.
 - `run_events` payloads that contain fetched page text are deleted after 14 days; stored notes keep their sources.
