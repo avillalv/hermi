@@ -29,10 +29,13 @@ The admin control center is an internal web console at `admin.hermi.world`. It i
 Two independent layers, both required:
 
 1. **Edge layer: Cloudflare Access** in front of `admin.hermi.world` and `/v1/admin/*`. It authenticates with the company identity provider (Google Workspace SSO) and enforces an IP allowlist or a managed device check (section 9). Cloudflare Access adds a signed `Cf-Access-Jwt-Assertion` header.
-2. **App layer:** the API verifies that Cloudflare Access JWT (signature, audience, expiry), maps the verified email to a `users` row that has an `admin_users` row with `disabled_at` null, then requires a second factor (`admin_users.mfa_enrolled` must be true). WebAuthn passkeys (hardware key or platform authenticator) are preferred; TOTP is the fallback. SMS is never used.
+2. **App layer:** the API verifies that Cloudflare Access JWT (signature, audience, expiry; `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD`, 02 section 7.1), maps the verified email to a `users` row that has an `admin_users` row with `disabled_at` null, then requires a second factor (`admin_users.mfa_enrolled` must be true). WebAuthn passkeys (hardware key or platform authenticator) are preferred; TOTP is the fallback. SMS is never used.
+
+`ADMIN_AUTH_MODE=cf_access|dev` picks the source of that JWT (02 section 7.1). In `cf_access` the API verifies the real Cloudflare Access JWT. In `dev` (only `local` and `ci`; config refuses it elsewhere) a local fake-Access signer mints the same JWT shape for a seeded admin persona, so every admin path runs the real verification code. 2FA enrolment and step-up work the same in `dev` mode.
 
 Rules:
 
+- The first admin is created with `hermi admin-grant <email>`, which writes the `admin_users` row. There is no sign-up path to admin.
 - An identity that passes Cloudflare Access but has no enabled `admin_users` row gets a 403 and an alert.
 - Admin sessions are separate from customer sessions: a customer JWT is rejected on `/v1/admin`, and an admin session is rejected everywhere else. An admin has a `users` row plus an `admin_users` row (`user_id`; the first one is created with `hermi admin-grant`, 03 section 11.6) but signs in only through Cloudflare Access and 2FA, never through Supabase Auth or a customer session.
 - Session: 8 hours absolute, 30 minutes idle. Cookie is `HttpOnly`, `Secure`, `SameSite=Strict`, scoped to the admin host.
@@ -44,8 +47,8 @@ Rules:
 ### 2.3 Request pipeline
 
 ```
-Cloudflare Access (SSO, IP or device policy)
-  -> API: verify Cf-Access JWT -> load admin_users row -> check status and role
+Cloudflare Access (SSO, IP or device policy; in dev mode the fake-Access signer)
+  -> API: verify Cf-Access JWT (same code in both modes) -> load admin_users row -> check status and role
   -> check session 2FA freshness for the action class
   -> check permission (role x action, section 3) and limits (amount, scope)
   -> require reason for writes (10 to 500 characters)
@@ -216,7 +219,7 @@ Each screen lists purpose, data shown, filters, actions and guardrails.
   - RevenueCat sync status: last webhook received, webhook lag (p95 over 24 hours), last reconcile job run and result, count of entitlement mismatches between `entitlements` and RevenueCat's REST API, backlog of unprocessed `webhook_events`.
   - Subscription list (`subscriptions`): status (`in_trial`, `active`, `in_grace`, `billing_retry`, `paused`, `expired`, `refunded`, `revoked`), product, period end, store, masked user.
   - Store transactions (`store_transactions`): transaction id, product, price, currency, purchase date, `refunded_at`, linked user and trip (for passes).
-  - Failed webhooks (`webhook_events` with status failed): source (RevenueCat, affiliate networks), event type, error, attempts, age; payload shown redacted.
+  - Failed webhooks (`webhook_events` with status failed): source (the `webhook_events.provider` values in 03: `revenuecat`, `travelpayouts`, `viator`, `stay22`, `resend`, `supabase`), event type, error, attempts, age; payload shown redacted.
   - Refunds: `REFUND` events with the credit reversal result and current balance (negative balances are highlighted because AI is blocked until positive).
 - **Filters:** source, event type, status, product, date range, user short id, "mismatched only".
 - **Actions:**
@@ -229,7 +232,7 @@ Each screen lists purpose, data shown, filters, actions and guardrails.
 
 - **Purpose:** see where provider money goes, catch runaways in minutes, and stop a run.
 - **Data shown** (from `ai_usage`, `provider_calls`, `credit_ledger`, `runs`, `run_events`):
-  - Spend today, this month and trailing 7-day mean, versus the global budget; gap between our sum and the daily Anthropic cost report (alert above 3 percent).
+  - Spend today, this month and trailing 7-day mean, versus the global daily cap (default $150, `setting_ai_global_daily_usd`; the free taster stops a run at $0.80); gap between our sum and the daily Anthropic cost report (alert above 3 percent).
   - Per feature: cost and call count for `explain`, `live_search`, `draft_day`, `draft_trip`, `research`, `agent_run`, pasted-text import (`ai.import`), plan checks (`verify_plan`, with cost per checked item against the $0.02 budget, the green, amber, red and unchecked mix, and the share of items served from the `place_check` cache) and evidence rechecks (`ai.recheck`); credits charged versus real cost (repricing signal when drift exceeds 20 percent); shared research cache hit rate; prompt cache read ratio on agent runs (alert under 70 percent).
   - Per tier: spend per active user and per active payer (alert above $2 for Plus).
   - Top spenders: top 20 users by month-to-date spend, with tier, ceiling, percent of ceiling.
@@ -265,7 +268,8 @@ Each screen lists purpose, data shown, filters, actions and guardrails.
 | `import.polling` | The 6-hourly calendar feed polling only | First-time imports, refresh now |
 | `referrals.grant` | Granting referral credits (qualified rewards wait and are granted when the switch clears) | Sign-up, redeeming codes |
 
-- **Breakers (automatic):** the system flips switches itself and records them with `actor_type = system`: at 80 percent of the daily global Anthropic budget `ai.free_tier` engages; at 95 percent `ai.all_but_paid` engages (the `auto_rule` values in 03); at 90 percent of the SerpApi monthly quota `provider.serpapi` narrows live checks to top-value routes (a chosen flight or an active alert), then cached only; any provider error rate over 50 percent for 5 minutes trips that provider's switch to "half-open" (one probe a minute) until it recovers. Automatic trips page the owner.
+- **Breakers (automatic):** the system flips switches itself and records them with `actor_type = system`: at 80 percent of the daily global Anthropic cap (default $150) `ai.free_tier` engages; at 95 percent `ai.all_but_paid` engages (the `auto_rule` values in 03); at 90 percent of the SerpApi monthly quota `provider.serpapi` narrows live checks to top-value routes (a chosen flight or an active alert), then cached only; any provider error rate over 50 percent for 5 minutes trips that provider's switch to "half-open" (one probe a minute) until it recovers. Automatic trips page the owner.
+- **Taster stop:** the free taster run stops at $0.80 of spend (06), whatever the global cap.
 - **Data shown:** each switch with state (on, off manual, off automatic), who set it, reason, set time, expiry countdown, the effect on users (count of requests blocked in the last hour), and history of the last 20 changes.
 - **Actions:** set or clear a switch. The dialog requires: reason, typed confirmation of the switch key, step-up 2FA, and an expiry.
 - **Auto-expiry:** every manual "off" must have an expiry (`kill_switches.expires_at`; the check constraint `ck_kill_switches_expiry` in 03 rejects an admin-set switch without one, except a provider switch left "until cleared" by the owner): 1 hour, 4 hours (default), 24 hours or 72 hours. Only the owner may choose "until cleared", and only for provider switches during a provider incident. A scheduler job clears expired switches and writes an `audit_log` row as `system`; the owner gets a notification 15 minutes before expiry (`expiry_notified_at` records it) so a live incident is not silently re-enabled.
@@ -302,7 +306,7 @@ Each screen lists purpose, data shown, filters, actions and guardrails.
   - *Run the link checker now* for a template or all; *disable a template* (`affiliate_link_templates.active = false`; stops new clicks through it and falls back to a plain link).
   - *Edit a template* (two-person approval): proposes a change; a second admin approves it; the diff of the template is stored in `audit_log`.
   - *Re-run a conversion import* for a date range (idempotent upsert on program and network transaction id).
-  - *Mark a payout received* (finance): inserts an `affiliate_payouts` row (`program_id`, `period_start`, `period_end`, `amount_minor`, `currency`, `received_at`, `reference`).
+  - *Mark a payout received* (finance): inserts an `affiliate_payouts` row (`program_id`, `period_start`, `period_end`, `amount_minor`, `currency`, `received_at`, `reference`). WF-099 builds this action and `POST /affiliate/payouts`.
   - *Run disclosure audit now* and attach the result screenshots.
 - **Guardrails:**
   - The link checker never fetches Airbnb, Vrbo or Booking.com pages. It checks only our own redirect (that the stored template renders a well-formed `Location` for a test click id) and, for other partners, a HEAD request to the partner's tracking domain. Airbnb links are plain links and are listed as "not checked by design".
@@ -319,7 +323,7 @@ Each screen lists purpose, data shown, filters, actions and guardrails.
   - Failure reasons by `error_code`: `unreadable_file`, `no_events`, `feed_unreachable`, `nothing_found`, `provider_error`, `blocked_source`.
   - Feed health: feeds with polling on (opt-in, every 6 hours), polls per hour, median fetch time, success rate, change previews found and how many were confirmed, feeds switched off after 3 consecutive failures, feeds by host (host only, because the full address is a secret link), oldest last success.
   - Blocked fetches (the SSRF guard in [02-architecture.md](02-architecture.md) section 5.4): count by reason (private or reserved address, redirect to a private address, blocked host list, bad scheme or port) and the accounts with the most blocks.
-  - Recent imports: short id, masked user, source, status, items found and applied, duration, `error_code`. Never file names, feed addresses, event titles or pasted text; only sizes, counts and hashes.
+  - Recent imports: short id, masked user, source, status (including `applied`), items found and applied, duration, `error_code`. No raw file is ever stored or shown. Never file names, feed addresses, event titles or pasted text; only sizes, counts and hashes.
 - **Filters:** source, status, `error_code`, date range, tier, feed host.
 - **Actions:** retry a failed fetch (only for `feed_unreachable` and `provider_error`, at most 3 attempts per import), turn off polling for a feed (`poll_enabled = false`, with a reason the user sees as "We stopped checking this calendar"), open the user, open the kill switch dialog for `import.all` or `ai.import`.
 - **Guardrails:** content is never visible here; a retry cannot change the input; only the feed's owner can turn polling back on; an account with more than 20 blocked fetches in an hour is queued for review and its feed polling is turned off until support clears it.
@@ -361,7 +365,7 @@ Each screen lists purpose, data shown, filters, actions and guardrails.
 ### 6.13 Provider health
 
 - **Purpose:** know whether SerpApi, Travelpayouts, Geoapify and Anthropic are working and affordable, before users notice.
-- **Data shown** (`provider_calls`, provider status APIs where they exist): per provider: requests, success rate, p50 and p95 latency, 429 and 5xx rates, quota used and remaining (SerpApi account API, Travelpayouts limits, Geoapify credits, Anthropic rate-limit headers and org daily spend), spend today and this month, cache hit rate, current kill switch state, and the last incident. Also listed for completeness: RevenueCat, Supabase Auth, APNs and Resend, with status and last error.
+- **Data shown** (`provider_calls`, provider status APIs where they exist): per provider: requests, success rate, p50 and p95 latency, 429 and 5xx rates, quota used and remaining (SerpApi account API, Travelpayouts limits, Geoapify credits, Anthropic rate-limit headers and org daily spend), spend today and this month, cache hit rate, current kill switch state, and the last incident. The AI provider in use (`anthropic_api`, `claude_cli` or `fake`) is shown on this screen, and an alert fires if `claude_cli` ever appears outside `local`. Also listed for completeness: RevenueCat, Supabase Auth, APNs and Resend, with status and last error.
 - **Filters:** provider, endpoint, range, cached or live.
 - **Actions:** run a synthetic probe (one cheap request), open the kill switch dialog, set a quota alert threshold (settings), export an error sample (redacted), and open the public status page in Better Stack to post or update an incident (the page is hosted outside our servers, 02 section 8.1; an incident is posted whenever a component is degraded for more than 10 minutes).
 - **Guardrails:** probes use a test account and are rate limited to 1 a minute; quotas that drop under 20 percent alert; the screen explains the fallback users get when each provider is down.
@@ -397,8 +401,9 @@ Each screen lists purpose, data shown, filters, actions and guardrails.
 - **Data shown and editable.** Each group is stored where 03 already keeps it, so an edit is an audited `UPDATE` and never a migration (03 section 11):
   - Prices display: `store_products.price_minor` for Plus, Trip Pass and credit packs, used on the web pricing page and paywall fallback. The real prices live in App Store Connect; the screen shows a check that these values match the store prices (from RevenueCat offerings) and flags a mismatch.
   - Credit prices per action in `credit_action_prices` (`explain` 1, `live_search` 1, `draft_day` 1, `draft_trip` 4, `research` 8 with `credits_cached` 1, `agent_run` 40 with `credits_cached` 8, `verify_plan` 1 per checked item, plus `hard_stop_micros`, `max_turns`, `max_searches`, `max_fetches`) and monthly allowances in `plans.monthly_credits` and `plans.credits_granted` (Free 12, Plus 60, Trip Pass 40).
-  - Ceilings: `plans.limits` keys `monthly_ceiling_micros` and `daily_ceiling_micros` per tier and pass. The global daily Anthropic budget (`setting_ai_global_daily_usd`, seeded at $50), per-provider quotas (`setting_serpapi_monthly_quota`, seeded at 5,000) and alert thresholds are `setting_` rows in `feature_flags` (03 section 11.5 seeds these and `setting_ai_warm_daily_usd`; the console creates the others).
+  - Ceilings: `plans.limits` keys `monthly_ceiling_micros` and `daily_ceiling_micros` per tier and pass. The global daily Anthropic cap (`setting_ai_global_daily_usd`, seeded at $150), per-provider quotas (`setting_serpapi_monthly_quota`, seeded at 5,000) and alert thresholds are `setting_` rows in `feature_flags` (03 section 11.5 seeds these and `setting_ai_warm_daily_usd`; the console creates the others).
   - Growth settings (`setting_` rows, 03 section 11.5): `setting_import_reward` (`enabled`, `min_items_applied` 3, `require_flight_or_stay`, `require_verified_email`, `block_if_plus`), `setting_referral_credits` (`referrer` 20, `referee` 20, `expiry_months` 12, `referrer_monthly_cap` 5 in a rolling 30 days, `referrer_yearly_cap` 10 per calendar year, `qualify_event` `first_trip_with_dates`), `setting_booked_fare_drop` (`min_drop_pct` 5, `min_drop_usd` 10, `min_days_between` 7, `max_age_hours` 48) and `setting_calendar_polling` (`interval_hours` 6, `max_failures` 3, `max_feeds_per_user` 3).
+  - Not editable here: the never-fetch list (Airbnb, Vrbo, Booking.com) is a code constant (06 section 2.4), so no console action or setting can remove a host from it.
   - Admin limits used in section 3 (grant caps, extension caps), also `setting_` rows.
 - **Filters:** group, changed in the last 30 days.
 - **Actions:** edit a value with reason (engineer within plus or minus 20 percent of the current value, owner beyond), schedule a change for a future time, revert to a previous value from history.
@@ -426,7 +431,7 @@ Each screen lists purpose, data shown, filters, actions and guardrails.
 |  Moderation | MRR gross $6,420  net of Apple $5,457  Plus monthly 29%, annual 71%|
 +-------------+--------------------------------------------------------------------+
 | MONEY       | Revenue today by stream         | AI spend today vs budget         |
-|  Subscript. |  Subscriptions      $188.20     |  $41.30 of $50.00 [=======>  ]   |
+|  Subscript. |  Subscriptions      $188.20     |  $41.30 of $150.00 [=====>  ]    |
 |  Credits/AI |  Trip passes         $79.92     |  Claude $36.10  SerpApi $4.20    |
 |  Affiliate  |  Credit packs        $22.93     |  Geoapify $1.00                  |
 |  Finance    |  Affiliate (est.)    $31.40     |  Top feature: agent_run $22.80   |
@@ -547,7 +552,7 @@ Base path `/v1/admin`. All routes require an admin session (section 2). Conventi
 | `POST /affiliate/imports/run` | Re-run an import for a date range | engineer |
 | `POST /affiliate/link-check` | Run the link checker | engineer |
 | `GET /affiliate/disclosure-audit` | Disclosure audit results | content |
-| `POST /affiliate/payouts` | Record a payout received (`affiliate_payouts` row) | finance |
+| `POST /affiliate/payouts` | Record a payout received (`affiliate_payouts` row; built by WF-099) | finance |
 | `GET /imports` | Import jobs list with filters (no content) | support |
 | `GET /imports/summary` | Funnel, failure reasons, feed health, blocked fetches | engineer |
 | `POST /imports/{id}/retry` | Retry a failed fetch (transient errors only, max 3) | engineer |
@@ -580,7 +585,7 @@ Base path `/v1/admin`. All routes require an admin session (section 2). Conventi
 
 ## 9. Security rules
 
-1. **Network gate.** Cloudflare Access with an IP allowlist (founder's fixed addresses or a WARP device posture check) in front of the host and path. The origin accepts admin traffic only from Cloudflare (authenticated origin pulls). A request that reaches the origin without a valid Access JWT is dropped and alerted.
+1. **Network gate.** Cloudflare Access (`ADMIN_AUTH_MODE=cf_access`; `dev` is refused outside `local` and `ci`) with an IP allowlist (founder's fixed addresses or a WARP device posture check) in front of the host and path. The origin accepts admin traffic only from Cloudflare (authenticated origin pulls). A request that reaches the origin without a valid Access JWT is dropped and alerted.
 2. **Separate identity.** Admin sessions are not customer sessions; different token audience (`hermi-admin`), different cookie scope, different code path, separate rate limit bucket.
 3. **Least privilege in the database.** Admin routes use the database role `hermi_admin` (03 section 6.1, `BYPASSRLS`, used by the admin console only). The grants in 03 give it all DML on every table before that block narrows them; the narrowing this section wants (`INSERT` and `SELECT` only on `audit_log`, no `DELETE` on money tables such as `credit_ledger` and `store_transactions`) is the `REVOKE` block at the end of 03 section 6.1. `hermi_app` cannot read `audit_log` or `admin_users`.
 4. **No raw PII in lists.** Masking is done in the API serializer, not the UI, so a raw response never carries it. Emails are searchable only by hash. Reveal is per record, reasoned, rate limited and audited. No passport, document, payment card or note text is ever exposed. Logs and Sentry events from admin routes are scrubbed of masked fields.
