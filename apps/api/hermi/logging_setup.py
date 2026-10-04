@@ -26,3 +26,6 @@ def setup_logging(level: str) -> None:
     handler.setFormatter(JsonFormatter())
     root.addHandler(handler)
     root.setLevel(level.upper() if level.upper() in logging._nameToLevel else "INFO")
+    # httpx logs full request URLs at INFO, and provider keys travel in query strings.
+    for name in ("httpx", "httpcore"):
+        logging.getLogger(name).setLevel(logging.WARNING)

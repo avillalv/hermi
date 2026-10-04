@@ -1,0 +1,69 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "feature_type": "details",
+    "name": "本能寺大寶殿宝物館",
+    "name_international": {
+     "en": "Honnoji Temple Treasure Hall"
+    },
+    "categories": [
+     "entertainment",
+     "entertainment.museum"
+    ],
+    "datasource": {
+     "sourcename": "openstreetmap",
+     "attribution": "© OpenStreetMap contributors",
+     "license": "Open Database License",
+     "url": "https://www.openstreetmap.org/copyright",
+     "raw": {
+      "name": "本能寺大寶殿宝物館",
+      "osm_id": 7319933585,
+      "name:en": "Honnoji Temple Treasure Hall",
+      "tourism": "museum",
+      "osm_type": "n"
+     }
+    },
+    "street": "Teramachi Street",
+    "city": "Kyoto",
+    "county": "Kyoto Prefecture",
+    "postcode": "604-8091",
+    "country": "Japan",
+    "country_code": "jp",
+    "district": "Tenshojimaecho",
+    "suburb": "Nakagyo Ward",
+    "formatted": "Honnoji Temple Treasure Hall, Teramachi Street, Nakagyo Ward, Kyoto, Tenshojimaecho 604-8091, Japan",
+    "address_line1": "Honnoji Temple Treasure Hall",
+    "address_line2": "Teramachi Street, Nakagyo Ward, Kyoto, Tenshojimaecho 604-8091, Japan",
+    "lat": 35.0102889,
+    "lon": 135.7675663,
+    "iso3166_2": "JP-26",
+    "timezone": {
+     "name": "Asia/Tokyo",
+     "offset_STD": "+09:00",
+     "offset_DST": "+09:00",
+     "offset_STD_seconds": 32400,
+     "offset_DST_seconds": 32400,
+     "abbreviation_STD": "JST",
+     "abbreviation_DST": "JST"
+    },
+    "place_id": "51608033e78ff860405964c28b2551814140f00103f90191524db40100000092031be69cace883bde5afbae5a4a7e5afb6e6aebfe5ae9de789a9e9a4a8"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     135.7675663,
+     35.0102889
+    ]
+   },
+   "bbox": [
+    135.7675163,
+    35.0102389,
+    135.7676163,
+    35.0103389
+   ]
+  }
+ ]
+}
