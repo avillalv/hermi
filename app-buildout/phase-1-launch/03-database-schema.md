@@ -2181,13 +2181,27 @@ CREATE INDEX ix_audit_log_actor ON audit_log (actor_user_id, created_at DESC) WH
 CREATE INDEX ix_audit_log_time ON audit_log (retention_class, created_at);   -- retention sweeps
 CREATE INDEX ix_audit_log_impersonation ON audit_log (impersonation_id) WHERE impersonation_id IS NOT NULL;
 
+-- Append-only. hermi_app, hermi_worker and hermi_admin have no UPDATE, DELETE or TRUNCATE privilege on this table (6.1); this trigger is the second lock.
+-- The one exception is retention_sweep() (8), a SECURITY DEFINER function owned by hermi_definer: it may delete a row only after the row's retention
+-- period has passed (13 months standard, 7 years extended). The trigger function is not SECURITY DEFINER, so current_user is the caller's role, which is
+-- hermi_definer only inside a definer function. The transaction-local setting is set by retention_sweep() alone and is a second condition, not the gate.
 CREATE FUNCTION audit_log_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-  IF TG_OP = 'DELETE' AND current_setting('hermi.audit_purge', true) = 'on' THEN RETURN OLD; END IF;   -- retention job only
+  IF TG_OP = 'DELETE'
+     AND current_user = 'hermi_definer'
+     AND current_setting('hermi.audit_purge', true) = 'on'
+     AND OLD.created_at < now() - CASE OLD.retention_class WHEN 'extended' THEN interval '7 years' ELSE interval '13 months' END
+  THEN
+    RETURN OLD;
+  END IF;
   RAISE EXCEPTION 'audit_log is append-only';
 END $$;
 CREATE TRIGGER trg_audit_log_immutable BEFORE UPDATE OR DELETE ON audit_log
   FOR EACH ROW EXECUTE FUNCTION audit_log_immutable();
+CREATE FUNCTION audit_log_no_truncate() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN RAISE EXCEPTION 'audit_log is append-only'; END $$;
+CREATE TRIGGER trg_audit_log_no_truncate BEFORE TRUNCATE ON audit_log
+  FOR EACH STATEMENT EXECUTE FUNCTION audit_log_no_truncate();
 
 CREATE TABLE support_tickets (
   id                  uuid PRIMARY KEY DEFAULT uuidv7(),
@@ -2487,25 +2501,67 @@ Row-level security (RLS) is the second layer. The first layer is the API depende
 
 ### 6.1 Roles and privileges
 
-All objects are owned by `hermi_owner`, which runs the migrations. On the managed database it already exists as the migration login; the first statement below only makes a fresh scratch database (CI, a laptop) work the same way.
+Roles are created by the idempotent script `infra/db/bootstrap.sql`, which `npm run db:init` runs as `postgres` (locally through `pgpass.conf`; on the managed database with the admin connection the owner supplies). A migration never creates a role. Passwords come from the caller's environment as psql variables and are never in the repo. A re-run changes nothing except that it sets each password again. `hermi_owner` is `NOLOGIN`, so migrations connect as `hermi_migrate_login`, which is set to run as `hermi_owner` (every object a migration creates is owned by it). `hermi_owner` owns every table and runs no application traffic. `hermi_definer` owns the `SECURITY DEFINER` functions (see "Helpers and `FORCE`" below).
 
 ```sql
+-- infra/db/bootstrap.sql (psql, as postgres). Run it again at any time.
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hermi_owner') THEN CREATE ROLE hermi_owner NOLOGIN; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hermi_owner')   THEN CREATE ROLE hermi_owner   NOLOGIN; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hermi_app')     THEN CREATE ROLE hermi_app     NOLOGIN NOBYPASSRLS; END IF;  -- the API: subject to every policy
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hermi_worker')  THEN CREATE ROLE hermi_worker  NOLOGIN; END IF;                -- Procrastinate workers, scheduler, webhooks, import jobs
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hermi_admin')   THEN CREATE ROLE hermi_admin   NOLOGIN; END IF;                -- the admin console only
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hermi_definer') THEN CREATE ROLE hermi_definer NOLOGIN BYPASSRLS; END IF;      -- owns the SECURITY DEFINER functions
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hermi_migrate_login') THEN CREATE ROLE hermi_migrate_login LOGIN IN ROLE hermi_owner;  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hermi_api_login')     THEN CREATE ROLE hermi_api_login     LOGIN IN ROLE hermi_app;    END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hermi_worker_login')  THEN CREATE ROLE hermi_worker_login  LOGIN IN ROLE hermi_worker; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hermi_admin_login')   THEN CREATE ROLE hermi_admin_login   LOGIN IN ROLE hermi_admin;  END IF;
 END $$;
+GRANT hermi_owner  TO hermi_migrate_login;   -- idempotent: re-granting changes nothing
+GRANT hermi_app    TO hermi_api_login;
+GRANT hermi_worker TO hermi_worker_login;
+GRANT hermi_admin  TO hermi_admin_login;
+-- BYPASSRLS is a role attribute and is not inherited through membership, so it is set on the two login roles themselves.
+ALTER ROLE hermi_worker_login BYPASSRLS;
+ALTER ROLE hermi_admin_login  BYPASSRLS;
+-- The four passwords come from the caller (psql -v migrate_pw=... and so on), never from a file in the repo.
+ALTER ROLE hermi_migrate_login PASSWORD :'migrate_pw';
+ALTER ROLE hermi_api_login     PASSWORD :'api_pw';
+ALTER ROLE hermi_worker_login  PASSWORD :'worker_pw';
+ALTER ROLE hermi_admin_login   PASSWORD :'admin_pw';
+ALTER ROLE hermi_migrate_login SET role hermi_owner;     -- every object a migration creates is owned by hermi_owner
+GRANT hermi_definer TO hermi_owner;                      -- lets a migration run ALTER FUNCTION ... OWNER TO hermi_definer
 
--- hermi_owner owns every object and runs migrations. It is never used by the API or worker.
-CREATE ROLE hermi_app    NOLOGIN NOBYPASSRLS;   -- the API: subject to every policy
-CREATE ROLE hermi_worker NOLOGIN BYPASSRLS;     -- Procrastinate workers, scheduler, webhooks, import jobs
-CREATE ROLE hermi_admin  NOLOGIN BYPASSRLS;     -- the admin console only (the "admin bypass" role)
--- Login roles carry the secrets from environment variables (never in the repo), for example:
---   CREATE ROLE hermi_api_login    LOGIN PASSWORD :'api_pw'    IN ROLE hermi_app;
---   CREATE ROLE hermi_worker_login LOGIN PASSWORD :'worker_pw' IN ROLE hermi_worker;
---   CREATE ROLE hermi_admin_login  LOGIN PASSWORD :'admin_pw'  IN ROLE hermi_admin;
+SELECT 'CREATE DATABASE hermi OWNER hermi_owner'      WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'hermi')      \gexec
+SELECT 'CREATE DATABASE hermi_test OWNER hermi_owner' WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'hermi_test') \gexec
+-- Only the four login roles may connect.
+REVOKE CONNECT ON DATABASE hermi      FROM PUBLIC;
+REVOKE CONNECT ON DATABASE hermi_test FROM PUBLIC;
+GRANT CONNECT ON DATABASE hermi      TO hermi_migrate_login, hermi_api_login, hermi_worker_login, hermi_admin_login;
+GRANT CONNECT ON DATABASE hermi_test TO hermi_migrate_login, hermi_api_login, hermi_worker_login, hermi_admin_login;
+-- A role can become the owner of a function in a schema only if it has CREATE there, so this runs in each database.
+\connect hermi
+GRANT CREATE ON SCHEMA public TO hermi_definer;
+\connect hermi_test
+GRANT CREATE ON SCHEMA public TO hermi_definer;
+```
 
-GRANT USAGE ON SCHEMA public TO hermi_app, hermi_worker, hermi_admin;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hermi_worker, hermi_admin;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO hermi_app, hermi_worker, hermi_admin;
+Migration `0001_setup` only checks that these roles exist and stops with a clear message ("run `npm run db:init`") when one is missing. The grants below are part of migration `0014_rls` and run as `hermi_owner`.
+
+```sql
+GRANT USAGE ON SCHEMA public TO hermi_app, hermi_worker, hermi_admin, hermi_definer;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hermi_worker;
+ALTER DEFAULT PRIVILEGES FOR ROLE hermi_owner IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hermi_worker;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO hermi_app, hermi_worker, hermi_admin, hermi_definer;
+
+-- The admin console reads everything and writes only operational tables directly (each edit also inserts an audit_log row in the same transaction).
+-- Tenant content and money change only through the audited admin_* functions below, so BYPASSRLS on hermi_admin_login
+-- cannot be used to edit a trip, a balance or an account (a BYPASSRLS role skips policies, so its limits are grants).
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO hermi_admin;
+ALTER DEFAULT PRIVILEGES FOR ROLE hermi_owner IN SCHEMA public GRANT SELECT ON TABLES TO hermi_definer, hermi_admin;
+GRANT INSERT, UPDATE, DELETE ON rate_limit_counters, admin_users, feature_flags, kill_switches, plans, store_products, credit_action_prices,
+  affiliate_programs, affiliate_link_templates, sample_trips, shared_research_cache, support_tickets, content_reports TO hermi_admin;
+GRANT UPDATE ON affiliate_conversions, affiliate_payouts, webhook_events TO hermi_admin;
+GRANT INSERT ON audit_log TO hermi_admin;
 
 -- The API gets read and write on tenant tables, then loses what it must never touch.
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hermi_app;
@@ -2519,45 +2575,58 @@ REVOKE INSERT, UPDATE, DELETE ON subscriptions, entitlements, trip_passes, store
   credit_grants, credit_ledger, credit_debts FROM hermi_app;
 -- Referral state is written only through the referral functions in 5.9 and by the worker.
 REVOKE INSERT, UPDATE, DELETE ON referral_codes, referral_rewards FROM hermi_app;
--- Never visible to the API.
+-- Never visible to the API. deletion_requests is reached only through request_account_deletion() and cancel_account_deletion() (table in 6.1.1).
 REVOKE ALL ON admin_users, webhook_events, affiliate_conversions, affiliate_payouts, deletion_requests,
   rate_limit_counters, provider_calls, provider_call_rollups,
   revenue_by_month, revenue_by_surface, revenue_by_partner, booked_fare_drops FROM hermi_app;
 GRANT INSERT ON provider_calls TO hermi_app;                       -- the API logs its own provider calls
 GRANT SELECT, INSERT, UPDATE, DELETE ON rate_limit_counters TO hermi_app;   -- Postgres-backed rate limits
-GRANT INSERT ON audit_log TO hermi_app;  REVOKE UPDATE, DELETE, SELECT ON audit_log FROM hermi_app;
-REVOKE UPDATE, DELETE ON link_clicks FROM hermi_app;               -- clicks are minted by the API and stamped by /go, never edited by users
-GRANT UPDATE (clicked_at, redirect_status, opened_in) ON link_clicks TO hermi_app;
+GRANT INSERT ON audit_log TO hermi_app;  REVOKE UPDATE, DELETE, SELECT, TRUNCATE ON audit_log FROM hermi_app;
+REVOKE UPDATE, DELETE ON link_clicks FROM hermi_app;               -- clicks are minted by the API, never edited by users
+GRANT UPDATE (clicked_at, redirect_status, opened_in) ON link_clicks TO hermi_app;   -- the /go redirect stamps these three columns and nothing else
+-- link_clicks is partitioned: the API reads and writes through the parent only, and no grant is given on a partition (a new partition has none, which is the safe default).
 
 -- A user may edit only their own profile columns. Status, suspension and the refund-abuse block are written by the worker and admin roles.
 REVOKE UPDATE ON users FROM hermi_app;
 GRANT UPDATE (display_name, locale, timezone, home_currency, home_airports, country_code, hide_booking_links, prefs, last_seen_at) ON users TO hermi_app;
 
--- Imports: the API creates an import and may discard it (polling is switched through set_import_polling()); the worker does everything else. Nobody but the worker deletes the row,
--- because the reward flag on it is what makes the free Trip Pass a once-per-user grant.
+-- Imports: the API creates an import. Every later change (confirm, discard, dismiss changes, refresh) goes through advance_trip_import(), and polling through
+-- set_import_polling(); the worker writes the preview. Nobody but the worker deletes the row, because the reward flag on it is what makes the free Trip Pass a once-per-user grant.
 REVOKE UPDATE, DELETE ON trip_imports FROM hermi_app;
-GRANT UPDATE (status) ON trip_imports TO hermi_app;
 
--- Plan verification: the API starts a verification and lets the person discard it or tick which items to check and import; verdicts, evidence and
--- counts are written by the worker only, so a member cannot edit what the evidence says.
-REVOKE UPDATE, DELETE ON plan_verifications FROM hermi_app;
+-- Plan verification: the API starts a verification, sets its status to checking or discarded, deletes it, and lets the person tick which items to check and import.
+-- Items, verdicts, evidence and counts are written by the worker (or the verify_extract SystemSession, 6.6) only, so a member cannot edit what the evidence says.
+REVOKE UPDATE ON plan_verifications FROM hermi_app;
 GRANT UPDATE (status) ON plan_verifications TO hermi_app;
 REVOKE INSERT, UPDATE, DELETE ON plan_verification_items FROM hermi_app;
 GRANT UPDATE (selected, include_in_import) ON plan_verification_items TO hermi_app;
+
+-- Runs: the API inserts a queued run and may ask for a cancel; everything else on a run is written by the worker.
+REVOKE UPDATE, DELETE ON runs FROM hermi_app;
+GRANT UPDATE (cancel_requested) ON runs TO hermi_app;
 
 -- Notifications: the API reads them and marks them read; jobs create them.
 REVOKE INSERT, UPDATE, DELETE ON notifications FROM hermi_app;
 GRANT UPDATE (read_at) ON notifications TO hermi_app;
 
--- Reports: users file them and read their own; moderators work them as hermi_admin.
-REVOKE UPDATE, DELETE ON content_reports FROM hermi_app;
+-- Append-only user records: consents are a history, and an export row is changed by the export job.
+REVOKE UPDATE, DELETE ON consents, data_exports FROM hermi_app;
 
--- The admin console narrows its own grants (08 section 9): audit_log is insert and select only, and money tables cannot be deleted from.
-REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM hermi_admin;
-REVOKE DELETE, TRUNCATE ON credit_ledger, credit_grants, credit_debts, store_transactions, subscriptions, trip_passes,
-  affiliate_conversions, affiliate_payouts, webhook_events, trip_imports, referral_rewards FROM hermi_admin;
+-- Support: a user opens a ticket and adds messages to it; status, priority, assignment and internal notes belong to the console.
+REVOKE INSERT, UPDATE, DELETE ON support_tickets FROM hermi_app;
+GRANT INSERT (user_id, trip_id, email, subject, category, source, messages, app_version, platform) ON support_tickets TO hermi_app;
+GRANT UPDATE (messages) ON support_tickets TO hermi_app;
 
--- Credit functions run with the owner's rights so the API cannot write credit_grants directly.
+-- Reports: users file them through file_content_report() (it also expires the cached answer) and read their own; moderators work them as hermi_admin.
+REVOKE INSERT, UPDATE, DELETE ON content_reports FROM hermi_app;
+
+-- Nobody but the retention sweep changes or removes an audit row (the trigger in 5.16 is the second lock). The console and the worker may insert and read.
+REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM hermi_worker, hermi_admin;
+-- Nobody truncates a money table. The console has no DELETE on them either (it was never granted); the worker deletes only in the retention jobs.
+REVOKE TRUNCATE ON credit_ledger, credit_grants, credit_debts, store_transactions, subscriptions, trip_passes,
+  affiliate_conversions, affiliate_payouts, webhook_events, trip_imports, referral_rewards FROM hermi_worker;
+
+-- Credit functions run with the definer's rights so the API cannot write credit_grants directly.
 ALTER FUNCTION reserve_credits(uuid, uuid, integer, ai_action, uuid, text) SECURITY DEFINER SET search_path = public;
 ALTER FUNCTION settle_credits(uuid, integer, bigint) SECURITY DEFINER SET search_path = public;
 REVOKE EXECUTE ON FUNCTION reserve_credits(uuid, uuid, integer, ai_action, uuid, text) FROM PUBLIC;
@@ -2575,13 +2644,97 @@ REVOKE EXECUTE ON FUNCTION grant_import_reward(uuid), ensure_referral_code(uuid)
   my_referral_code(), redeem_referral(text), set_import_polling(uuid, boolean) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION grant_import_reward(uuid), ensure_referral_code(uuid), grant_referral_reward(uuid) TO hermi_worker;
 GRANT  EXECUTE ON FUNCTION my_referral_code(), redeem_referral(text), set_import_polling(uuid, boolean) TO hermi_app, hermi_worker;
+
+-- Functions the API calls for writes the app role has no grant for (the table in 6.1.1 says which route calls which). redeem_trip_invite and
+-- transfer_trip_owner are defined in 5.4; the others are written in 0014 beside these grants. Each checks app_user_id() itself, has a fixed
+-- search_path and is owned by hermi_definer. A name without an argument list matches the function's one overload.
+REVOKE EXECUTE ON FUNCTION redeem_trip_invite, transfer_trip_owner, request_account_deletion, cancel_account_deletion,
+  advance_trip_import, link_my_traveler, file_content_report, clear_run_content, clear_my_ai_history, my_provider_spend_micros FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION redeem_trip_invite, transfer_trip_owner, request_account_deletion, cancel_account_deletion,
+  advance_trip_import, link_my_traveler, file_content_report, clear_run_content, clear_my_ai_history, my_provider_spend_micros TO hermi_app;
+-- Procrastinate: the API defers jobs through the library's own function; workers hold full rights on the procrastinate_* tables.
+GRANT EXECUTE ON FUNCTION procrastinate_defer_jobs_v1 TO hermi_app;
+-- The retention sweep is the only deleter of expired audit rows (5.16); only the scheduler's worker role runs it.
+REVOKE EXECUTE ON FUNCTION retention_sweep FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION retention_sweep TO hermi_worker;
+-- Audited console actions: one admin_* function per action in 08 section 6 that changes tenant content, an account or money (credit adjustments, status changes,
+-- comps, hiding content, disabling a share link, rejecting a referral). Each writes its audit_log row in the same transaction and reads the admin from app.admin_user_id.
+-- EXECUTE is granted to hermi_admin only, with the function.
 ```
 
-`FORCE ROW LEVEL SECURITY` is deliberately not used: `hermi_owner` owns the tables and the `SECURITY DEFINER` helpers below read across tenants on its behalf, while `hermi_app` never owns a table, so it can never bypass a policy. The test suite must therefore connect as `hermi_app` (section 6.5).
+**Helpers and `FORCE`.** Every tenant table has `ENABLE` and `FORCE ROW LEVEL SECURITY` (6.3 and 6.4), so the table owner, `hermi_owner`, is subject to the policies too. A helper such as `visible_trip_ids()` that read `trip_members` as `hermi_owner` would then evaluate the `trip_members` policy, which calls `visible_trip_ids()` again, and Postgres stops with "infinite recursion detected in policy". So the helpers (6.2) and every `SECURITY DEFINER` function are owned by `hermi_definer`, which has `BYPASSRLS` (a bypassing role skips policies even under `FORCE`) and no login. It reads and writes only through explicit grants, and the policies stay non-recursive because a helper never passes through a policy. The bootstrap makes `hermi_owner` a member of `hermi_definer` and gives `hermi_definer` `CREATE` on schema `public` (above), which is what lets a migration, running as `hermi_owner`, run `ALTER FUNCTION ... OWNER TO hermi_definer`. A migration that must backfill tenant rows runs that statement after `SET LOCAL ROLE hermi_definer`, because `hermi_owner` itself is under `FORCE`.
+
+```sql
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO hermi_definer;
+-- Write rights follow the functions: extend this list in the migration that adds a function writing another table.
+GRANT INSERT, UPDATE, DELETE ON users, auth_identities, people, entitlements, devices, trips, trip_members, trip_invites, trip_imports, trip_passes,
+  credit_grants, credit_ledger, credit_debts, ai_usage, referral_codes, referral_rewards, notifications, deletion_requests,
+  content_reports, shared_research_cache, runs, audit_log TO hermi_definer;
+
+-- The last statement of 0014, and of any later migration that creates a SECURITY DEFINER function.
+DO $$ DECLARE f regprocedure; BEGIN
+  FOR f IN SELECT p.oid::regprocedure FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.prosecdef LOOP
+    EXECUTE format('ALTER FUNCTION %s OWNER TO hermi_definer', f);
+  END LOOP;
+END $$;
+```
+
+Trigger functions that are not `SECURITY DEFINER` (such as `trips_guard_owner`) run as the caller. The definer functions run as `hermi_definer`, which is not a member of `hermi_app`, so the owner-change guard in 6.2 lets `transfer_trip_owner()` through and blocks everyone else. `audit_log_immutable()` (5.16) relies on the same fact.
+
+#### 6.1.1 Every writing route and the mechanism that lets it write
+
+Walked route by route from `04-api-spec.md` section 5 and the jobs it names. "RLS" means a direct grant on the table that the policies in 6.3 and 6.4 then limit to the caller. "Definer" means a `SECURITY DEFINER` function that checks `app_user_id()`. "SystemSession" is the allowlisted worker-role connection in 6.6. A route that only reads, or only enqueues work, is not listed.
+
+| Route or job | Table or function | Mechanism |
+|---|---|---|
+| `POST /me/bootstrap` (with a referral code) | `bootstrap_user()`, `ensure_referral_code()`, `redeem_referral()` | Definer (no `users` row exists yet) |
+| `POST /me/claim` | `trips`, `trip_members` and `people` rows built from the guest payload, as the caller | RLS (rows are inserted as the caller from the request payload; there is no server-side guest user) |
+| `POST /me/sign-out`, `POST /me/sign-out-everywhere`, `PUT` and `DELETE /me/devices/{id}`, `PUT /me/push-token` | `devices` (own rows) | RLS |
+| `PATCH /me/profile`, `PUT /me/settings`; last-seen stamp on any signed-in request | `users` (column grant), `people` (own "Me" row) | RLS |
+| `PUT /me/consents/{kind}` | `consents` (insert only) | RLS |
+| `POST /me/export` | `data_exports` (insert and select) | RLS; the export job updates the row (worker) |
+| `POST /me/deletion` | `request_account_deletion()`: inserts `deletion_requests`, sets `users.status`, revokes `devices`, cancels `trip_invites`; trip transfers call `transfer_trip_owner()` | Definer (the user has no grant on `deletion_requests` and cannot change `users.status`) |
+| `POST /me/deletion/cancel` | `cancel_account_deletion()` | Definer |
+| `DELETE /me/ai-history`, `DELETE /agent-runs/{id}` | `clear_my_ai_history()`, `clear_run_content()` null `runs.prompt` and `report` (the starter or the trip owner) | Definer (the starter may no longer be an editor) |
+| `POST /trips`, `PATCH`, `POST /restore`, `DELETE /trips/{id}`, `POST` and `DELETE /trips/{id}/calendar-token` | `trips` (a soft delete is an update); the owner `trip_members` row comes from `trips_add_owner_member()` | RLS; the trigger function is definer |
+| `POST /trips/{id}/transfer` | `transfer_trip_owner()` (5.4) | Definer |
+| `POST /trips/{id}/leave`, `PATCH` and `DELETE /trips/{id}/members/{user_id}` | `trip_members` | RLS |
+| `PUT /trips/{id}/members/me/traveler` | `link_my_traveler(trip, person)` sets `people.linked_user_id` (the person may belong to the owner) | Definer |
+| `POST` and `DELETE /trips/{id}/invites` | `trip_invites` | RLS |
+| `POST /invites/{token}/accept` | `redeem_trip_invite()` (5.4): inserts `trip_members`, bumps `use_count` | Definer |
+| `POST`, `PATCH` and `DELETE /trips/{id}/share-links` | `trip_share_links` | RLS |
+| Destinations, routes, fares, chosen flights, price alerts, lodging and hearts, days, items (including bulk, reorder and move), saved places, notes, checklist, travelers | the matching trip child table | RLS |
+| `POST` and `PUT /people`, `DELETE /people/{id}` | `people`, `trip_people` | RLS |
+| `POST /trips/{id}/ai/*`, `agent-runs`, `notes/{id}/recheck`, `items/{id}/recheck`, `flights/live-search`, `lodging/rental-search`, `imports/paste` | `reserve_credits()`, `settle_credits()`; insert `runs` (queued) and `provider_calls`; defer the job | Definer for credits; RLS for `runs`; direct insert grant for `provider_calls`; `procrastinate_defer_jobs_v1` for the job |
+| `POST /agent-runs/{id}/cancel`, `POST /ai/jobs/{id}/cancel` | `runs.cancel_requested` (column grant); credits through `settle_credits()` | RLS, Definer |
+| AI spend ceiling check on every AI route | `my_provider_spend_micros()` reads `provider_calls` | Definer |
+| `POST /reports` | `file_content_report()`: inserts `content_reports`, expires the cached answer, counts distinct reporters and sets `shared_research_cache.flagged_at` at three | Definer |
+| `POST /shared/{token}/report` | `content_reports` with `reporter_user_id` null | SystemSession (`share_report`) |
+| `POST /purchases/sync`, `/purchases/restore`, `/credits/packs/claim`, `/me/passes/{id}/bind` and `/move` | `subscriptions`, `entitlements`, `store_transactions`, `trip_passes`, `credit_grants`, `credit_ledger` (the same code as the webhook) | SystemSession (`billing_sync`), after the route checks ownership |
+| `POST /webhooks/*` | `webhook_events` and the billing tables | Worker role (its own connection) |
+| `POST /outbound` | `link_clicks` (insert, `user_id` is the caller) | RLS (`link_clicks_insert`, 6.4) |
+| `POST /shared/{token}/outbound`, `GET /go/{click_id}` | `link_clicks` insert with `user_id` null; the `/go` stamp of the three granted columns | SystemSession (`share_outbound`, `go_redirect`) |
+| `POST /imports/*` (create a preview) | `trip_imports` insert (`status = 'received'`) | RLS |
+| Import preview and candidates (`ics-file`, `ics-feed` fetch, `paste`, `maps-file`, `places`) | `trip_imports.preview`, `status` | Worker job; the synchronous previews use SystemSession (`import_preview`) |
+| `POST /imports/{id}/confirm`, `DELETE /imports/{id}`, `POST /imports/{id}/refresh`, `POST /imports/{id}/changes/confirm`, `DELETE /imports/{id}/changes` | `advance_trip_import(import, action)` with the verbs `confirm`, `discard`, `refresh`, `confirm_changes`, `dismiss_changes` (`confirm` sets `status = 'applied'`): checks the importer and the allowed transition, then clears the matching payload columns; the trip and items a confirm creates are written as the caller | Definer + RLS in one transaction |
+| `PUT /imports/{id}/polling` | `set_import_polling()` | Definer |
+| `POST /me/referral/redeem` | `redeem_referral()` | Definer |
+| `POST /trips/{id}/verify-plan` | `plan_verifications` insert as the caller; the extracted `plan_verification_items` | RLS; SystemSession (`verify_extract`) for the items |
+| `PUT /plan-verifications/{id}/selection`, `POST .../check`, `POST .../import`, `DELETE /plan-verifications/{id}` | `plan_verification_items` (`selected`, `include_in_import`), `plan_verifications.status` and delete; the imported itinerary items as the caller | RLS (column grants above) |
+| `POST /public/sample-trips/{slug}/copy` | Reads the published sample's rows (another account owns them), then inserts a new trip, days, items and saved places as the caller | SystemSession (`sample_read`) for the read, RLS for the writes |
+| Place search, `shared_research_cache` fill | `places_cache`, `shared_research_cache` | SystemSession (`places_cache`) for the synchronous fill; the worker for jobs |
+| Rate limits, `Idempotency-Key` replay | `rate_limit_counters` (no policy, granted directly), `idempotency_keys` | Direct grant; RLS |
+| Admin console clears a rate limit bucket | `rate_limit_counters` (delete or reset rows), plus an `audit_log` row | Direct grant to `hermi_admin` |
+| In-app support form (no route in 04 yet) | `support_tickets` (insert, add a message) | RLS (column grants above) |
+| `GET /calendar/{token}.ics`, `GET /shared/{token}` (fetch stamp and view count) | the feed's trip and `trip_share_links` counters | SystemSession (`calendar_feed`, `share_view`) |
+| Admin console routes (08) | Operational tables directly; tenant content and money through `admin_*` functions that also write `audit_log` | Admin grants above |
+| Notifications, alerts, digests, deletion purge, `retention_sweep`, exports | every table they touch | Worker role |
+
+`FORCE ROW LEVEL SECURITY` and the ownership arrangement above replace the old rule that only `hermi_app` is under the policies: the owner is under them too, and the tests still connect as `hermi_api_login` (6.5).
 
 ### 6.2 The session setting and helper functions
 
-Every API transaction starts with `SELECT set_config('app.user_id', '<uuid>', true)` (the same as `SET LOCAL app.user_id = '<uuid>'`, but it accepts a bound parameter; transaction scoped, so it is safe with PgBouncer transaction pooling). When the setting is missing, `app_user_id()` returns null and every policy evaluates to false, so the request sees nothing.
+Every API transaction starts with `SELECT set_config('app.user_id', '<uuid>', true)` (the same as `SET LOCAL app.user_id = '<uuid>'`, but it accepts a bound parameter; transaction scoped, so it is safe with PgBouncer transaction pooling). `app_user_id()` (DDL in section 3) returns `NULL` and never raises when the setting is missing or empty, is declared `STABLE`, and is the only way a policy or a function reads the session user (no policy calls `current_setting('app.user_id')` directly). With a null user every policy evaluates to false, so the request sees nothing. Helpers and `SECURITY DEFINER` functions are owned by `hermi_definer` (6.1, "Helpers and `FORCE`"), so they read across tenants without passing through a policy.
 
 ```sql
 CREATE FUNCTION visible_trip_ids() RETURNS SETOF uuid
@@ -2600,15 +2753,16 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT EXISTS (SELECT 1 FROM trip_members WHERE trip_id = p_trip AND user_id = app_user_id() AND role = 'owner')
 $$;
 
--- Co-members see each other's display name only, never email. This view runs with the owner's rights.
+-- Co-members see each other's display name only, never email. The view is owned by hermi_definer, so it reads co-members across the users policy.
 CREATE VIEW trip_member_profiles AS
 SELECT tm.trip_id, tm.user_id, tm.role, u.display_name
   FROM trip_members tm JOIN users u ON u.id = tm.user_id
  WHERE tm.trip_id IN (SELECT visible_trip_ids());
+ALTER VIEW trip_member_profiles OWNER TO hermi_definer;
 GRANT SELECT ON trip_member_profiles TO hermi_app;
 
--- Editors cannot hand a trip to someone else; ownership moves only through transfer_trip_owner() (not shown: one transaction
--- that swaps trip_members roles and trips.owner_user_id, running as hermi_owner).
+-- Editors cannot hand a trip to someone else; ownership moves only through transfer_trip_owner(), a SECURITY DEFINER function owned by
+-- hermi_definer (not a member of hermi_app, so this guard lets it through). Its DDL is in section 5.4.
 CREATE FUNCTION trips_guard_owner() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW.owner_user_id <> OLD.owner_user_id AND pg_has_role(current_user, 'hermi_app', 'member') THEN
@@ -2627,6 +2781,7 @@ Performance: policies call `visible_trip_ids()` as an uncorrelated subquery, whi
 ```sql
 -- trips: members read; owner deletes; anyone may create a trip they own; editors update (owner change is blocked by trg_trips_guard_owner).
 ALTER TABLE trips ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trips FORCE ROW LEVEL SECURITY;
 CREATE POLICY trips_select ON trips FOR SELECT
   USING ((id IN (SELECT visible_trip_ids()) AND deleted_at IS NULL) OR owner_user_id = (SELECT app_user_id()));   -- trash stays visible to its owner
 CREATE POLICY trips_insert ON trips FOR INSERT WITH CHECK (owner_user_id = (SELECT app_user_id()));
@@ -2634,8 +2789,9 @@ CREATE POLICY trips_update ON trips FOR UPDATE USING (can_edit_trip(id)) WITH CH
 CREATE POLICY trips_delete ON trips FOR DELETE USING (is_trip_owner(id));
 
 -- trip_members: co-members read the roster; only the owner adds or changes roles; anyone can remove themselves (leave).
--- Invite redemption inserts the row through a SECURITY DEFINER function (redeem_trip_invite), not through this policy.
+-- Invite redemption inserts the row through the SECURITY DEFINER function redeem_trip_invite() (DDL in section 5.4), not through this policy.
 ALTER TABLE trip_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trip_members FORCE ROW LEVEL SECURITY;
 CREATE POLICY trip_members_select ON trip_members FOR SELECT USING (trip_id IN (SELECT visible_trip_ids()));
 CREATE POLICY trip_members_insert ON trip_members FOR INSERT WITH CHECK (is_trip_owner(trip_id));
 CREATE POLICY trip_members_update ON trip_members FOR UPDATE USING (is_trip_owner(trip_id)) WITH CHECK (is_trip_owner(trip_id));
@@ -2644,6 +2800,7 @@ CREATE POLICY trip_members_delete ON trip_members FOR DELETE
 
 -- A trip child table (itinerary_items): every member reads, owner and editors write. Viewers cannot edit.
 ALTER TABLE itinerary_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE itinerary_items FORCE ROW LEVEL SECURITY;
 CREATE POLICY itinerary_items_select ON itinerary_items FOR SELECT USING (trip_id IN (SELECT visible_trip_ids()));
 CREATE POLICY itinerary_items_insert ON itinerary_items FOR INSERT WITH CHECK (can_edit_trip(trip_id));
 CREATE POLICY itinerary_items_update ON itinerary_items FOR UPDATE USING (can_edit_trip(trip_id)) WITH CHECK (can_edit_trip(trip_id));
@@ -2660,10 +2817,11 @@ DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY[
     'trip_invites', 'trip_share_links', 'trip_destinations', 'trip_people', 'flight_routes', 'trip_fare_links',
-    'chosen_flights', 'itinerary_days', 'saved_places', 'lodging_options', 'checklist_items', 'runs',
+    'chosen_flights', 'itinerary_days', 'saved_places', 'lodging_options', 'checklist_items',
     'plan_verifications', 'plan_verification_items'
   ] LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
     EXECUTE format('CREATE POLICY %I ON %I FOR SELECT USING (trip_id IN (SELECT visible_trip_ids()))', t || '_select', t);
     EXECUTE format('CREATE POLICY %I ON %I FOR INSERT WITH CHECK (can_edit_trip(trip_id))', t || '_insert', t);
     EXECUTE format('CREATE POLICY %I ON %I FOR UPDATE USING (can_edit_trip(trip_id)) WITH CHECK (can_edit_trip(trip_id))', t || '_update', t);
@@ -2677,6 +2835,7 @@ Tables with a different shape:
 ```sql
 -- Hearts: viewers may heart stays and places. A vote row must be the caller's own.
 ALTER TABLE lodging_votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lodging_votes FORCE ROW LEVEL SECURITY;
 CREATE POLICY lodging_votes_select ON lodging_votes FOR SELECT USING (trip_id IN (SELECT visible_trip_ids()));
 CREATE POLICY lodging_votes_insert ON lodging_votes FOR INSERT
   WITH CHECK (user_id = (SELECT app_user_id()) AND trip_id IN (SELECT visible_trip_ids()));
@@ -2684,6 +2843,7 @@ CREATE POLICY lodging_votes_delete ON lodging_votes FOR DELETE
   USING (user_id = (SELECT app_user_id()) OR can_edit_trip(trip_id));        -- editors can clear a traveler's heart
 
 ALTER TABLE saved_place_votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE saved_place_votes FORCE ROW LEVEL SECURITY;
 CREATE POLICY saved_place_votes_select ON saved_place_votes FOR SELECT USING (trip_id IN (SELECT visible_trip_ids()));
 CREATE POLICY saved_place_votes_insert ON saved_place_votes FOR INSERT
   WITH CHECK (user_id = (SELECT app_user_id()) AND trip_id IN (SELECT visible_trip_ids()));
@@ -2692,49 +2852,65 @@ CREATE POLICY saved_place_votes_delete ON saved_place_votes FOR DELETE
 
 -- Notes: private notes are visible only to their author and are never sent to AI.
 ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notes FORCE ROW LEVEL SECURITY;
 CREATE POLICY notes_select ON notes FOR SELECT
   USING (trip_id IN (SELECT visible_trip_ids()) AND (NOT is_private OR author_user_id = (SELECT app_user_id())));
 CREATE POLICY notes_insert ON notes FOR INSERT WITH CHECK (can_edit_trip(trip_id) AND author_user_id = (SELECT app_user_id()));
 CREATE POLICY notes_update ON notes FOR UPDATE USING (can_edit_trip(trip_id) AND (NOT is_private OR author_user_id = (SELECT app_user_id())));
 CREATE POLICY notes_delete ON notes FOR DELETE USING (can_edit_trip(trip_id) AND (NOT is_private OR author_user_id = (SELECT app_user_id())));
 
+-- Runs: members read; an editor starts a run as themselves (queued); a cancel is the one column the API may update (6.1); everything else is the worker's.
+ALTER TABLE runs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE runs FORCE ROW LEVEL SECURITY;
+CREATE POLICY runs_select ON runs FOR SELECT USING (trip_id IN (SELECT visible_trip_ids()));
+CREATE POLICY runs_insert ON runs FOR INSERT
+  WITH CHECK (can_edit_trip(trip_id) AND user_id = (SELECT app_user_id()) AND status = 'queued');
+CREATE POLICY runs_update ON runs FOR UPDATE USING (can_edit_trip(trip_id)) WITH CHECK (can_edit_trip(trip_id));
+
 -- The feed and run logs: members read; the API appends feed rows as the acting member; run events are written by workers only.
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE activity_log FORCE ROW LEVEL SECURITY;
 CREATE POLICY activity_log_select ON activity_log FOR SELECT USING (trip_id IN (SELECT visible_trip_ids()));
 CREATE POLICY activity_log_insert ON activity_log FOR INSERT
   WITH CHECK (trip_id IN (SELECT visible_trip_ids()) AND actor_user_id = (SELECT app_user_id()));
 ALTER TABLE run_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE run_events FORCE ROW LEVEL SECURITY;
 CREATE POLICY run_events_select ON run_events FOR SELECT USING (trip_id IN (SELECT visible_trip_ids()));
 
 -- Alerts are personal: the row belongs to the person who is notified, and they must still be on the trip.
 ALTER TABLE price_alerts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE price_alerts FORCE ROW LEVEL SECURITY;
 CREATE POLICY price_alerts_all ON price_alerts FOR ALL
   USING (user_id = (SELECT app_user_id()) AND trip_id IN (SELECT visible_trip_ids()))
   WITH CHECK (user_id = (SELECT app_user_id()) AND trip_id IN (SELECT visible_trip_ids()));
 
 -- Passes belong to a trip, so every member sees that the trip is upgraded; only the purchaser sees the purchase row.
 ALTER TABLE trip_passes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trip_passes FORCE ROW LEVEL SECURITY;
 CREATE POLICY trip_passes_select ON trip_passes FOR SELECT
   USING (trip_id IN (SELECT visible_trip_ids()) OR purchaser_user_id = (SELECT app_user_id()));
 
 -- Imports are personal to the importer. They may outlive the trip (trip_id is SET NULL), so the rule is user_id, not trip membership.
 ALTER TABLE trip_imports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trip_imports FORCE ROW LEVEL SECURITY;
 CREATE POLICY trip_imports_select ON trip_imports FOR SELECT USING (user_id = (SELECT app_user_id()));
 CREATE POLICY trip_imports_insert ON trip_imports FOR INSERT
   WITH CHECK (user_id = (SELECT app_user_id()) AND status = 'received' AND reward_granted_at IS NULL AND reward_pass_id IS NULL
               AND (trip_id IS NULL OR can_edit_trip(trip_id)));
-CREATE POLICY trip_imports_update ON trip_imports FOR UPDATE
-  USING (user_id = (SELECT app_user_id())) WITH CHECK (user_id = (SELECT app_user_id()) AND status = 'discarded');
+-- No UPDATE or DELETE policy: the API changes an import only through advance_trip_import() and set_import_polling() (6.1.1), which check app_user_id() themselves.
 
 -- Referrals: a person sees the rewards they gave or received. Rows are created and changed by the functions in 5.9.
 ALTER TABLE referral_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE referral_codes FORCE ROW LEVEL SECURITY;
 CREATE POLICY referral_codes_select ON referral_codes FOR SELECT USING (user_id = (SELECT app_user_id()));
 ALTER TABLE referral_rewards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE referral_rewards FORCE ROW LEVEL SECURITY;
 CREATE POLICY referral_rewards_select ON referral_rewards FOR SELECT
   USING (referrer_user_id = (SELECT app_user_id()) OR referee_user_id = (SELECT app_user_id()));
 
 -- Public sample trips: the app sees published rows only.
 ALTER TABLE sample_trips ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sample_trips FORCE ROW LEVEL SECURITY;
 CREATE POLICY sample_trips_published ON sample_trips FOR SELECT USING (status = 'published');
 ```
 
@@ -2742,12 +2918,13 @@ Account-scoped tables (a row belongs to one user):
 
 ```sql
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users FORCE ROW LEVEL SECURITY;
 CREATE POLICY users_self ON users FOR SELECT USING (id = (SELECT app_user_id()));
 CREATE POLICY users_update ON users FOR UPDATE USING (id = (SELECT app_user_id())) WITH CHECK (id = (SELECT app_user_id()));
 
 -- First sign-in (POST /me/bootstrap in 04) runs before any users row exists, so app.user_id is unset
 -- and no RLS policy can admit the insert. The app role has no INSERT on users or auth_identities;
--- instead it calls this owner-defined function, which creates exactly one account for one verified
+-- instead it calls this definer-owned function, which creates exactly one account for one verified
 -- (provider, subject) pair and is idempotent. The API passes values only from the verified JWT.
 CREATE FUNCTION bootstrap_user(p_provider text, p_subject text, p_email citext, p_email_is_relay boolean,
                                p_display_name text)
@@ -2786,12 +2963,13 @@ EXCEPTION WHEN unique_violation THEN
   RETURN QUERY SELECT v_user, false;
 END;
 $$;
-ALTER FUNCTION bootstrap_user(text, text, citext, boolean, text) OWNER TO hermi_owner;
+ALTER FUNCTION bootstrap_user(text, text, citext, boolean, text) OWNER TO hermi_definer;   -- BYPASSRLS, so FORCE on users does not block the insert
 REVOKE ALL ON FUNCTION bootstrap_user(text, text, citext, boolean, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION bootstrap_user(text, text, citext, boolean, text) TO hermi_app;
 -- Inserts and status changes (deletion flow) run in the worker role.
 
 ALTER TABLE people ENABLE ROW LEVEL SECURITY;
+ALTER TABLE people FORCE ROW LEVEL SECURITY;
 CREATE POLICY people_select ON people FOR SELECT
   USING (owner_user_id = (SELECT app_user_id()) OR linked_user_id = (SELECT app_user_id())
          OR id IN (SELECT person_id FROM trip_people WHERE trip_id IN (SELECT visible_trip_ids())));
@@ -2819,6 +2997,7 @@ BEGIN
   ) AS v(tbl, cmds)
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', r.tbl);
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', r.tbl);
     IF r.cmds LIKE '%select%' THEN
       EXECUTE format('CREATE POLICY %I ON %I FOR SELECT USING (user_id = (SELECT app_user_id()))', r.tbl || '_select', r.tbl); END IF;
     IF r.cmds LIKE '%insert%' THEN
@@ -2832,23 +3011,80 @@ END $$;
 
 -- Balances: readable by their owner only.
 ALTER TABLE credit_grants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE credit_grants FORCE ROW LEVEL SECURITY;
 CREATE POLICY credit_grants_select ON credit_grants FOR SELECT USING (user_id = (SELECT app_user_id()));
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions FORCE ROW LEVEL SECURITY;
 CREATE POLICY subscriptions_select ON subscriptions FOR SELECT USING (user_id = (SELECT app_user_id()));
 
 -- Reports: anyone signed in may file one and read their own. Moderators use hermi_admin, which bypasses the policies.
 ALTER TABLE content_reports ENABLE ROW LEVEL SECURITY;
-CREATE POLICY content_reports_insert ON content_reports FOR INSERT WITH CHECK (reporter_user_id = (SELECT app_user_id()));
+ALTER TABLE content_reports FORCE ROW LEVEL SECURITY;
+-- No INSERT policy: a report is filed through file_content_report() (6.1.1), which inserts as hermi_definer.
 CREATE POLICY content_reports_select ON content_reports FOR SELECT USING (reporter_user_id = (SELECT app_user_id()));
 ```
 
-Affiliate, catalog and admin tables have no policies: they are covered by the grants in 6.1.
+Click rows are personal to the person who tapped, like imports. The anonymous `/go` redirect and share-page clicks have no user, so they use a SystemSession (6.6) and never these policies; the three-column `UPDATE` grant in 6.1 is the only write the API role has on an existing click.
 
-### 6.5 The admin bypass role and tests
+```sql
+ALTER TABLE link_clicks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE link_clicks FORCE ROW LEVEL SECURITY;
+CREATE POLICY link_clicks_select ON link_clicks FOR SELECT USING (user_id = (SELECT app_user_id()));
+CREATE POLICY link_clicks_insert ON link_clicks FOR INSERT WITH CHECK (user_id = (SELECT app_user_id()));
+CREATE POLICY link_clicks_update ON link_clicks FOR UPDATE
+  USING (user_id = (SELECT app_user_id())) WITH CHECK (user_id = (SELECT app_user_id()));   -- limited to clicked_at, redirect_status and opened_in by the column grant
+```
 
-- `hermi_admin` and `hermi_worker` have `BYPASSRLS`. The admin console connects as `hermi_admin`, sets `app.admin_user_id` for the session, and writes one `audit_log` row per action (actor, action, before, after, reason). The worker must set `app.user_id` explicitly (or use trip and user ids it was given) when it writes on behalf of a user, so its logs stay attributable.
+The other affiliate, catalog and admin tables have no policies: they are covered by the grants in 6.1.
+
+### 6.5 The admin bypass role, the startup check and tests
+
+- `hermi_admin_login` and `hermi_worker_login` have `BYPASSRLS` on the login role itself (it is not inherited from `hermi_admin` or `hermi_worker`). The admin console connects as `hermi_admin_login`, sets `app.admin_user_id` for the session, and writes one `audit_log` row per action (actor, action, before, after, reason). A `BYPASSRLS` role skips policies, so the console's limits are its grants (6.1): it reads everything, writes operational tables directly, and changes tenant content and money only through the audited `admin_*` functions in 08. The worker must set `app.user_id` explicitly (or use trip and user ids it was given) when it writes on behalf of a user, so its logs stay attributable.
 - Global tables are readable by the app role and never writable (6.1).
-- **Tests run as the restricted role.** `pytest` connects as `hermi_api_login` (today's test suite runs as the owner, which silently bypasses RLS). A generated test walks `information_schema` and fails if any table in `public` has a `trip_id` or `user_id` column and `relrowsecurity` is false and the table is not on a short allowlist (`run_events` partitions inherit from the parent; `admin_users`, `deletion_requests` and `affiliate_conversions` are closed to the app role by grants; `provider_calls` is insert-only; `link_clicks` is stamped by the `/go` redirect before any user context exists). A second generated test creates tenants A and B and asserts, for every tenant table, that B sees zero of A's rows and cannot insert, update or delete them. Extra tests cover the Phase 1 functions: `grant_import_reward()` grants once per user and again never (including after the trip is deleted), `redeem_referral()` refuses your own code and a second redemption, and `grant_referral_reward()` is idempotent.
+- **Startup check.** The API and `pytest` refuse to run when the connection's `current_user` is a superuser, has `rolbypassrls`, or owns, or is a member of the owner of, any table in `public`. The query returns one row and the check fails on `true`:
+
+```sql
+SELECT r.rolsuper OR r.rolbypassrls
+       OR EXISTS (SELECT 1 FROM pg_class c
+                   WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p')
+                     AND (c.relowner = r.oid OR pg_has_role(r.oid, c.relowner, 'member'))) AS unsafe
+  FROM pg_roles r WHERE r.rolname = current_user;
+```
+
+  The worker and admin processes run the same check with the `rolbypassrls` term removed (they bypass policies by design, but they must not be superusers or table owners).
+- **Tests run as the restricted role.** `pytest` connects as `hermi_api_login` (a suite that runs as the owner or a superuser silently bypasses RLS). Fixtures that create tenants and rows use the system connection (`TEST_DATABASE_URL_SYSTEM`, the worker login), never the owner. Generated tests:
+  1. Walk `information_schema`: every table in `public` with a `trip_id` or `user_id` column has `relrowsecurity` and `relforcerowsecurity` both true (a tenant table needs `FORCE`), unless it is on a short allowlist (`run_events` partitions inherit from the parent; `admin_users`, `deletion_requests` and `affiliate_conversions` are closed to the app role by grants; `provider_calls` is insert-only; partitions of `link_clicks` have no grant for the app role).
+  2. The table's `GRANT`, `ENABLE`, `FORCE` and policies are in the same migration (the test reads each revision's SQL after `0014`).
+  3. Create tenants A and B and assert, for every tenant table, that B sees zero of A's rows and cannot insert, update or delete them.
+  4. Every writing route in 6.1.1 runs once as `hermi_api_login` with its own user and once as another user (the route under test is the row in that table).
+  5. The startup check itself: it fails for a superuser, for a `BYPASSRLS` role and for a member of `hermi_owner`, and passes for `hermi_api_login`.
+  6. `audit_log`: the app, worker and admin roles cannot `UPDATE`, `DELETE` or `TRUNCATE`; `retention_sweep()` deletes a row past its class and keeps one inside it.
+  7. Phase 1 functions: `grant_import_reward()` grants once per user and again never (including after the trip is deleted), `redeem_referral()` refuses your own code and a second redemption, and `grant_referral_reward()` is idempotent.
+  8. `trip_member_profiles`: as `hermi_api_login`, a member of a trip sees the display name of every co-member of that trip, and no row for a trip they are not in.
+
+### 6.6 Cross-tenant access from the API
+
+Some requests must read or write rows that the caller's policies cannot show: a public page has no user, a purchase writes money tables, an invite redemption adds the caller to someone else's trip. There are exactly two permitted mechanisms, and nothing else in the API may use the worker or admin connection:
+
+1. **An allowlisted `SystemSession`.** A request handler opens the worker connection (`DATABASE_URL_SYSTEM`) only through one function that takes a purpose name from a fixed allowlist in the API code. A purpose not on the list raises, a test lists the allowlist, and a static test fails when a handler imports the worker engine any other way. Every use writes a structured log line with the purpose, the route and the caller (or `anonymous`).
+2. **A `SECURITY DEFINER` function** owned by `hermi_definer`, with `SET search_path = public` and an `EXECUTE` grant to `hermi_app`, that checks `app_user_id()` (and the caller's role on the trip or ownership of the row) before it changes anything. The DDL of `redeem_trip_invite` and `transfer_trip_owner` is in section 5.4.
+
+The public token reads and synchronous writes that use a SystemSession, by purpose name:
+
+| Purpose | Routes | What it touches |
+|---|---|---|
+| `share_view` | `GET /shared/{token}`, `GET /shared/{token}/meta` | Reads the redacted trip behind a share token and bumps `view_count` and `last_viewed_at` |
+| `share_report` | `POST /shared/{token}/report` | Inserts `content_reports` with a null reporter |
+| `share_outbound` | `POST /shared/{token}/outbound` | Inserts `link_clicks` with a null user |
+| `go_redirect` | `GET /go/{click_id}` | Stamps `clicked_at`, `redirect_status` and `opened_in` on one click |
+| `calendar_feed` | `GET /calendar/{token}.ics` | Reads the trip behind a calendar token |
+| `sample_read` | `GET /public/sample-trips`, `/public/sample-trips/{slug}`, `/public/sitemap`, and the read half of `POST /public/sample-trips/{slug}/copy` | Reads published samples owned by the content account |
+| `billing_sync` | `POST /purchases/sync`, `/purchases/restore`, `/credits/packs/claim`, `/me/passes/{id}/bind` and `/move` | Money and entitlement tables, with the route's own ownership check first |
+| `import_preview` | `POST /imports/ics-file`, `maps-file`, `places` | Writes the preview the worker sandbox returned |
+| `verify_extract` | `POST /trips/{id}/verify-plan` | Inserts `plan_verification_items` |
+| `places_cache` | Place search | Fills `places_cache` |
+
+Every route is tested under the real roles: the route tests in 6.5 call the API as `hermi_api_login` (and the SystemSession purposes as `hermi_worker_login`), never as the owner, so a missing grant, policy or definer function shows up as a failing route test and not in production.
 
 ## 7. Key queries
 
@@ -3180,7 +3416,7 @@ Practical rules for the revisions: functions, triggers, partitions, policies and
 
 | Revision | Creates | Depends on |
 |---|---|---|
-| `0001_setup` | Extensions, domains, `set_updated_at`, `bump_version`, helper-trigger functions, `currency_exponent`, `app_user_id`, and the three roles from section 6.1 (if the managed plan does not allow `CREATE ROLE`, create them in the Render dashboard and skip them here; verify) | none |
+| `0001_setup` | Extensions, domains, `set_updated_at`, `bump_version`, helper-trigger functions, `currency_exponent`, `app_user_id`, and a check that the roles from section 6.1 exist (it creates none: `infra/db/bootstrap.sql`, run by `npm run db:init`, does; the check fails with a clear message when one is missing) | none |
 | `0002_identity` | `users`, `auth_identities`, `devices` | 0001 |
 | `0003_reference_catalog` | `airports`, `fx_rates`, `places_cache`, `fx_convert_minor`, `CREATE TYPE ai_action`, `plans`, `store_products`, `credit_action_prices` | 0001 |
 | `0004_trips_people` | `trips` (with owner-member trigger), `trip_members`, `trip_invites`, `trip_share_links`, `trip_destinations`, `activity_log`, `people`, `trip_people` | 0002 |
@@ -3196,7 +3432,7 @@ Practical rules for the revisions: functions, triggers, partitions, policies and
 | `0014_rls` | Helper functions, `trip_member_profiles`, policies for every table, grants and `SECURITY DEFINER` changes (section 6). Any table added after this revision must include its own `GRANT`, `ENABLE ROW LEVEL SECURITY` and policies in the same migration; the test in 6.5 fails otherwise | all tables exist |
 | `0015_seed` | Seed data (section 11), idempotent `INSERT ... ON CONFLICT DO NOTHING` | 0014 |
 
-Airports and FX are loaded by jobs, not by a migration: `hermi seed-airports` reads the OurAirports CSV and `hermi refresh-fx` pulls Frankfurter. CI runs the full chain on an empty database, runs the tenant-isolation tests as `hermi_api_login`, then runs `alembic downgrade base` and `upgrade head` once to prove the chain is reversible in a scratch database (production never downgrades).
+Airports and FX are loaded by jobs, not by a migration: `hermi seed-airports` reads the OurAirports CSV and `hermi refresh-fx` pulls Frankfurter. CI runs `npm run db:init`, then the full chain on an empty database as `hermi_migrate_login`, runs the tenant-isolation tests and the role checks as `hermi_api_login` (never as the owner), then runs `alembic downgrade base` and `upgrade head` once to prove the chain is reversible in a scratch database (production never downgrades).
 
 ## 11. Seed data
 
