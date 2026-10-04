@@ -34,7 +34,10 @@ Principle: test what loses money or trust first (tenant leaks, entitlements, cre
 - Fixtures build real rows through factories (`users`, `trips`, `trip_members`, `entitlements`, `credit_grants`). No mocking of the database.
 - Providers are replaced by fakes behind the provider interface (`PROVIDERS_MODE=fake`). The Anthropic fake replays recorded responses including `server_tool_use`, `pause_turn`, `refusal`, `max_tokens` and 429. A fake resolver and fake HTTP server stand in for calendar feeds.
 - Time is injected (`clock` fixture) so monthly grants, pass expiry and cron slots are deterministic.
-- Tests refuse to run when `ENVIRONMENT=production` or when the database name does not end in `_test`.
+- Tests refuse to run when `ENVIRONMENT=production` or when the database name does not end in `_test`. Tests and the API also refuse to run as a superuser, a `BYPASSRLS` role or the table owner. Fixtures write through the system connection.
+- Tests force `AI_PROVIDER=fake`, set `PROVIDERS_MODE=fake` and never read `.env` (the process environment overrides it).
+- The `posix_only` pytest marker tags tests that need POSIX behavior. They always run in Linux CI and are skipped on Windows.
+- Committed multi-connection concurrency tests cover credit reserve and settle (several connections racing on one balance) and a parallel admission test for spend ceilings: several simultaneous reservations near the ceiling admit at most the headroom.
 - Two-user fixtures exist for every feature: `owner_free`, `owner_plus`, `editor`, `viewer`, `outsider`, `admin`.
 
 Required integration scenarios (each is a named test file):
@@ -101,7 +104,7 @@ Contract drift: a weekly job replays the newest real (scrubbed) payloads from st
 
 ### 1.5 AI evals
 
-Evals are the quality bar for anything that touches fares or facts. Spec of the task set is in [06-ai-agents-spec.md](06-ai-agents-spec.md); the gates that block a merge or a prompt rollout are here.
+Evals are the quality bar for anything that touches fares or facts. Live evals run only with `EVALS_LIVE=1` and `--max-usd`. There is one path, `npm run evals`, with `--provider`. The gates in this section are certified only on `anthropic_api`, because the CLI `WebFetch` returns summaries; `claude_cli` numbers are provisional. Spec of the task set is in [06-ai-agents-spec.md](06-ai-agents-spec.md); the gates that block a merge or a prompt rollout are here.
 
 | Eval | Set | Metric | Gate |
 |---|---|---|---|
@@ -127,9 +130,9 @@ If a plan-check gate fails at launch, the flag `verify_plan` stays off (the scre
 
 ### 1.6 Web end to end (Playwright)
 
-Smoke set (runs on every labeled pull request and nightly):
+Smoke set (runs on every labeled pull request and nightly). Each flow is listed in its owning ticket's Tests line in `09-build-roadmap.md`, and WF-101 checks the flow manifest against this list:
 
-1. Sign in with an email code (test inbox through Mailpit), land on an empty Trips screen.
+1. Dev-persona sign-in: pick the Free persona on the sign-in screen (`AUTH_MODE=dev`, `POST /v1/dev/session`) and land on an empty Trips screen. The real email code path is an owner check on a Supabase project.
 2. Create a trip with two destinations; add an itinerary item; reload; it persists.
 3. As a Free owner, invite one person by link; a second browser context accepts as a Free user; both see the trip; attribution shows.
 4. The Free owner taps Invite a second time and sees the `collaborators` paywall with a visible close control (the free path is always visible).
@@ -147,6 +150,16 @@ Smoke set (runs on every labeled pull request and nightly):
 16. Keep checking this calendar: after a fake feed import the switch is off; turning it on and changing the fake feed produces a "Calendar changed" sheet; nothing changes in the trip until "Apply" is tapped.
 17. On the web client the paywall says "Upgrade in the iOS app" with no price or purchase button; the public pages `/how-we-earn` and `/billing` load without sign-in and pass axe.
 18. The trip header shows "Synced N s ago" and changes to "Offline, 1 edit waiting" when the network is cut; a degraded component in the fake status source shows the status banner.
+19. Discover gallery: open a sample trip from Discover, tap "Use this plan", and see it as a new trip in Trips.
+20. Dates and flights (01 section 3.4): add a route, see cached fares, choose a fare, set an alert.
+21. Stays (01 section 3.5): paste a stay link, heart it, compare two to four stays, mark one Booked.
+22. Plan days (01 section 3.6): drag items onto days, then use Add activity with place search and the map.
+23. Agent and drafts (01 sections 3.6 and 3.7): draft a day and a trip, run research, and run an agent with its live log in the UI (fake Anthropic).
+24. Before you go (01 section 3.9): after a stay is marked Booked the checklist shows on the Overview; one item is marked done and one not needed; both persist after reload.
+25. Travel (01 section 3.10): the Overview shows the "Happening now" state, the trip reads offline, and the calendar feed can be subscribed to and its token rotated.
+26. After the trip (01 section 3.11): archive a past trip, then duplicate it into a new trip that appears in Trips.
+
+Journey coverage: flow 1 covers 3.1, flows 2 to 4 cover 3.2 and 3.3, flows 5 and 21 cover 3.5, flow 12 covers 3.8, flows 7, 8, 15 and 16 cover 3.12, flow 13 covers 3.13, flow 14 covers 3.14. Flows 19 to 26 fill the gaps (3.4, 3.5, 3.6, 3.7, 3.9, 3.10, 3.11 and the Discover gallery).
 
 Full set adds: paywall states for each tier, out-of-credits state, offline banner, 409 conflict UI, share link read-only view, calendar feed subscription URL, referral link, admin console login gate, empty and error states. Every test file also runs an axe scan on its main screen, in light and dark, so the `--tp-edge` control borders and `--tp-warning-ink` warning text are checked on real screens.
 
