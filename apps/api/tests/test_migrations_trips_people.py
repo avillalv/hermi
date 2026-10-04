@@ -357,13 +357,13 @@ def test_app_login_can_call_definer_functions_and_not_insert_members(conn):
         assert app.execute("SELECT redeem_trip_invite(%s)", (b"tok",)).fetchone() == (tid,)
 
 
-# --- Schema vs DDL: 0002 to 0005 tables against the DDL in 03 sections 5.1 to 5.6 ---------------
+# --- Schema vs DDL: 0002 to 0006 tables against the DDL in 03 sections 5.1 to 5.8 ---------------
 
 
 def _ddl_text():
     lines = SPEC.read_text(encoding="utf-8").split("\n")
     start = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.1 "))
-    end = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.7 "))
+    end = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.9 "))
     out, inside = [], False
     for ln in lines[start:end]:
         if ln.startswith("```sql"):
