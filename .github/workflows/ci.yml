@@ -279,8 +279,41 @@ jobs:
           context: .
           file: infra/docker/Dockerfile
           push: false
+          load: true
+          tags: hermi:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Trivy scan (fixable high and critical fail the build)
+        if: steps.detect.outputs.present == 'true'
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: hermi:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Image user and size
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          user=$(docker image inspect hermi:ci --format '{{.Config.User}}')
+          echo "image user: $user"
+          case "$user" in ""|root|0|0:*) echo "::error::image runs as root"; exit 1;; esac
+          size=$(docker image inspect hermi:ci --format '{{.Size}}')
+          echo "Image size: $((size / 1024 / 1024)) MiB" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Container smoke test
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          docker compose -f infra/docker/compose.yml up -d --wait postgres api
+          curl -fsS http://localhost:8100/health/live
+          if [ -d apps/api/hermi/migrations/versions ]; then
+            docker compose -f infra/docker/compose.yml run --rm api migrate
+          fi
+          curl -fsS http://localhost:8100/health/ready
+      - name: Compose logs on failure
+        if: failure() && steps.detect.outputs.present == 'true'
+        run: docker compose -f infra/docker/compose.yml logs --no-color api
+      - name: Compose down
+        if: always() && steps.detect.outputs.present == 'true'
+        run: docker compose -f infra/docker/compose.yml down -v
 
   audit:
     # Non-blocking: reports only, and it is not a needed job of `ci`.

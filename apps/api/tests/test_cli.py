@@ -32,3 +32,18 @@ def test_api_exits_on_bad_config_without_starting(monkeypatch):
     monkeypatch.setattr(uvicorn, "run", lambda *a, **kw: pytest.fail("started"))
     with pytest.raises(SystemExit, match="Configuration refused"):
         cli.api()
+
+
+def test_api_host_flag_binds_container_address(monkeypatch):
+    import uvicorn
+
+    seen = {}
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: seen.update(kw))
+    cli.main(["api", "--host", "0.0.0.0"])
+    assert seen["host"] == "0.0.0.0"
+
+
+@pytest.mark.parametrize("cmd", ["worker", "scheduler", "migrate"])
+def test_placeholder_commands_exit_non_zero_with_a_pointer(cmd):
+    with pytest.raises(SystemExit, match="arrives with WF-"):
+        cli.main([cmd])
