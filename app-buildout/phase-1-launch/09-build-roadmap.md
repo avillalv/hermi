@@ -403,8 +403,8 @@ Conventions for every ticket:
 
 #### WF-023 Entitlement resolver and limit enforcement [M2, L]
 - Depends on: WF-022, WF-019, WF-014.
-- Description: a resolver that returns a trip's capabilities as the best of its owner's tier (`free`, `plus`) and any pass on that trip; enforces the limits of the Phase 1 tier table (active trips: Free 2, Plus fair use 25; cached-fare route per trip: Free 1; live routes: Plus 3, Trip Pass 2; alerts; collaborators: Free 1, Plus and Trip Pass 6); `GET /v1/me/entitlements`; paywall codes `third_trip`, `collaborators`, `track_live`, `credits`. Credit charging attaches when the ledger lands (WF-044).
-- Accept: every limited route calls the resolver; creating a third active trip on Free returns the `third_trip` paywall code and archived trips do not count; Plus with a Trip Pass takes the higher limit; invitees get the owner's tier on that trip only.
+- Description: a resolver that returns a trip's capabilities as the best of its owner's tier (`free`, `plus`) and any pass on that trip; enforces the limits of the Phase 1 tier table (active trips: Free 2, Plus fair use 25; cached-fare route per trip: Free 1; live routes: Plus 3, Trip Pass 2; alerts; collaborators: Free 1, Plus and Trip Pass 6); `GET /v1/me/entitlements`; paywall triggers `third_trip`, `invite`, `track_live` and `out_of_credits_*` (04 section 2.2 `PaywallHint`). Plan limits and missing entitlements return 402 with the `paywall` hint (403 stays for role, account and consent). Credit charging attaches when the ledger lands (WF-044).
+- Accept: every limited route calls the resolver; creating a third active trip on Free returns 402 with the `third_trip` paywall hint (403 only for role, account and consent) and archived trips do not count; Plus with a Trip Pass takes the higher limit; invitees get the owner's tier on that trip only.
 - Touches: `apps/api/hermi/modules/billing/` (resolver), `apps/api/hermi/modules/trips/service.py` (`trip_capabilities()`), `packages/shared/src/entitlements.ts`.
 - Tests: table-driven tier and pass tests, invitee tests.
 - Done: DoD.
@@ -427,7 +427,7 @@ Conventions for every ticket:
 
 #### WF-026 Free owners invite 1 collaborator [M2, S]
 - Depends on: WF-023, WF-025.
-- Description: enforce the Phase 1 collaborator rule: a Free owner can have 1 collaborator (accepted or pending, editor or viewer) per trip, so couples plan free; Plus and Trip Pass owners up to 6; joining someone else's trip is always free. A second Free invite returns 402 with the `collaborators` paywall body; the Invite sheet shows "1 of 1 on Free" and keeps the free path visible. If an owner's Plus or pass lapses, collaborators beyond the limit become viewers and nothing is deleted.
+- Description: enforce the Phase 1 collaborator rule: a Free owner can have 1 collaborator (accepted or pending, editor or viewer) per trip, so couples plan free; Plus and Trip Pass owners up to 6; joining someone else's trip is always free. A second Free invite returns 402 with the `invite` paywall hint (reason `sharing`); the Invite sheet shows "1 of 1 on Free" and keeps the free path visible. If an owner's Plus or pass lapses, collaborators beyond the limit become viewers and nothing is deleted.
 - Accept: a Free owner invites one person and sees the paywall on the second; pending invites count; lapse handling demotes extras and sets a banner flag; the invitee never needs a plan to join.
 - Touches: `apps/api/hermi/modules/collaboration/service.py`, `apps/api/hermi/modules/billing/` (resolver hook), `apps/web/src/routes/invite/`.
 - Tests: Free, Plus, pass and lapse tests; invitee-on-Free test; paywall body test.
@@ -539,9 +539,9 @@ Conventions for every ticket:
 
 #### WF-040 Migrate the owner's existing data [M2, L]
 - Depends on: WF-024, WF-030, WF-032, WF-034.
-- Description: export from the local Trip Planner database, transform (UUIDs, `owner_user_id`, `linked_user_id`, money to minor units), import into hosted with a dry run, row-count and checksum verification, and a manual walk-through of each trip. Back up both sides first. The two owners then plan a real trip together on staging (Month 2 exit).
-- Accept: dry run reports zero unmapped rows; counts match per table; both owners sign in and see their trips; the import is idempotent.
-- Touches: `infra/scripts/import_trip_planner.py`, `docs/runbooks/owner-migration.md`.
+- Description: `hermi import-legacy --source-db <url> --primary-email <email> --partner-email <email>` does a direct database copy (no export file) from the local Trip Planner database: transform (UUIDs, `owner_user_id`, `linked_user_id`, money to minor units), import into hosted with a dry run, row-count and checksum verification, and a manual walk-through of each trip. The owner's data is claimed through the one-time link emailed to the verified address and redeemed with `POST /me/legacy-claim` (04 section 5.1). Back up both sides first. The real run is owner-pending. The two owners then plan a real trip together on staging (Month 2 exit).
+- Accept: dry run reports zero unmapped rows; counts match per table; both owners claim their data through the emailed one-time link, sign in and see their trips (owner verification pending for the real run); the import is idempotent.
+- Touches: `apps/api/hermi/cli.py` (`import-legacy`, which replaces the old `infra/scripts/import_trip_planner.py` plan), `docs/runbooks/owner-migration.md`.
 - Tests: import run against a fixture copy of a real-shaped database, idempotency test.
 - Done: DoD plus the old install kept read-only for 30 days and the Month 2 gate review recorded.
 
@@ -573,7 +573,7 @@ Conventions for every ticket:
 
 #### WF-042 Feature flags and kill switches [M3, M]
 - Depends on: WF-020.
-- Description: models, repository and runtime for `feature_flags` and `kill_switches` (the tables exist since P04, `0012_admin_privacy`; the rows come from `0015_seed`) (`key`, `kind`, `enabled`, `rollout_pct`, `rules`, `variants`; switches carry `reason`, `engaged_by`, `expires_at`, `auto_rule`; admin-set switches must carry an expiry) and a runtime that evaluates flags (cached 5 seconds per process, invalidated by `NOTIFY`) and **fails closed** for paid calls if the tables cannot be read. Seed keys are in [03-database-schema.md](03-database-schema.md) section 11.5, plus the Phase 1 switches `import.ics`, `import.feed`, `import.paste`, `referrals` and `public_pages`, which are present in the `0015_seed` rows (not added by this ticket) and mirrored in `packages/shared/src/flags.ts`.
+- Description: models, repository and runtime for `feature_flags` and `kill_switches` (the tables exist since P04, `0012_admin_privacy`; the rows come from `0015_seed`) (`key`, `kind`, `enabled`, `rollout_pct`, `rules`, `variants`; switches carry `reason`, `engaged_by`, `expires_at`, `auto_rule`; admin-set switches must carry an expiry) and a runtime that evaluates flags (cached 5 seconds per process, invalidated by `NOTIFY`) and **fails closed** for paid calls if the tables cannot be read. Seed keys are in [03-database-schema.md](03-database-schema.md) section 11.5, plus the Phase 1 switches `import.ics`, `import.feed`, `import.paste`, `referrals` and `public_pages`, which are present in the `0015_seed` rows (not added by this ticket) and mirrored in `packages/shared/src/flags.ts`. `serpapi_live_fares` defaults off, and `setting_ai_global_daily_usd` is 150.
 - Accept: flipping `ai.all` blocks AI calls within 5 seconds; engaging or clearing a switch writes `audit_log`; unreadable table blocks paid calls; each new switch blocks only its feature.
 - Touches: `apps/api/hermi/modules/admin/flags.py`, `packages/shared/src/flags.ts`.
 - Tests: evaluation rules (percent, tier, platform), fail-closed test, audit test.
@@ -581,7 +581,7 @@ Conventions for every ticket:
 
 #### WF-043 AI metering and price constants [M3, M]
 - Depends on: WF-041.
-- Description: a versioned price constant in `ai/pricing.py` (06 section 6.1; not a database table) holding the model prices (Claude Haiku 4.5 `claude-haiku-4-5`, Claude Sonnet 5.5 `claude-sonnet-5-5`, web search per use) and a metering wrapper that converts `response.usage` (input, output, cache read and write, web searches) into micro-dollars and writes an `ai_usage` row in the same transaction as the run event. Spec: [06-ai-agents-spec.md](06-ai-agents-spec.md).
+- Description: a versioned price constant in `ai/pricing.py` (06 section 6.1; not a database table) holding the model prices (Claude Haiku 4.5 `claude-haiku-4-5`, Claude Sonnet 5.5 `claude-sonnet-5-5`, web search per use) and a provider-neutral metering wrapper (it records `provider` on `ai_usage` and `runs`) that converts `response.usage` (input, output, cache read and write, web searches) into micro-dollars and writes an `ai_usage` row in the same transaction as the run event. Spec: [06-ai-agents-spec.md](06-ai-agents-spec.md).
 - Accept: cost matches a hand calculation for 5 sample responses; Batch calls are halved on tokens; `provider_calls` records SerpApi and Geoapify spend with account and trip.
 - Touches: `apps/api/hermi/modules/ai/metering.py`, `modules/ai/pricing.py`.
 - Tests: table-driven cost tests, rollback test (no usage row if the event insert fails).
@@ -589,24 +589,24 @@ Conventions for every ticket:
 
 #### WF-044 Credit ledger service [M3, L]
 - Depends on: WF-041.
-- Description: reserve, settle, refund, expire and adjust operations on `credit_ledger` with `credit_grants`; spend order (allowance, pass credits, purchased credits oldest first); `SELECT ... FOR UPDATE` on the balance; lazy monthly grants (Free 12, Plus 60); the one-time lifetime taster grant for one deep agent run; purchased credits expire after 12 months. Action prices: `explain` 1, `live_search` 1, `draft_day` 1, `draft_trip` 4, `research` 8 (1 from cache), `agent_run` 40 (8 from cache).
-- Accept: parallel reservations never overspend; a failed or empty action is refunded; a stopped agent run is billed pro rata with an 8 credit minimum; negative balance after a refund blocks new actions; the taster is granted once per account.
+- Description: reserve, settle, refund, expire and adjust operations on `credit_ledger` with `credit_grants`; spend order (allowance, pass credits, purchased credits oldest first); `SELECT ... FOR UPDATE` on the balance; lazy monthly grants (Free 12, Plus 60); Trip Pass credits are a trip pool; the one-time lifetime taster grant for one deep agent run, which draws its own grant; the API-callable credit functions check `p_user = app_user_id()`; `credit_ledger` is append-only; `release_stale_reservations` runs as a job; purchased credits expire after 12 months. Action prices: `explain` 1, `live_search` 1, `draft_day` 1, `draft_trip` 4, `research` 8 (1 from cache), `agent_run` 40 (8 from cache).
+- Accept: parallel reservations never overspend; a failed or empty action is refunded; a stopped agent run is billed pro rata with an 8 credit minimum; negative balance after a refund blocks new actions; the taster is granted once per account; a function called with another user's `p_user` is refused; an update or delete on `credit_ledger` fails.
 - Touches: `apps/api/hermi/modules/credits/`, `packages/shared/src/credits.ts`.
-- Tests: concurrency test with 20 parallel reservations; every ledger `kind`; expiry; spend order; taster once.
+- Tests: committed multi-connection concurrency test with 20 parallel reservations; every ledger `kind`; expiry; spend order; taster once.
 - Done: DoD plus balance shown from the ledger, never cached without a version.
 
 #### WF-045 Spend ceilings and budget service [M3, L]
 - Depends on: WF-044.
-- Description: per-account monthly and daily provider-spend ceilings (Free $0.25 and $0.05 plus the one-time taster, Plus $2.25 and $0.40, Trip Pass $1.80 and $0.40), reserve-then-settle in one transaction with the job enqueue, the agent-run admission rule (month headroom of $0.80 even above the daily budget), and cached data still working when a ceiling is hit.
+- Description: per-account monthly and daily provider-spend ceilings (Free $0.25 and $0.05 plus the one-time taster, Plus $2.25 and $0.40, Trip Pass $1.80 and $0.40), reserve-then-settle in one transaction with the job enqueue, the agent-run admission rule (month headroom of $0.80 even above the daily budget), counted under the lock from open reservations' hard stops over the calendar month, with the Trip Pass named as payer when it pays, and cached data still working when a ceiling is hit.
 - Accept: a ceiling stops paid work but never cached reads; a run is admitted with $0.80 monthly headroom even if the day is exhausted, and then blocks other paid actions that day; ledger unreadable means refuse.
 - Touches: `apps/api/hermi/modules/credits/budget.py`.
-- Tests: boundary tests per tier, admission rule, fail-closed test.
+- Tests: boundary tests per tier, admission rule, a parallel admission test, fail-closed test.
 - Done: DoD plus ceilings read from settings (changeable through [08-admin-control-center.md](08-admin-control-center.md)).
 
 #### WF-046 Job queue and worker lanes [M3, L]
 - Depends on: WF-041.
-- Description: Procrastinate on Postgres with lanes `api`, `ai`, `notify`, `batch`; per-account concurrency caps (Free 2, Plus 4), fair claim by least recently served account, retries with backoff and jitter, dead-letter state, stale-heartbeat reaper, graceful SIGTERM; `runs` remains the user-visible record.
-- Accept: a job enqueued in the same transaction as its budget reservation; 2 workers never run a job twice; a killed worker's job is requeued; a busy account cannot starve others.
+- Description: Procrastinate on Postgres with lanes `api`, `ai`, `notify`, `batch`; per-account concurrency caps (Free 2, Plus 4), fair claim by least recently served account, retries with backoff and jitter, dead-letter state, stale-heartbeat reaper, graceful SIGTERM; `runs` remains the user-visible record. Sub-steps queue and fairness register the jobs `release_stale_reservations`, `maintain_partitions` and `purge_trash` (the other jobs of 02 section 5.1 belong to the tickets that own them: `scan_due_routes` to WF-051, `retention_sweep` to WF-092, the reminders and digest to WF-047 and WF-051); local concurrency is 4, 2, 4 and 1 for the lanes `api`, `ai`, `notify` and `batch`, and `claude_cli` jobs run only on lane `ai` with concurrency 1 or 2.
+- Accept: a job enqueued in the same transaction as its budget reservation; 2 workers never run a job twice; a killed worker's job is requeued; a busy account cannot starve others; WF-046 registers exactly these three jobs.
 - Touches: `apps/api/hermi/jobs.py`, `apps/worker/hermi_worker/app.py`, `apps/worker/hermi_worker/jobs/`.
 - Tests: two-worker test, reaper test, fairness test, retry classification test.
 - Done: DoD plus queue depth and oldest job age exposed to health endpoints.
@@ -621,15 +621,15 @@ Conventions for every ticket:
 
 #### WF-047 Notification service and email [M3, M]
 - Depends on: WF-046.
-- Description: a `notify` lane service with preferences by type, quiet hours, per-trip mute, unique keys per user and alert, and Resend email templates for invites, price drops, booked-fare drops, run results, pre-trip reminders and deletion confirmation, plus unsubscribe handling. Push delivery is added in WF-086.
-- Accept: a retried job never sends twice; quiet hours defer; marketing needs opt-in.
+- Description: a `notify` lane service with preferences by type, quiet hours, per-trip mute, unique keys per user and alert, and Resend email templates for invites, price drops, booked-fare drops, run results, pre-trip reminders and deletion confirmation, plus unsubscribe handling. Delivery follows `EMAIL_BACKEND` (`console`, `file`, `resend`). Push delivery is added in WF-086.
+- Accept: a retried job never sends twice; each `EMAIL_BACKEND` value delivers as named; quiet hours defer; marketing needs opt-in.
 - Touches: `apps/api/hermi/modules/notifications/`, `apps/worker/hermi_worker/jobs/send_email.py`.
 - Tests: dedupe test, quiet hours test, preference test.
 - Done: DoD.
 
 #### WF-048 Claude client and single-call features [M3, M]
 - Depends on: WF-043, WF-044, WF-131.
-- Description: a Messages API client with prompt caching layout (tools, system, task, volatile tail), model allowlist, `max_tokens` per feature, and the single-call actions `explain` (Haiku), `packing_list` (Haiku, 1 credit in the `explain` price class, `POST /trips/{id}/ai/packing-list`, personal data redacted before the call), `draft_day` and `draft_trip` (Sonnet) with schema-validated output and source links. The `booking_import` action is built in WF-073.
+- Description: the Claude client is the facade over the provider seam (WF-131); the Messages API path has a prompt caching layout (tools, system, task, volatile tail), model allowlist, `max_tokens` per feature, and the single-call actions `explain` (Haiku), `packing_list` (Haiku, 1 credit in the `explain` price class, `POST /trips/{id}/ai/packing-list`, personal data redacted before the call), `draft_day` and `draft_trip` (Sonnet) with schema-validated output and source links. The `booking_import` action is built in WF-073.
 - Accept: each action reserves, calls, meters, settles; outputs fail validation closed; AI output is labeled as a suggestion; the kill switch blocks calls.
 - Touches: `apps/api/hermi/modules/ai/client.py`, `modules/ai/features/`.
 - Tests: recorded-response tests with a fake client; hard-stop tests ($0.01, $0.03, $0.10); kill switch tests (`ai.all`, `ai.explain`, `ai.packing`, `ai.draft`); packing list sends placeholders, never names.
@@ -637,7 +637,7 @@ Conventions for every ticket:
 
 #### WF-049 Agent loop [M3, L]
 - Depends on: WF-048, WF-045, WF-131.
-- Description: the multi-turn agent on the Messages API with server web search and fetch tools and in-process client tools `submit_flight_quotes`, `add_note`, `finish_run`. Caps: 20 turns, 10 searches, 10 fetches, `medium` effort, 8 minutes, $0.80 hard stop, one run at a time. Keep evidence rules (fares must be seen on a page during the run) and blocked domains Airbnb, Vrbo and Booking.com enforced in the fetch tool. Port the prompts from the old `agent_ingest.py` rules. Manual fare hunt and deep research only; scheduled agent runs are not in Phase 1.
+- Description: the multi-turn agent (sub-steps loop and ingest) on the Messages API with server web search and fetch tools and in-process client tools `submit_flight_quotes`, `add_note`, `finish_run`. Caps: 20 turns, 10 searches, 10 fetches, `medium` effort, 8 minutes, $0.80 hard stop, one run at a time. Keep evidence rules (fares must be seen on a page during the run) and blocked domains Airbnb, Vrbo and Booking.com enforced in the fetch tool. Port the prompts from the old `agent_ingest.py` rules. The loop runs on `anthropic_api`; on `claude_cli` the stream counters enforce the caps. Manual fare hunt and deep research only; scheduled agent runs are not in Phase 1.
 - Accept: a run stops at each cap and keeps saved work, marked `partial`; a fare without page evidence is rejected; blocked domains never fetched; prompt-injection test pages cannot write outside the account; every saved note carries a source URL.
 - Touches: `apps/worker/hermi_worker/agents/` (`AgentLoop`, tools, prompts), `apps/api/hermi/modules/ai/ingest.py`, `modules/ai/context.py`, `apps/worker/hermi_worker/jobs/run_agent.py`.
 - Tests: fake-tool loop tests for every cap; evidence tests; blocked-domain tests; injection fixtures.
@@ -645,7 +645,7 @@ Conventions for every ticket:
 
 #### WF-050 Research action and shared cache [M3, M]
 - Depends on: WF-049.
-- Description: the `research` action (5 searches, 8 fetches, $0.16) with `shared_research_cache` keyed by destination, rounded window, topic and prompt version; single-flight advisory lock; hits cost 1 credit, cold requests 8; poisoning defenses (validators, instruction-like text classifier, report flag sets `flagged`); jobs with free-text instructions bypass the cache.
+- Description: the `research` action (5 searches, 8 fetches, $0.16) with `shared_research_cache` keyed by destination, rounded window, topic and prompt version; single-flight advisory lock; hits cost 1 credit, cold requests 8; poisoning defenses (validators, instruction-like text classifier, report flag sets `flagged`); jobs with free-text instructions bypass the cache. `research` uses the provider seam (WF-131); the CLI path validates the final JSON with the ported ingest checks.
 - Accept: 50 concurrent requests for one key cause one model run; no user text enters a shared prompt; flagged entries are not served.
 - Touches: `apps/api/hermi/modules/ai/research.py`, `modules/ai/cache.py`.
 - Tests: single-flight test, bypass test, flagged entry test, credit pricing test.
@@ -661,15 +661,15 @@ Conventions for every ticket:
 
 #### WF-052 Live flight provider and search cache [M3, L]
 - Depends on: WF-030, WF-045, WF-042.
-- Description: a provider interface with SerpApi behind the `serpapi_live_fares` flag, a canonical search key and shared `provider_calls` result cache (6 hours for fares), single-flight, per-account ceiling checks, `live_search` costs 1 credit, a cached result under 6 hours old is free and says so.
-- Accept: 10 users searching one route cause one provider call; flag off hides live search; provider kill switch works; no Airbnb, Vrbo or Booking.com fetches. Rental search sits behind the same flag.
+- Description: a provider interface with SerpApi behind the `serpapi_live_fares` flag (default off; `setting_ai_global_daily_usd` is 150), a canonical search key and shared `provider_calls` result cache (6 hours for fares), single-flight, per-account ceiling checks, `live_search` costs 1 credit, a cached result under 6 hours old is free and says so.
+- Accept: 10 users searching one route cause one provider call; the flag defaults off and off hides live search; provider kill switch works; no Airbnb, Vrbo or Booking.com fetches. Rental search sits behind the same flag.
 - Touches: `apps/api/hermi/providers/serpapi.py`, `apps/api/hermi/modules/flights/` (search cache), `apps/api/hermi/modules/lodging/` (rental search).
 - Tests: dedupe test, flag test, ceiling test, provider error test.
 - Done: DoD.
 
 #### WF-053 Agent runs API, screen and taster [M3, M]
 - Depends on: WF-049, WF-014, WF-130.
-- Description: start, stream events (server-sent events), cancel and list runs; one at a time per account; credit preview before start; results saved as notes and fares with source links; the one-time lifetime taster ("Try a fare hunt, free") and the post-taster card.
+- Description: start, stream events (server-sent events), cancel and list runs; one at a time per account; credit preview before start; results saved as notes and fares with source links; the one-time lifetime taster ("Try a fare hunt, free") and the post-taster card. Cancel kills the CLI process tree; the watchdog stops a run at 8 minutes.
 - Accept: a second start while one runs returns a clear error; cancel stops at the next checkpoint and settles pro rata; events show sources; the taster works once and then shows the credit price.
 - Touches: `apps/api/hermi/modules/ai/router.py`, `apps/web/src/routes/agents/`.
 - Tests: API tests, SSE test, cancel test, taster test.
@@ -693,7 +693,7 @@ Conventions for every ticket:
 
 #### WF-056 Global breakers and usage reconciliation [M3, M]
 - Depends on: WF-042, WF-045.
-- Description: automatic breakers (80 percent of daily Anthropic budget turns off Free AI, 95 percent stops all but paid, 90 percent of SerpApi quota narrows live checks, provider error-rate trips), a daily job that pulls the Anthropic usage and cost admin API and compares it with `ai_usage` (alert above 3 percent), and the alert rules in [08-admin-control-center.md](08-admin-control-center.md) section 10.
+- Description: automatic breakers (80 percent of daily Anthropic budget turns off Free AI, 95 percent stops all but paid, 90 percent of SerpApi quota narrows live checks, provider error-rate trips), a daily job that pulls the Anthropic usage and cost admin API (`ANTHROPIC_ADMIN_API_KEY`) and compares it with `ai_usage` (alert above 3 percent); it is skipped for `claude_cli` and logs and skips when the key is missing, and the alert rules in [08-admin-control-center.md](08-admin-control-center.md) section 10.
 - Accept: a simulated spend surge trips the right breaker and pages; reconciliation gap alert fires in a drill; breakers are logged to `audit_log` as `system`.
 - Touches: `apps/api/hermi/modules/ai/breakers.py`, `apps/worker/hermi_worker/jobs/reconcile_anthropic_usage.py`.
 - Tests: threshold tests, half-open probe test, reconciliation diff test.
@@ -701,15 +701,15 @@ Conventions for every ticket:
 
 #### WF-057 Evals and run-cost measurement [M3, M]
 - Depends on: WF-049.
-- Description: an eval harness for agent and research quality (source present, fares verified, refusals, injection resistance) and a script that reports real cost per run over a window. Run 50 real agent runs on staging across at least 10 routes to measure cost; this is the Month 3 exit number.
-- Accept: `npm run evals` runs against fixtures with a fake client and optionally live on a low-limit key; cost report prints mean, p95 and count of runs; the 50-run report shows the p95 under $0.80.
+- Description: an eval harness for agent and research quality (source present, fares verified, refusals, injection resistance) and a script that reports real cost per run over a window. Run 50 real agent runs on staging across at least 10 routes to measure cost; this is the Month 3 exit number and the live run is owner-pending. `shortcut:` CLI numbers are provisional, certified numbers need `anthropic_api`.
+- Accept: `npm run evals` runs against fixtures with a fake client and live only with `EVALS_LIVE=1` and `--max-usd` on a low-limit key (one path, `npm run evals`, with `--provider`); certified only on `anthropic_api`; cost report prints mean, p95 and count of runs; the 50-run report shows the p95 under $0.80.
 - Touches: `apps/worker/tests/evals/`, `infra/scripts/run_cost_report.py`.
 - Tests: the harness has its own self-test with known outputs.
 - Done: DoD plus eval results and the 50-run report saved in `docs/evals/`.
 
 #### WF-058 Admin foundation [M3, L]
 - Depends on: WF-020, WF-013, WF-130.
-- Description: `admin.hermi.world` route group (excluded from the iOS build), `/v1/admin` router, Cloudflare Access JWT check, `admin_users`, WebAuthn and TOTP 2FA with step-up, roles (`support`, `ops`, `finance`, `owner`) and the permission table, admin DB role, rate limits, strict CSP. Spec: [08-admin-control-center.md](08-admin-control-center.md) sections 2, 3 and 9.
+- Description: `admin.hermi.world` route group (excluded from the iOS build), `/v1/admin` router, Cloudflare Access JWT check (`ADMIN_AUTH_MODE=cf_access|dev`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, a fake-Access signer for local and ci, the first admin through `hermi admin-grant <email>`; 08 is the authority), `admin_users`, WebAuthn and TOTP 2FA with step-up, roles (`support`, `ops`, `finance`, `owner`) and the permission table, admin DB role, rate limits, strict CSP. Spec: [08-admin-control-center.md](08-admin-control-center.md) sections 2, 3 and 9.
 - Accept: customer tokens rejected on admin and the reverse; unknown identities get 403; permission matrix test passes; disabled admin loses access in 60 seconds.
 - Touches: `apps/api/hermi/modules/admin/`, `apps/web/src/routes/admin/`, `infra/cloudflare/` (access policy or docs).
 - Tests: role by route matrix test, step-up tests, session expiry tests.
@@ -741,15 +741,15 @@ Conventions for every ticket:
 
 #### WF-062 Guest mode and claim [M3, M]
 - Depends on: WF-018, WF-019, WF-132, WF-130.
-- Description: a guest can create and edit a local trip on the device without an account (`guest_trip_created`); the "Save your trip" sheet appears when the guest tries to invite, sync, use AI, export or buy; on sign-up the local trips are claimed into the new account exactly once (`guest_claimed`). Guests cannot call AI or invite.
-- Accept: guest creates a trip with no network account; claim moves trips to the new user once and is idempotent; guest requests never reach tenant tables without a claim; nothing is stored server side for an unclaimed guest.
+- Description: a guest can create and edit a local trip on the device without an account (`guest_trip_created`); the "Save your trip" sheet appears when the guest tries to invite, sync, use AI, export or buy; on sign-up the local trips are claimed into the new account exactly once (`guest_claimed`). Guest data is local-only: `POST /me/claim` carries the trip JSON and a client-generated claim id, and there is no `is_guest` flag. The guest attestation endpoints and the `guest_allowances` table (F-ACC-2) back the one guest AI route. Guests cannot invite.
+- Accept: guest creates a trip with no network account; claim moves trips to the new user once and is idempotent; guest requests never reach tenant tables without a claim; nothing is stored server side for an unclaimed guest; a repeated claim with the same claim id returns the first result; `POST /guest/ai/draft-day` works only with a valid App Attest assertion and draws from `guest_allowances`.
 - Touches: `apps/web/src/features/guest/`, `apps/api/hermi/modules/auth/` (claim), `apps/api/hermi/modules/trips/`.
-- Tests: claim idempotency test, guest restriction tests, Playwright guest flow.
+- Tests: claim idempotency test, guest draft-day assertion and allowance test, guest restriction tests, Playwright guest flow.
 - Done: DoD.
 
 #### WF-120 Evidence freshness and one-tap recheck [M3, M]
 - Depends on: WF-055, WF-048, WF-044.
-- Description: adds the "May be out of date" flag and the recheck. The evidence label (WF-055) shows an amber chip when `checked_at` is more than 14 days old (computed at read time, `stale` and `stale_after_days` on `Evidence` and `Note`, 04 section 5.14), nothing hidden or removed. `POST /notes/{id}/recheck` and `POST /items/{id}/recheck` run the `recheck` feature (06 section 5.12): Haiku 4.5, one `web_fetch` of the stored source URL, strict JSON result (`confirmed`, `changed`, `not_shown`, `unreachable`), code-grounded `current_value`, 1 credit in the `explain` price class (run kind `recheck`, kill switch `ai.recheck`, flag `evidence_recheck`), refunded when unreachable. `confirmed` moves `checked_at` to today; `changed` and `not_shown` change nothing and offer "Save as a note". Editors and owners see the button at any age, viewers the chip only. Fares are not rechecked.
+- Description: adds the "May be out of date" flag and the recheck. The evidence label (WF-055) shows an amber chip when `checked_at` is more than 14 days old (computed at read time, `stale` and `stale_after_days` on `Evidence` and `Note`, 04 section 5.14), nothing hidden or removed. `POST /notes/{id}/recheck` and `POST /items/{id}/recheck` run the `recheck` feature (06 section 5.12): Haiku 4.5, one fetch of the stored source URL through the SSRF-safe fetcher (not CLI web tools), strict JSON result (`confirmed`, `changed`, `not_shown`, `unreachable`), code-grounded `current_value`, 1 credit in the `explain` price class (run kind `recheck`, kill switch `ai.recheck`, flag `evidence_recheck`), refunded when unreachable. `confirmed` moves `checked_at` to today; `changed` and `not_shown` change nothing and offer "Save as a note". Editors and owners see the button at any age, viewers the chip only. Fares are not rechecked.
 - Accept: a 15-day-old finding shows the chip and a 13-day-old one does not; a recheck of an unchanged page moves the date and charges 1 credit; an unreachable page refunds; a changed page leaves the old text and shows the new value with its source; a blocked host is never fetched; no search is ever run.
 - Touches: `apps/api/hermi/modules/ai/features/recheck.py`, `apps/api/hermi/modules/trips/` (notes evidence), `apps/web/src/components/evidence/`.
 - Tests: freshness boundary test (14 days), grounding test for `current_value`, refund test, role test, injection fixture on a fetched page, blocked-host test, component test for the chip and result sheet.
@@ -767,8 +767,8 @@ Conventions for every ticket:
 
 #### WF-063 RevenueCat webhook and reconcile [M4, L]
 - Depends on: WF-022, WF-023, WF-044.
-- Description: `POST /v1/webhooks/revenuecat` (secret header compared in constant time, idempotent on event id in `webhook_events`), `entitlements` and `subscriptions` updates for Plus monthly and annual (7-day trial on annual only), `POST /v1/purchases/sync`, nightly reconcile against the RevenueCat REST API (`reconcile_entitlements`), `app_user_id` linked to the account UUID; grants cross-checked by a REST fetch.
-- Accept: replayed webhooks change nothing; grace, billing retry, expiry and refund handled; reconcile flags mismatches; sync unlocks instantly before the webhook arrives.
+- Description: `POST /v1/webhooks/revenuecat` (sub-steps webhook and reconcile; the provider list equals the 03 CHECK: `revenuecat`, `travelpayouts`, `viator`, `stay22`, `resend`, `supabase`, no `apple`; secret header compared in constant time, idempotent on event id in `webhook_events`), `entitlements` and `subscriptions` updates for Plus monthly and annual (7-day trial on annual only), `POST /v1/purchases/sync`, nightly reconcile against the RevenueCat REST API (`reconcile_entitlements`), `app_user_id` linked to the account UUID; grants cross-checked by a REST fetch.
+- Accept: a provider outside the 03 CHECK list is refused; replayed webhooks change nothing; grace, billing retry, expiry and refund handled; reconcile flags mismatches; sync unlocks instantly before the webhook arrives.
 - Touches: `apps/api/hermi/modules/billing/revenuecat.py`, `apps/worker/hermi_worker/jobs/reconcile_entitlements.py`.
 - Tests: fixture event suite (every event type in 10 section 1.4), replay test, out-of-order test.
 - Done: DoD.
@@ -783,24 +783,24 @@ Conventions for every ticket:
 
 #### WF-065 Trip Pass binding [M4, M]
 - Depends on: WF-063.
-- Description: `trip_pass` non-renewing subscription handling, buy then pick a trip, transaction recorded in `store_transactions` (`kind = 'pass'`) and, once a trip is known, in `trip_passes`, 90 days from binding, an unapplied pass waiting in Settings (`GET /v1/me/passes`), `POST /v1/me/passes/{pass_id}/bind` and `POST /v1/me/passes/{pass_id}/move` (once); limits (2 live routes, 60 live checks, 40 credits, up to 6 collaborators); job `expire_trip_passes`.
-- Accept: a pass binds to exactly one trip; expiry handled on the server; pass shown in trip settings; a second apply attempt is refused.
+- Description: `trip_pass` non-renewing subscription handling, buy then pick a trip, transaction recorded in `store_transactions` (`kind = 'pass'`) and, once a trip is known, in `trip_passes`, 90 days from binding, an unapplied pass waiting in Settings (`GET /v1/me/passes`), `POST /v1/me/passes/{pass_id}/bind` and `POST /v1/me/passes/{pass_id}/move` (once); limits (2 live routes, 60 live checks, 40 credits, up to 6 collaborators); job `expire_trip_passes`. Binding verifies the buyer owns the trip; a paid second pass that cannot bind grants its credits, opens a support ticket and sends the refund to support.
+- Accept: a pass binds to exactly one trip and only for the trip's owner; a paid second pass that cannot bind grants 40 credits, opens a support ticket and returns `bound: false`; expiry handled on the server; pass shown in trip settings; a second apply attempt is refused.
 - Touches: `apps/api/hermi/modules/billing/passes.py`, `apps/web/src/routes/trip-settings/`.
 - Tests: bind, expire, move-once tests.
 - Done: DoD.
 
 #### WF-066 Paywall logic and screens [M4, M]
 - Depends on: WF-023, WF-018, WF-132, WF-130.
-- Description: server-decided paywall moments (Trip Pass first when a trip is within 120 days, annual Plus first with 2 or more active trips, credit packs when credits run out, `collaborators` when a Free owner invites a second person, `track_live` for live routes), `GET /paywall`, purchase screens with price, period and trial terms, Terms and Privacy links, Restore, and a visible free path. Purchases happen only in the iOS app; on the web the same sheet returns `purchasable: false` and shows what the upgrade gives, the free path and "Upgrade in the iOS app" with an App Store link, and no price, purchase button or checkout (there are no web purchases in Phase 1). The paywall legal row links to "How billing works" (WF-124). Adds the trigger `out_of_credits_verify` for plan checks and rechecks. Anti-patterns avoided: no fake urgency.
-- Accept: the paywall code returned by the server drives the screen; Plus annual is shown first with the trial only on annual; the close control is always visible; web shows "Upgrade in the iOS app" and no price or purchase control.
+- Description: server-decided paywall moments (Trip Pass first when a trip is within 120 days, annual Plus first with 2 or more active trips, credit packs when credits run out, `invite` when a Free owner invites a second person, `track_live` for live routes), `GET /paywall`, purchase screens with price, period and trial terms, Terms and Privacy links, Restore, and a visible free path. Purchases happen only in the iOS app; on the web the same sheet returns `purchasable: false` and shows what the upgrade gives, the free path and "Upgrade in the iOS app" with an App Store link, and no price, purchase button or checkout (there are no web purchases in Phase 1). The paywall legal row links to "How billing works" (WF-124). Adds the trigger `out_of_credits_verify` for plan checks and rechecks. Paywall reason codes follow 04 section 2.2 and 07 section 6.2 (`third_trip` is `trip_limit`; `second_route`, `track_live` and `alert_limit` are `live_routes`; `invite` is `sharing`; the four `out_of_credits_*` triggers are `credits`). Anti-patterns avoided: no fake urgency.
+- Accept: the reason code returned by the server (the 402 `paywall` hint or `GET /paywall`) drives the screen and matches the 07 section 6.2 mapping; Plus annual is shown first with the trial only on annual; the close control is always visible; web shows "Upgrade in the iOS app" and no price or purchase control.
 - Touches: `apps/web/src/routes/paywall/`, `apps/api/hermi/modules/billing/router.py`.
 - Tests: decision table tests, component tests.
 - Done: DoD.
 
 #### WF-067 Outbound API and redirect [M4, M]
 - Depends on: WF-022, WF-014.
-- Description: `POST /v1/outbound` (checks trip access, picks program by flags, geography and cell, inserts `link_clicks`, returns `/go/{click_id}`) and `GET /go/{click_id}` (fresh under 10 minutes, single use, 302 from a stored template, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`). No open redirects; user id, trip id and email never in URLs.
-- Accept: expired, reused or unknown ids fail safely; no `url=` parameter path exists; repeat clicks within 30 seconds deduped; 60 an hour rate limit.
+- Description: `POST /v1/outbound` (checks trip access, picks program by flags, geography and cell, inserts `link_clicks`, returns `/go/{click_id}`) and `GET /go/{click_id}` (fresh under 10 minutes, single use, 302 from a stored template, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`), with the outcomes of 04 section 5.21 and 07 section 6.2: an expired or used id or an off kill switch is a 302 to the plain non-affiliate destination, an unknown id is a 404 with an empty body, and `/go` carries no paywall reason code. No open redirects; user id, trip id and email never in URLs.
+- Accept: expired or reused ids and an off kill switch 302 to the plain destination, unknown ids 404 with an empty body; no `url=` parameter path exists; repeat clicks within 30 seconds deduped; 60 an hour rate limit.
 - Touches: `apps/api/hermi/modules/affiliate/router.py`, `modules/affiliate/service.py`.
 - Tests: redirect tests, open-redirect attack tests, dedupe test.
 - Done: DoD.
@@ -831,23 +831,23 @@ Conventions for every ticket:
 
 #### WF-071 Switching import: ICS file [M4, M]
 - Depends on: WF-032, WF-014, WF-019.
-- Description: import a trip from a calendar file (TripIt, Tripsy or Google Calendar export; the optional `origin` records which entry was used). `POST /trips/{id}/imports/ics` accepts one `.ics` file up to 1 MB; a strict parser in a resource-limited subprocess (CPU 5 seconds, memory 256 MB) reads `VEVENT`s, handles `VTIMEZONE`, floating times and all-day events, caps 500 events, ignores `ATTACH` and never fetches any URL it finds; events map to itinerary items, flights and stays with an `import` source; a preview screen ("We found 12 items") lets the user deselect before saving; duplicates are skipped by `UID`. Kill switch `import.all`.
+- Description: import a trip from a calendar file (TripIt, Tripsy or Google Calendar export; the optional `origin` records which entry was used). `POST /imports/ics-file` accepts one `.ics` file under the single limits table of 04 section 5.26 (2 MB, 500 events, 20 previews a day), status `applied` after confirm, and the raw file is never stored; a strict parser in a resource-limited sandbox set by `IMPORT_SANDBOX=strict|timeout_only` (CPU 5 seconds, memory 256 MB; on win32 a timeout plus a `psutil` memory kill) reads `VEVENT`s, handles `VTIMEZONE`, floating times and all-day events, caps events at the table limit, ignores `ATTACH` and never fetches any URL it finds; events map to itinerary items, flights and stays with an `import` source; a preview screen ("We found 12 items") lets the user deselect before saving; duplicates are skipped by `UID`. Kill switch `import.all`.
 - Accept: golden files from TripIt, Google Calendar and Apple Calendar import correctly; re-importing the same file adds nothing; malformed, oversized and hostile files fail with a clear message and never crash the worker; no network access during parsing.
 - Touches: `apps/api/hermi/modules/trips/import_ics.py`, `apps/api/hermi/modules/itinerary/`, `apps/web/src/routes/import/`.
-- Tests: golden files, dedupe test, property-based fuzzing of the parser (Hypothesis in CI, corpus committed), limits tests (size, event count, recurrence explosion), no-network test.
+- Tests: golden files, dedupe test, property-based fuzzing of the parser (Hypothesis in CI, corpus committed), limits tests (size, event count, recurrence explosion), no-network test, a sandbox-mode test for `strict` and `timeout_only`.
 - Done: DoD plus the fuzz corpus and regression files committed.
 
 #### WF-072 Switching import: ICS feed [M4, L]
 - Depends on: WF-071, WF-046, WF-034.
-- Description: import from a calendar feed URL (TripIt iCal feed, Google Calendar secret address). The user pastes the URL (`webcal://` is rewritten to `https://`); a `fetch_ics_feed` job in the `api` lane fetches it once through the shared SSRF guard (public addresses only, pinned IP, at most 3 manual redirects, 3 second connect and 5 second total timeout, 1 MB cap counted after decompression, `text/calendar` only) and hands the body to the WF-071 parser and preview. The feed URL is a secret: it is never logged or sent to analytics, it is held (encrypted) only until the preview is confirmed or discarded, and it is kept after that only when the person turns on "Keep checking this calendar" (WF-123); otherwise the user repastes it to refresh. Airbnb, Vrbo and Booking.com hosts are refused. Kill switches `import.all` and, for polling, `import.polling`.
-- Accept: the hostile URL table (loopback, link-local, private and mapped addresses, decimal and hex IPs, rebinding, redirect to private, loops, `file:` and `gopher:`, userinfo, non-standard ports, oversized and compressed bodies) is refused; the URL never appears in logs, Sentry, `provider_calls` or events; limit of 5 feed imports per user per hour.
+- Description: import from a calendar feed URL (TripIt iCal feed, Google Calendar secret address). The user pastes the URL (`webcal://` is rewritten to `https://`); a `fetch_ics_feed` job in the `api` lane fetches it once through the shared SSRF guard (public addresses only, pinned IP, at most 3 manual redirects, 3 second connect and 5 second total timeout, 2 MB cap counted after decompression, `text/calendar` only) and hands the body to the WF-071 parser and preview. The feed URL is a secret: it is never logged or sent to analytics, it is held (encrypted) only until the preview is confirmed or discarded, and it is kept after that only when the person turns on "Keep checking this calendar" (WF-123); otherwise the user repastes it to refresh. Airbnb, Vrbo and Booking.com hosts are refused. Kill switches `import.all` and, for polling, `import.polling`.
+- Accept: the hostile URL table (loopback, link-local, private and mapped addresses, decimal and hex IPs, rebinding, redirect to private, loops, `file:` and `gopher:`, userinfo, non-standard ports, oversized and compressed bodies) is refused; the URL never appears in logs, Sentry, `provider_calls` or events; limit of 5 feed registrations a day (04 section 5.26); status `applied` after confirm and the raw body is never stored.
 - Touches: `apps/api/hermi/providers/ics_feed.py`, `apps/api/hermi/security/ssrf.py`, `apps/worker/hermi_worker/jobs/fetch_ics_feed.py`, `apps/web/src/routes/import/`.
-- Tests: SSRF table test with a fake resolver, redirect tests, gzip bomb test, log and Sentry scrub test, rate limit test.
+- Tests: SSRF table test with a fake resolver, redirect tests, gzip bomb test, log and Sentry scrub test, rate limit test, `IMPORT_SANDBOX` mode test.
 - Done: DoD plus the threat model updated with the feed import.
 
 #### WF-073 Switching import: pasted confirmations [M4, L]
 - Depends on: WF-048, WF-071.
-- Description: the `booking_import` action. The user pastes booking confirmation text (up to 12,000 characters); the server redacts personal data before any model call (names become "Traveler 1", emails, phone numbers, booking and confirmation codes, card-like and passport-like numbers, home addresses are removed; booking codes are re-attached locally from the original text, never taken from the model), Haiku extracts flights, stays and reservations as schema-validated items, each shown in a preview as "From your pasted text" (evidence label) before saving. 1 credit in the `explain` price class, refunded on an empty or failed extraction, AI consent required. Links inside pasted text are never fetched. Kill switch `ai.import`.
+- Description: the `booking_import` action. The user pastes booking confirmation text (up to 12,000 characters, the single limits table of 04 section 5.26; the raw text is never stored, status `applied` after confirm); the server redacts personal data before any model call (names become "Traveler 1", emails, phone numbers, booking and confirmation codes, card-like and passport-like numbers, home addresses are removed; booking codes are re-attached locally from the original text, never taken from the model), Haiku extracts flights, stays and reservations as schema-validated items, each shown in a preview as "From your pasted text" (evidence label) before saving. 1 credit in the `explain` price class, refunded on an empty or failed extraction, AI consent required. Links inside pasted text are never fetched. Kill switch `ai.import`.
 - Accept: the outbound model request contains none of the test PII; output that fails validation is discarded; instructions hidden in pasted text do not change behavior; a pasted Airbnb or Vrbo confirmation works without any fetch; the user confirms every item before it is saved.
 - Touches: `apps/api/hermi/modules/ai/features/booking_import.py`, `apps/api/hermi/modules/trips/import_paste.py`, `apps/web/src/routes/import/`.
 - Tests: a redaction corpus of 40 real-shaped confirmations asserting zero PII in the recorded request, extraction eval set (10 section 1.5), injection fixtures, refund test, consent test.
@@ -855,7 +855,7 @@ Conventions for every ticket:
 
 #### WF-074 First-import Trip Pass reward [M4, M]
 - Depends on: WF-065, WF-071.
-- Description: the first qualifying import on a trip (calendar file, calendar feed or pasted confirmations) earns a free Trip Pass for that trip, once per account, with the same limits as a paid Trip Pass (WF-065) and 90 days from grant, recorded as a `trip_passes` row with `source = 'import_reward'` (no store transaction) and an idempotent 40-credit grant. Conditions (settled): at least 3 items saved from the import including a flight or a stay, a verified email, no active pass on that trip and no active Plus; `grant_import_reward()` in 03 section 5.9 enforces them. Google Maps and pasted-places imports and calendar change confirmations never qualify. Plus owners are thanked but get no reward. Nothing is granted for empty or duplicate imports, and an import that does not qualify does not consume the reward.
+- Description: the first qualifying import on a trip (calendar file, calendar feed or pasted confirmations) earns a free Trip Pass for that trip, once per account, with the same limits as a paid Trip Pass (WF-065) and 90 days from grant, recorded as a `trip_passes` row with `source = 'import_reward'` (no store transaction) and an idempotent 40-credit grant. Conditions (settled): at least 3 items saved from the import including a flight or a stay, a verified email, no active pass on that trip and no active Plus; `grant_import_reward()` in 03 section 5.9 enforces them. Google Maps and pasted-places imports and calendar change confirmations never qualify. Plus owners are thanked but get no reward. Nothing is granted for empty or duplicate imports, and an import that does not qualify does not consume the reward. The reward is applied on confirm, when the import reaches status `applied` (04 section 5.26).
 - Accept: the reward is granted once per account and never twice for the same file or trip; junk imports under 3 items, imports with no flight or stay, unverified emails and Plus owners grant nothing and keep the reward available; the pass appears in trip settings as free; expiry works like a paid pass; admin can revoke it.
 - Touches: `apps/api/hermi/modules/billing/passes.py`, `apps/api/hermi/modules/trips/` (import hook), `apps/web/src/routes/import/`.
 - Tests: once-per-account test, idempotency test under concurrent imports, minimum item test, flight-or-stay test, verified-email test, Plus owner test, places-only import test, revoke test.
@@ -863,10 +863,10 @@ Conventions for every ticket:
 
 #### WF-075 Booked-fare drop alert [M4, M]
 - Depends on: WF-031, WF-047, WF-051, WF-030.
-- Description: on a chosen flight the user can add what they paid ("Mark as booked" plus price); the daily check compares current fares for the same route and dates and alerts when one is lower: "You paid $X, it is now $Y. Check the airline's change and credit rules." The copy never promises a refund or rebooking. Uses `price_alerts` with kind `booked_fare` (add the value by an expand migration if 03 lacks it). Free accounts use cached fares (their one alert can be a booked-fare watch); Plus and Trip Pass follow live route limits. Settled thresholds: the fare must be at least 5 percent and at least $10 (converted) below what was paid, at most one alert per flight every 7 days, never a partner link; email now and push after WF-086.
-- Accept: a lower fare that clears both thresholds triggers exactly one alert and a second within 7 days triggers none; a drop under 5 percent or under $10, and an equal or higher fare, trigger none; the alert shows the fare's source and age; copy passes the no-advice lint; a flight marked as departed stops watching.
+- Description: on a chosen flight the user can add what they paid ("Mark as booked" plus price, stored as `chosen_flights.paid_minor` with `paid_currency`); the daily check reads the `booked_fare_drops` view, which matches airline, flight number and party size as well as route and dates, and applies the `setting_booked_fare_drop` thresholds times 100 (minor units); it compares current fares for the same route and dates and alerts when one is lower: "You paid $X, it is now $Y. Check the airline's change and credit rules." The copy never promises a refund or rebooking. The columns and the view exist since P04. Free accounts use cached fares (their one alert can be a booked-fare watch); Plus and Trip Pass follow live route limits. Settled thresholds: the fare must be at least 5 percent and at least $10 (converted) below what was paid, at most one alert per flight every 7 days, never a partner link; email now and push after WF-086. A booked fare with no check for 48 hours pauses the watch (stale pause) and says so. The "What did you pay?" prompt opens after "Yes, mark as booked" and after an imported flight is accepted, and the "Your booked fare" card shows on the chosen-flight and route cards (05 sections 6.10 and 6.32).
+- Accept: a lower fare that clears both thresholds triggers exactly one alert and a second within 7 days triggers none; a drop under 5 percent or under $10, and an equal or higher fare, trigger none; the alert shows the fare's source and age; copy passes the no-advice lint; a flight marked as departed stops watching; a booked fare with no matching observation in 48 hours pauses with a stale message; the "What did you pay?" prompt and the "Your booked fare" card show, including for an imported flight.
 - Touches: `apps/api/hermi/modules/flights/`, `apps/worker/hermi_worker/jobs/evaluate_price_alerts.py`, `apps/web/src/routes/flights/`.
-- Tests: threshold tests (5 percent and $10 edges), 7-day repeat test, currency test, no-partner-link test, copy lint test.
+- Tests: view matching test (airline, flight number, party), 48 hour stale pause test, prompt and card component tests, threshold tests (5 percent and $10 edges, times 100), 7-day repeat test, currency test, no-partner-link test, copy lint test.
 - Done: DoD.
 
 #### WF-076 Sandbox purchase harness [M4, M]
@@ -919,7 +919,7 @@ Conventions for every ticket:
 
 #### WF-117 Verify this plan: item checks, verdicts and credit settlement [M4, L]
 - Depends on: WF-116, WF-033, WF-050, WF-049.
-- Description: `POST /plan-verifications/{id}/check` and the `run_verify_plan` worker job (06 section 5.11). Per selected item (4 at a time): place search match (name similarity 0.8, 30 km), shared cache lookup (`place_check`, 14 days), then at most one Haiku request with `web_search` (1) and `web_fetch` (1, 4,000 content tokens) and a strict schema; the verdict (green, amber, red, unchecked) is decided in code after grounding every reported value in a tool result, with hours compared as weekday windows and prices within 15 percent; green and amber always carry a cited page and date. Reserves 1 credit per item, settles to the items that ended green, amber or red, refunds the rest (provider error, budget stop, blocked source), admits like an agent run (month headroom for items x $0.02), per-item $0.02 and per-run 3 minute caps, cancel between items. `POST /plan-verifications/{id}/import` writes the ticked items as itinerary items (`source = 'verify_plan'`, `check_url`, `checked_at`).
+- Description: `POST /plan-verifications/{id}/check` and the `run_verify_plan` worker job (06 section 5.11), through the provider seam (WF-131); the CLI path validates the final JSON with the ported ingest checks. Per selected item (4 at a time): place search match (name similarity 0.8, 30 km), shared cache lookup (`place_check`, 14 days), then at most one Haiku request with `web_search` (1) and `web_fetch` (1, 4,000 content tokens) and a strict schema; the verdict (green, amber, red, unchecked) is decided in code after grounding every reported value in a tool result, with hours compared as weekday windows and prices within 15 percent; green and amber always carry a cited page and date. Reserves 1 credit per item, settles to the items that ended green, amber or red, refunds the rest (provider error, budget stop, blocked source), admits like an agent run (month headroom for items x $0.02), per-item $0.02 and per-run 3 minute caps, cancel between items. `POST /plan-verifications/{id}/import` writes the ticked items as itinerary items (`source = 'verify_plan'`, `check_url`, `checked_at`).
 - Accept: a fixture plan of 9 items with known truths yields the expected verdicts; an invented place is never green; a value the model reports that is not in the fetched content is discarded; Airbnb, Vrbo and Booking.com pages are never opened; credits charged equal the items checked and the rest are returned; a stopped run refunds unchecked items; the import carries evidence into the trip.
 - Touches: `apps/api/hermi/modules/verification/`, `apps/worker/hermi_worker/jobs/run_verify_plan.py`, `apps/api/hermi/modules/ai/features/verify_check.py`, `apps/api/hermi/modules/places/` (hours parser).
 - Tests: verdict table tests, hours and price comparison tests, grounding tests, injection fixtures in fetched pages, budget stop test, refund and settle tests, concurrency test, blocked-domain test, cache hit test, fake Messages client with recorded fixtures (06 section 10).
@@ -1017,7 +1017,7 @@ Conventions for every ticket:
 
 #### WF-091 Presentation mode, read-only share view and PDF export [M5, L]
 - Depends on: WF-025, WF-032.
-- Description: full-screen presentation with a swipe story view in portrait and wake lock; a shareable read-only link view from `trip_share_links` (noindex by default, redacted address, prices and notes); PDF export from present mode (Free adds a small footer).
+- Description: full-screen presentation with a swipe story view in portrait and wake lock; a shareable read-only link view from `trip_share_links` (noindex by default, redacted address, prices and notes); PDF export from present mode (Free adds a small footer); the PDF uses a wheels-only PDF library (for example `reportlab` or `fpdf2`, not WeasyPrint).
 - Accept: share view shows no private notes or email; present mode works offline once cached; PDF matches the presentation; the Free footer is small and only on Free.
 - Touches: `apps/web/src/routes/present/`, `apps/api/hermi/modules/collaboration/` (share links), `apps/api/hermi/modules/itinerary/` (presentation data, PDF).
 - Tests: privacy test on share payload, Playwright present-mode test, PDF golden test.
@@ -1025,15 +1025,15 @@ Conventions for every ticket:
 
 #### WF-092 Account deletion [M5, M]
 - Depends on: WF-013, WF-047.
-- Description: in-app deletion request with re-authentication, 30 day grace, hard delete of trip data and files (including import previews, referral links and calendar tokens), transfer or delete shared trips, delete the Supabase Auth user, revoke the Sign in with Apple token, warning that an Apple subscription is not cancelled.
-- Accept: after the sweep no row in any table references the user; shared trips transfer or delete as chosen; the confirmation email is sent; backups purge on their cycle (documented).
+- Description: in-app deletion request with re-authentication, 30 day grace, hard delete of trip data and files (including import previews, referral links and calendar tokens), transfer or delete shared trips, delete the Supabase Auth user, revoke the Sign in with Apple token, warning that an Apple subscription is not cancelled. Adds `DELETE /me/ai-history`, writes the identity hash on deletion (so a re-created account does not get the taster or first-import pass again) and owns the `retention_sweep` job (WF-046 does not register it).
+- Accept: `DELETE /me/ai-history` removes the user's AI history; deletion writes the identity hash; the `retention_sweep` job runs here; after the sweep no row in any table references the user; shared trips transfer or delete as chosen; the confirmation email is sent; backups purge on their cycle (documented).
 - Touches: `apps/api/hermi/modules/auth/` (deletion), `apps/worker/hermi_worker/jobs/delete_account.py`.
 - Tests: end-to-end deletion test over all tables, grace cancel test.
 - Done: DoD.
 
 #### WF-093 Data export [M5, M]
 - Depends on: WF-092.
-- Description: "Export my data" as JSON plus ICS through a job, stored in R2, emailed link with expiry, available on every tier.
+- Description: "Export my data" as JSON plus ICS (and a PDF with a wheels-only library such as `reportlab` or `fpdf2`, not WeasyPrint) through a job, stored in R2, emailed link with expiry, available on every tier.
 - Accept: export includes all user-owned data (checked against a list generated from the schema); link expires; another user cannot fetch it.
 - Touches: `apps/api/hermi/modules/auth/` (export), `apps/worker/hermi_worker/jobs/export_user_data.py`.
 - Tests: completeness test, expiry test, authorization test.
@@ -1081,8 +1081,8 @@ Conventions for every ticket:
 
 #### WF-099 Admin affiliate revenue screens [M5, M]
 - Depends on: WF-067, WF-069, WF-058.
-- Description: revenue by network, program and placement, conversion import status, unmatched share, and a disclosure audit that lists every placement and whether it renders the disclosure. Spec: [08](08-admin-control-center.md) section 6.7 (the link checker and two-person template approval are Phase 2).
-- Accept: numbers match `affiliate_conversions`; a placement without disclosure shows as a failure.
+- Description: revenue by network, program and placement, conversion import status, unmatched share, and a disclosure audit that lists every placement and whether it renders the disclosure. Spec: [08](08-admin-control-center.md) section 6.7 (the link checker and two-person template approval are Phase 2). Adds the "Mark a payout received" action and `POST /v1/admin/affiliate/payouts`.
+- Accept: numbers match `affiliate_conversions`; a placement without disclosure shows as a failure; "Mark a payout received" posts to `POST /v1/admin/affiliate/payouts` and the screen shows it.
 - Touches: `apps/api/hermi/modules/admin/affiliate.py`, `apps/web/src/routes/admin/`.
 - Tests: aggregation tests, disclosure audit test.
 - Done: DoD.
@@ -1178,9 +1178,9 @@ Conventions for every ticket:
 - Done: DoD.
 
 #### WF-107 Public sample trips and shared-trip pages [M6, L]
-- Depends on: WF-091, WF-106, WF-025.
-- Description: server-rendered pages that work without JavaScript: sample trips at `/samples/{slug}` (written by Hermi from a system account, always indexable, with "Copy this trip" into the visitor's account after sign-up) and shared-trip pages at `/s/{shareId}` (owner-chosen; `noindex` by default, and an "Let search engines find this trip" toggle that adds a sitemap entry). Both redact addresses, prices, notes and traveler names; carry Open Graph tags, a sitemap, a report link, the evidence labels and a sign-up call to action; no partner buttons in Phase 1. Kill switch `public_pages`.
-- Accept: pages render without JavaScript; private data never appears in the HTML, JSON or meta tags; disabling a link returns 410 and drops it from the sitemap within 5 minutes; robots rules match the owner's choice; copying a sample creates an independent trip.
+- Depends on: WF-091, WF-106, WF-025, WF-133.
+- Description: server-rendered pages (sub-steps pages and sitemap; this ticket builds only the server-rendered pages) that work without JavaScript: sample trips at `/samples/{slug}` (written by Hermi from a system account, always indexable, reusing the WF-133 sample routes of 04 section 5.28, with "Use this plan" into the visitor's account after sign-up) and shared-trip pages at `/s/{shareId}` (owner-chosen; public pages carry `noindex` unless `trip_share_links.indexable`, and an "Let search engines find this trip" toggle that adds a sitemap entry). Both redact addresses, prices, notes and traveler names; carry Open Graph tags, a sitemap, a report link, the evidence labels and a sign-up call to action; no partner buttons in Phase 1. Kill switch `public_pages`.
+- Accept: pages render without JavaScript; private data never appears in the HTML, JSON or meta tags; disabling a link returns 410 and drops it from the sitemap within 5 minutes; robots rules match the owner's choice (`noindex` unless `trip_share_links.indexable`); "Use this plan" on a sample creates an independent trip.
 - Touches: `apps/api/hermi/modules/collaboration/` (public pages), `apps/web/src/routes/public/`, `apps/web/public/` (robots and sitemap), `apps/web/vite.config.ts`.
 - Tests: privacy scan of rendered pages against sentinel strings, sitemap test, takedown test, no-JavaScript render test, Lighthouse check.
 - Done: DoD.
@@ -1203,15 +1203,15 @@ Conventions for every ticket:
 
 #### WF-110 Security review and penetration test fixes [M6, L]
 - Depends on: WF-016, WF-072, WF-107, WF-108.
-- Description: an outside penetration test scoped to auth, tenant isolation, purchase and credit flows, `/go`, link preview, ICS file and feed import, pasted import, public pages and reports, referral abuse and admin; fix every high and critical finding; run the parser fuzzers for an extended hour; rerun dependency audit and secret scan; rotate secrets used during the beta; update the threat model.
+- Description: an outside penetration test scoped to auth, tenant isolation, purchase and credit flows, `/go`, link preview, ICS file and feed import, pasted import, public pages and reports, referral abuse and admin, the `claude_cli` guard and the never-fetch constant `BLOCKED_HOSTS`; fix every high and critical finding; run the parser fuzzers for an extended hour; rerun dependency audit and secret scan; rotate secrets used during the beta; update the threat model.
 - Accept: no open high or critical findings; fuzz run clean; threat model and data map updated.
 - Touches: `docs/security/`, code fixes as needed.
 - Tests: regression tests for every finding.
 - Done: DoD plus the report and fix list in `docs/security/pentest.md`.
 
 #### WF-111 Review notes and demo account [M6, S]
-- Depends on: WF-102, WF-104.
-- Description: demo accounts (a Plus account with a loaded trip and a Free account, using the server-allowlisted "Reviewer sign in" path, not Sign in with Apple) with a working sandbox purchase path, sample `.ics` file and sample confirmation text attached to the notes, review notes covering AI, import, deletion location, push, offline, public pages and report, affiliate links under Guideline 3.1.3(e), no ATT prompt, live servers and a phone number.
+- Depends on: WF-102, WF-104, WF-124.
+- Description: demo accounts (a Plus account with a loaded trip and a Free account, using the server-allowlisted "Reviewer sign in" path, not Sign in with Apple) with a working sandbox purchase path, sample `.ics` file and sample confirmation text attached to the notes, review notes covering AI, import, deletion location, push, offline, public pages and report, affiliate links under Guideline 3.1.3(e), no ATT prompt, live servers and a phone number; the notes also cover the trust pages `/how-we-earn` and `/billing`.
 - Accept: a fresh device signs in with the demo account against production; Restore, deletion, import and report paths are visible.
 - Touches: `docs/store/review-notes.md`.
 - Tests: manual pass on a clean device.
@@ -1251,7 +1251,7 @@ Conventions for every ticket:
 
 #### WF-119 Verify this plan: evals and release gate [M6, L]
 - Depends on: WF-118, WF-057.
-- Description: the Verify suites in 06 section 10: extraction (40 pasted itineraries, hand-labeled), checking (120 place claims: 50 correct, 25 wrong hour or price, 25 invented, 20 closed or renamed, from saved place data and saved pages, never fetched live), injection and blocked sites, recheck (60 page pairs) and cost replay. Gates: extraction recall 95 percent or more with 0 hallucinated names; false green under 2 percent and no invented place ever green; false red under 5 percent; every green or amber cites a page containing the value; blocked pages opened 0; plan check p95 under $0.02 per item. The suites run through the Batch API and record against the `prompt_version`. If a gate fails, the flag `verify_plan` stays off at launch.
+- Description: the Verify suites in 06 section 10: extraction (40 pasted itineraries, hand-labeled), checking (120 place claims: 50 correct, 25 wrong hour or price, 25 invented, 20 closed or renamed, from saved place data and saved pages, never fetched live), injection and blocked sites, recheck (60 page pairs) and cost replay. Gates: extraction recall 95 percent or more with 0 hallucinated names; false green under 2 percent and no invented place ever green; false red under 5 percent; every green or amber cites a page containing the value; blocked pages opened 0; plan check p95 under $0.02 per item. The suites run through the Batch API and record against the `prompt_version`; live runs only with `EVALS_LIVE=1` and `--max-usd`, through `npm run evals` with `--provider`, certified only on `anthropic_api` (`shortcut:` CLI numbers are provisional); the live run is owner-pending. If a gate fails, the flag `verify_plan` stays off at launch.
 - Accept: suites run in CI against recorded fixtures and nightly through Batch; results are committed; the failing-gate path (flag off) is tested; a prompt change cannot ship without a passing run.
 - Touches: `backend/evals/` (verify suites), `docs/evals/verify-plan.md`, CI workflow.
 - Tests: the suites themselves, plus a test that the gate script fails on a seeded false green.
@@ -1263,7 +1263,7 @@ Conventions for every ticket:
 - Accept: adding an active `affiliate_programs` row makes it appear on `/how-we-earn` with no code change; the prices on `/billing` match the paywall (a test compares them); the cancel row is reachable in one tap from the Account screen and opens the subscription sheet in the sandbox build; the trial reminder email contains the link; the pages pass axe and have no em dashes.
 - Touches: `apps/web/src/routes/how-we-earn/`, `apps/web/src/routes/billing/`, `apps/api/hermi/api/public.py`, `apps/api/hermi/modules/affiliate/`, `apps/web/src/routes/account/`.
 - Tests: partner-list generation test, price-match test, cancel row test, email template test, copy lint.
-- Done: DoD plus both pages added to the App Review notes (WF-111).
+- Done: DoD.
 
 #### WF-127 Android install: installable web app and install guide [M6, M]
 - Depends on: WF-088, WF-036.
