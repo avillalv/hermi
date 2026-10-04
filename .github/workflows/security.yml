@@ -1,0 +1,125 @@
+# WF-010. Security scans. Not the `ci` workflow and not part of its aggregator. The audits report
+# and never block (continue-on-error). gitleaks is the one job that goes red on a finding.
+#
+# Planted-secret test (never merge the branch):
+#   1. git switch -c test/planted-secret
+#   2. Add a file holding a fake key that matches a gitleaks rule, built at commit time so this
+#      repo never holds it (run in Git Bash or any POSIX shell, not PowerShell or cmd): printf 'aws = "AKIA%s"\n' "QYLPMN5HHGZXJ4TA" > planted.txt
+#      (use a random 16 char A-Z2-7 tail; the placeholder AKIAIOSFODNN7EXAMPLE is allowlisted).
+#   3. Commit, push, open a PR, and confirm the gitleaks job is red.
+#   4. Delete the branch locally and on the remote.
+# Owner tasks: turn on GitHub secret scanning and push protection in repo settings.
+name: security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "41 4 * * 1" # weekly, Monday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true # non-blocking: report only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm audit (production dependencies)
+        run: |
+          npm audit --omit=dev 2>&1 | tee audit.txt || echo "::notice::npm audit found issues (non-blocking)"
+          { echo '### npm audit'; echo '```'; cat audit.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+  pip-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true # non-blocking: report only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+      - name: pip-audit (locked Python dependencies)
+        run: |
+          uv export --all-packages --frozen --no-hashes --no-emit-workspace -o requirements.txt
+          uvx pip-audit -r requirements.txt --no-deps --disable-pip 2>&1 | tee audit.txt || echo "::notice::pip-audit found issues (non-blocking)"
+          { echo '### pip-audit'; echo '```'; cat audit.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+  gitleaks:
+    # Fails on a finding so a planted secret turns this job red. Not needed by `ci`.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: gitleaks (full history)
+        env:
+          GITLEAKS_VERSION: 8.21.2
+          GITLEAKS_SHA256: 5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba
+        run: |
+          curl -sSfL -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks detect --source . --config .gitleaks.toml --redact --verbose
+
+  codeql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true # non-blocking: report only
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, python]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}
+
+  trivy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true # non-blocking: report only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+      - name: Build image
+        if: hashFiles('infra/docker/Dockerfile') != ''
+        run: docker build -f infra/docker/Dockerfile -t hermi:scan .
+      - name: Trivy image scan
+        if: hashFiles('infra/docker/Dockerfile') != ''
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: hermi:scan
+          severity: HIGH,CRITICAL
+          exit-code: "0"

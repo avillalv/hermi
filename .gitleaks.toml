@@ -1,0 +1,18 @@
+# Extends the default gitleaks rules. Allowlist only placeholders and lockfiles.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholder and lockfiles"
+paths = [
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)uv\.lock$''',
+]
+regexes = [
+  '''AKIAIOSFODNN7EXAMPLE''',
+  # Non-secret .env.example config values the generic rule flags.
+  '''STAY22_AID=hermi''',
+  '''SERPAPI_MONTHLY_CAP=\d+''',
+  # Example Idempotency-Key in the API spec.
+  '''6f1c2b7e-5d7a-4e0e-9f7a-1f7f0a8f2a11''',
+]

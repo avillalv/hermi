@@ -22,7 +22,7 @@ Tests: `npm run lint`, `npm run test:api`, `npm run test:web`, and `npm run test
 
 Risks: WF-004 is split because one session would touch many modules and well over 600 lines. Steps 3 and 4 must leave every root script runnable (placeholders exit 0 with a message until their ticket lands) so the `ci` job stays green. No migrations exist yet, so `/health/ready` and the Alembic checks must handle "no revisions" cleanly; Alembic itself arrives in WF-011 (prompt 04), so WF-008 may need a minimal Alembic environment, record that choice in `DECISIONS.md`. Docker is not available locally: the compose and container checks run only in CI. All dependencies (S1 to S3) are Done.
 
-Owner-pending items: WF-001 (trademark opinion, domain purchase, Apple enrollment, App Store name; `HUMAN_TASKS.md` row 23), WF-003 (interviews, price test, signed decision; row 28), WF-002 "page live on the production domain" (domain and Cloudflare Pages account), WF-007 branch protection requiring `ci`, WF-010 secret scanning and push protection (row 3).
+Owner-pending items: WF-001 (trademark opinion, domain purchase, Apple enrollment, App Store name; `HUMAN_TASKS.md` row 23), WF-003 (interviews, price test, signed decision; row 28), WF-002 "page live on the production domain" (domain and Cloudflare Pages account), WF-007 branch protection requiring `ci`, WF-010 secret scanning and push protection (row 3) and the planted-secret gitleaks check (row 30).
 
 ## Setup prompts
 
