@@ -86,7 +86,7 @@ SELECT add_updated_at_trigger('guest_allowances');
 -- so there is no app_user_id() to check: the caller is the allowlisted SystemSession that verified the App Attest assertion (04 section 5.1),
 -- and EXECUTE is granted to hermi_worker only.
 CREATE FUNCTION spend_guest_allowance(p_key_id text, p_credits integer, p_limit integer) RETURNS boolean
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_period text := to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM');
 BEGIN
   IF p_credits <= 0 OR p_limit < 0 THEN RAISE EXCEPTION 'invalid amount' USING ERRCODE = '22023'; END IF;

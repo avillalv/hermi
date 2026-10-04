@@ -59,7 +59,7 @@ CREATE UNIQUE INDEX uq_trip_members_one_owner ON trip_members (trip_id) WHERE ro
 CREATE INDEX ix_trip_members_user_trip ON trip_members (user_id, trip_id);      -- the "my trips" query and RLS helper
 
 -- The owner is always a member.
-CREATE FUNCTION trips_add_owner_member() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+CREATE FUNCTION trips_add_owner_member() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   INSERT INTO trip_members (trip_id, user_id, role) VALUES (NEW.id, NEW.owner_user_id, 'owner');
   RETURN NEW;
@@ -148,7 +148,7 @@ CREATE INDEX ix_activity_log_trip ON activity_log (trip_id, id DESC);
 -- Redeem an invite for the caller. Returns the trip id. Raises invite_expired (P0001) for an unknown, revoked, expired or used-up invite, or one for a trashed trip
 -- (one error for all four, so a caller cannot tell them apart) and already_member (23505) when the caller is already on the trip.
 CREATE FUNCTION redeem_trip_invite(p_token_hash bytea) RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   v_me  uuid := app_user_id();
   v_inv trip_invites%ROWTYPE;
@@ -172,7 +172,7 @@ GRANT  EXECUTE ON FUNCTION redeem_trip_invite(bytea) TO hermi_app;
 
 -- Hand a trip to another member. Only the current owner may call it. The old owner becomes an editor. Returns the new owner id.
 CREATE FUNCTION transfer_trip_owner(p_trip uuid, p_new_owner uuid) RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   v_me uuid := app_user_id();
 BEGIN

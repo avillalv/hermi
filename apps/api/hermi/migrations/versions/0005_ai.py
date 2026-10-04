@@ -233,7 +233,7 @@ SELECT ensure_month_partitions('provider_calls', 3);
 SELECT ensure_month_partitions('run_events', 3);
 
 CREATE FUNCTION my_provider_spend_micros(since timestamptz) RETURNS bigint
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_me uuid := app_user_id();
 BEGIN
   IF v_me IS NULL THEN RAISE EXCEPTION 'not_authenticated' USING ERRCODE = '42501'; END IF;

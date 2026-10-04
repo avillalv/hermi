@@ -357,13 +357,13 @@ def test_app_login_can_call_definer_functions_and_not_insert_members(conn):
         assert app.execute("SELECT redeem_trip_invite(%s)", (b"tok",)).fetchone() == (tid,)
 
 
-# --- Schema vs DDL: 0002 to 0006 tables against the DDL in 03 sections 5.1 to 5.8 ---------------
+# --- Schema vs DDL: 0002 to 0008 tables against the DDL in 03 sections 5.1 to 5.10 ---------------
 
 
 def _ddl_text():
     lines = SPEC.read_text(encoding="utf-8").split("\n")
     start = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.1 "))
-    end = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.9 "))
+    end = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.11 "))
     out, inside = [], False
     for ln in lines[start:end]:
         if ln.startswith("```sql"):
@@ -406,7 +406,7 @@ def _ddl_indexes(sql):
 
 
 def _norm_cols(s):
-    return re.sub(r"\s+", "", s)
+    return re.sub(r"\s+", "", s).replace("''::text", "''")  # pg_get_indexdef adds the cast on empty text literals
 
 
 def _live_indexes(c):
