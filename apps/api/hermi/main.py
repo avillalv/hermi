@@ -22,6 +22,7 @@ async def _lifespan(app: FastAPI):
     finally:
         if app.state.engine is not None:
             app.state.engine.dispose()
+        db.dispose_system_engines()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

@@ -3314,6 +3314,7 @@ The public token reads and synchronous writes that use a SystemSession, by purpo
 | `import_preview` | `POST /imports/ics-file`, `maps-file`, `places` | Writes the preview the worker sandbox returned |
 | `verify_extract` | `POST /trips/{id}/verify-plan` | Inserts `plan_verification_items` |
 | `places_cache` | Place search | Fills `places_cache` |
+| `dev_session` | `POST /dev/session` (`AUTH_MODE=dev`, `local` and `ci` only) | Creates the dev personas and their sessions |
 
 Every route is tested under the real roles: the route tests in 6.5 call the API as `hermi_api_login` (and the SystemSession purposes as `hermi_worker_login`), never as the owner, so a missing grant, policy or definer function shows up as a failing route test and not in production.
 

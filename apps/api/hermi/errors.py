@@ -29,6 +29,13 @@ class ApiError(Exception):
         self.status, self.code, self.detail, self.headers = status, code, detail, headers or {}
 
 
+class NotFound(ApiError):
+    """404 for a missing row or one the caller may not see. Never 403 (04 section 1.2)."""
+
+    def __init__(self, detail: str = "We could not find that."):
+        super().__init__(404, "not_found", detail)
+
+
 class RequestIdMiddleware:
     """Pure ASGI, added last in main.py so it is outermost: CORS preflights carry the id too."""
 

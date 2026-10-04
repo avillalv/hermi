@@ -142,15 +142,13 @@ PERSONAS: dict[str, PersonaOut] = {
 
 def dev_session(settings: Settings, engine: Engine, persona: str) -> DevSessionOut:
     """Make sure all three personas exist (through bootstrap, like a real sign-in), then mint a token for one."""
-    system = db.make_engine(settings.require("DATABASE_URL_SYSTEM"), pool_size=1, max_overflow=0)
-    try:
-        for p in PERSONAS.values():
-            token = VerifiedToken(f"dev-persona-{p.persona}", "email", p.email, {})
-            me, _ = bootstrap(engine, token, BootstrapIn(display_name=p.label, age_confirmed=True))
-            with system.begin() as conn:
-                repo.grant_persona(conn, me.id, tier=p.tier, is_admin=p.is_admin)
-    finally:
-        system.dispose()
+    for p in PERSONAS.values():
+        token = VerifiedToken(f"dev-persona-{p.persona}", "email", p.email, {})
+        me, _ = bootstrap(engine, token, BootstrapIn(display_name=p.label, age_confirmed=True))
+        with db.system_session(
+            "dev_session", settings=settings, route="POST /v1/dev/session"
+        ) as system:
+            repo.grant_persona(system, me.id, tier=p.tier, is_admin=p.is_admin)
     return DevSessionOut(
         access_token=mint_dev_token(
             settings,

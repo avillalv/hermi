@@ -11,7 +11,10 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from hermi.db import request_transaction
-from hermi.errors import ApiError
+from hermi.errors import ApiError, NotFound
+from hermi.modules.collaboration.models import TripMember
+from hermi.modules.trips import repo as trips_repo
+from hermi.modules.trips.models import Trip
 from hermi.security.jwt import TokenError, VerifiedToken
 
 
@@ -96,3 +99,42 @@ def _db_session_grace(request: Request, user: CurrentUserOrPendingDeletion) -> I
 DbSession = Annotated[Session, Depends(_db_session)]
 # The same transaction for the routes that still work in the grace period (GET /me, POST /me/deletion/cancel).
 DbSessionOrPendingDeletion = Annotated[Session, Depends(_db_session_grace)]
+
+
+ROLE_RANK = {"viewer": 0, "editor": 1, "owner": 2}
+
+
+@dataclass(frozen=True)
+class TripAccess:
+    trip: Trip
+    member: TripMember
+    role: str
+    capabilities: frozenset[str]
+
+
+def capabilities_for(role: str) -> frozenset[str]:
+    rank = ROLE_RANK[role]
+    return frozenset(c for c, need in (("can_edit", 1), ("can_manage", 2)) if rank >= need)
+
+
+def require_trip(min_role: str = "viewer"):
+    """Depends() for a route with {trip_id}: the caller's TripAccess, 404 when not a member or the trip is in trash,
+    403 insufficient_role when the role is below min_role (02 section 3 step 5, 04 section 1.2).
+
+    The route path must name the parameter `{trip_id}`; a child-id route resolves the child, then calls
+    trips_repo with its trip id. Later: a restore route needs an include_trashed option on the repo lookup."""
+    if min_role not in ROLE_RANK:
+        raise ValueError(f"min_role must be one of {sorted(ROLE_RANK)}")
+
+    def access(trip_id: uuid.UUID, session: DbSession) -> TripAccess:
+        user_id = session.execute(text("SELECT app_user_id()")).scalar()
+        found = trips_repo.get_trip_with_member(session, trip_id, user_id)
+        if found is None:
+            raise NotFound()
+        trip, member = found
+        if ROLE_RANK[member.role] < ROLE_RANK[min_role]:
+            raise ApiError(403, "insufficient_role", "You do not have permission to do that.")
+        return TripAccess(trip, member, member.role, capabilities_for(member.role))
+
+    access.__require_trip__ = min_role  # the route walk in tests/test_tenancy.py looks for this
+    return Depends(access)

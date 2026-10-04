@@ -3,6 +3,7 @@
 Connection strings come from the environment (hermi.config), never from this file.
 """
 
+import logging
 import secrets
 import time
 import uuid
@@ -143,6 +144,59 @@ def request_transaction(engine: Engine, user_id: uuid.UUID) -> Iterator[Session]
     with Session(engine) as session:
         try:
             session.execute(text("SELECT set_config('app.user_id', :u, true)"), {"u": str(user_id)})
+            yield session
+            session.commit()
+        except BaseException:
+            session.rollback()
+            raise
+
+
+# The purposes that may open a SystemSession: the ten in 03 section 6.6 plus dev_session (local and ci only).
+# Adding one is a reviewed change to this constant, the 6.6 table and the test.
+SYSTEM_SESSION_ALLOWLIST = frozenset(
+    {
+        "share_view",
+        "share_report",
+        "share_outbound",
+        "go_redirect",
+        "calendar_feed",
+        "sample_read",
+        "billing_sync",
+        "import_preview",
+        "verify_extract",
+        "places_cache",
+        "dev_session",
+    }
+)
+
+_system_engines: dict[str, Engine] = {}
+_system_log = logging.getLogger("hermi.system_session")
+
+
+def dispose_system_engines() -> None:
+    while _system_engines:
+        _system_engines.popitem()[1].dispose()
+
+
+@contextmanager
+def system_session(
+    purpose: str, *, settings, route: str, caller: str | None = None
+) -> Iterator[Session]:
+    """The only place the worker login (DATABASE_URL_SYSTEM, BYPASSRLS) is opened for a request (03 section 6.6).
+
+    The engine is built once from settings and kept. A purpose off the allowlist raises. Every use logs the
+    purpose, the route and the caller (a user id, or "anonymous")."""
+    if purpose not in SYSTEM_SESSION_ALLOWLIST:
+        raise PermissionError(f"{purpose!r} may not open a SystemSession")
+    url = settings.require("DATABASE_URL_SYSTEM")
+    if url not in _system_engines:
+        _system_engines[url] = make_engine(url, pool_size=2, max_overflow=0)
+    _system_log.info(
+        "system_session",
+        extra={"purpose": purpose, "route": route, "caller": caller or "anonymous"},
+    )
+    with Session(_system_engines[url]) as session:
+        try:
             yield session
             session.commit()
         except BaseException:
