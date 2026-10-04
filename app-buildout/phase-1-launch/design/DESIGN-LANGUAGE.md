@@ -32,7 +32,7 @@ Every trip fact is a ticket: a flight, a stay, a day, a plan, a result. Every tr
 
 ### Type roles
 
-Three families: Fredoka for names, codes and titles; Atkinson Hyperlegible Next for body and labels; Atkinson Hyperlegible Mono for numbers. Sizes below are what the kit uses.
+Three families: Fredoka for names, codes and titles; Atkinson Hyperlegible Next for body and labels; Atkinson Hyperlegible Mono for numbers. The app loads them as the bundled variable families `'Fredoka Variable'`, `'Atkinson Hyperlegible Next Variable'` and `'Atkinson Hyperlegible Mono Variable'`, first in `--tp-font-display`, `--tp-font-body` and `--tp-font-mono`. Sizes below are what the kit uses.
 
 | Role | Face and weight | Size and line | Where |
 |---|---|---|---|
@@ -92,6 +92,15 @@ All phone mockups are 390 by 844 (`.h-screen`, mockups only).
 - **Section strip:** `.h-strip` under the trip header: six pill tabs, 44 px hit area, 34 px pill, 14 px 600 type, the selected one in ink. State comes from `aria-selected`.
 - **Content ends above 758 px.** The tab bar's top is at 764 px, so a screen that scrolls ends its last item at 758 px at the latest in the resting position.
 - **Floating tab bar:** `.h-tabbar__bar` is 58 px tall, inset 12 px from each side, with its bottom 22 px above the screen edge, over an 83 px fade. Four tabs, labels always shown. Hide it in full-screen sheets and present mode.
+
+### From artboard to app
+
+The mockups are static 390 by 844 artboards; the app is a scrolling document.
+
+- **Section strip** sticks to the top. The sheet scrolls under it, and `--h-sheet-top` stays.
+- **Tab bar** floats above the safe-area inset (`env(safe-area-inset-bottom)`).
+- **Tablet (768 to 1199 px)** shows an icon rail. **From 1200 px** a 248 px sidebar and content capped at 1120 px.
+- **Heights are artboard values.** The app uses `min-height` for ticket stubs and every other shape that carries text, so the notches still line up and large text grows the shape instead of clipping.
 
 **Sync indicator.** On Overview it goes under the destination name in the hero pass head, as a 13 px line in `--tp-sky-ink` ("Synced 12 s ago" with a small refresh icon); the head grows by that line and the tear moves with it (`--h-head-h`). On the other trip sections it is a small map chip (`.h-map__chip`) centered between the two round buttons, at `left: 195px; top: 77px`. States and copy are in 05 section 4.21 and 6.41. It is not mocked yet.
 
@@ -286,19 +295,20 @@ Run these before calling a screen done.
 10. **Copy follows 05 section 7:** sentence case, plain verbs, "to" for ranges, no dashes.
 11. **At 390 by 844 nothing is clipped** and the last item ends above 758 px; then try the largest text size.
 12. **Reduced motion shows final states**, and the touchdown and draw-on do not run.
+13. **Fonts come from the bundled variable files, with no request to googleapis or gstatic.**
+14. **Focus is a 3 px solid ring.**
 
 ## 12. Known gaps
 
 These are decisions the owner can revisit. The kit keeps the artboard values until then.
 
-- **Tokens 05 leaves undefined.** `--heat-ink-1` to `--heat-ink-5` (text on each date-grid step) and `--viz-band` (the typical-price band on the chart) have no values in 05 section 2.2, so `tokens.css` does not define them either. Define them in 05 first.
 - **Airport code sizes (a note, not a gap).** 05 section 2.4 allows 24 to 48 px for `type-code`, with 36 to 48 px on tickets and passes. `--tp-type-code` in `tokens.css` stays 32 px as the default, and tickets use `.h-codes` at 36, 40 or 44 px.
 - **The wordmark is live text in the mockups.** The welcome pass sets "Hermi" in Fredoka 600 at 42 px (`.h-lockup__name`) for convenience. Production must use the wordmark file (`hermi-wordmark.svg`), per 05 section 3 rule 4.
 - **Display line height is 1.05.** The welcome and paywall headlines use 1.05; 05 section 2.4 says 1.0 for `type-display`.
-- **No tablet or web layouts are mocked.** The 05 breakpoints also conflict: section 5.3 puts the full 248 px sidebar at 1200 px and up, while section 10 starts the laptop layout at 1024 px. Settle one before building the web shell.
+- **No tablet or web layouts are mocked.** The breakpoints are settled: the 248 px sidebar starts at 1200 px, tablet (768 to 1199 px) has an icon rail (05 sections 5.3 and 10; see "From artboard to app" in section 3).
 - **Android uses the same layout.** Phase 1 ships Android as a PWA, so there is no separate Android design.
 - **The map is an illustration.** `.h-map` is a placeholder for MapLibre tiles styled with these tokens (land, water, coast halo, relief). The markers are HTML and carry over; the shapes do not.
-- **Fixed ticket stubs.** Stub heights are fixed (for example 40 and 50 px) so the notches line up. At large Dynamic Type sizes a build needs a taller stub or the side-stub form; 05 section 9.3 says layouts reflow rather than clip.
+- **Ticket stub heights.** The kit fixes stub heights (for example 40 and 50 px) so the notches line up on the artboard. The app uses `min-height` for stubs and other text-bearing shapes (section 3), so large Dynamic Type reflows rather than clips.
 - **Mono weight 700.** The Google Fonts link in the mockups loads Atkinson Mono at 400 to 600, so bold mono (the fare, price blocks) is synthesized there. The app bundles the variable font and has a true 700.
 - **`:has()` in plan options.** The checked state of `.h-ticket--plan` uses `:has()`, which iOS 15.4 and later support. Use a state class if the shell must support older systems.
 - **Not mocked yet:** the sync indicator, Increase Contrast, the paywall without prices on web, and loading, empty and error states.

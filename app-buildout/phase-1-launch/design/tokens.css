@@ -11,16 +11,17 @@
  * Components use the semantic aliases (--background, --card, --primary) and the Hermi names (--tp-*).
  * Never hard-code a hex value in a component.
  *
- * Not defined in 05 yet, so not defined here: --heat-ink-1 to --heat-ink-5 (text on each heat step) and
- * --viz-band (the typical-price band). Define them in 05 first, then here.
+ * --tp-ticket, --heat-ink-1 to --heat-ink-5 and --viz-band are defined in 05 section 2 and here. Values are
+ * literal hex so the WF-005 token test can compare them; --tp-ticket equals --tp-paper and --viz-band equals
+ * --tp-brand-soft in both modes.
  */
 
 /* ------------------------------------------------------------------ Fonts, type, space, radii, motion (05 2.4 to 2.8) */
 :root {
   /* Bundled families in the app (@fontsource-variable, Latin subset). The kit pages load them from Google Fonts. */
-  --tp-font-display: 'Fredoka', 'Nunito', 'Arial Rounded MT Bold', system-ui, sans-serif;
-  --tp-font-body: 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --tp-font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --tp-font-display: 'Fredoka Variable', 'Fredoka', 'Nunito', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --tp-font-body: 'Atkinson Hyperlegible Next Variable', 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --tp-font-mono: 'Atkinson Hyperlegible Mono Variable', 'Atkinson Hyperlegible Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Type roles as `font` shorthands: font: var(--tp-type-title). Sizes are rem so Dynamic Type and zoom work.
      Sentence case in the DOM; --tp-type-label and --tp-type-code are uppercased by CSS only. */
@@ -79,6 +80,7 @@
 
   /* 2.1 surfaces and ink */
   --tp-paper:          #FBF5EA;
+  --tp-ticket:         #FBF5EA;
   --tp-sheet:          #FFFDF8;
   --tp-sunken:         #F5ECDA;
   --tp-ink:            #17324A;
@@ -135,6 +137,12 @@
   --heat-3:            #4fbec4;
   --heat-4:            #009da3;
   --heat-5:            #007980;
+  --heat-ink-1:        #17324A;
+  --heat-ink-2:        #17324A;
+  --heat-ink-3:        #17324A;
+  --heat-ink-4:        #0B1A2A;
+  --heat-ink-5:        #FFFFFF;
+  --viz-band:          #DCEFFF;
 
   /* 2.2 activity groups over the itinerary categories */
   --cat-culture:       #5b47b0;
@@ -155,6 +163,7 @@
 
   /* 2.1 surfaces and ink */
   --tp-paper:          #0B1A2A;
+  --tp-ticket:         #0B1A2A;
   --tp-sheet:          #12263A;
   --tp-sunken:         #1A3149;
   --tp-ink:            #E6F2FF;
@@ -211,6 +220,12 @@
   --heat-3:            #007378;
   --heat-4:            #00a0a6;
   --heat-5:            #5ac8cd;
+  --heat-ink-1:        #E6F2FF;
+  --heat-ink-2:        #E6F2FF;
+  --heat-ink-3:        #E6F2FF;
+  --heat-ink-4:        #0B1A2A;
+  --heat-ink-5:        #0B1A2A;
+  --viz-band:          #123A5C;
 
   /* 2.2 activity groups over the itinerary categories */
   --cat-culture:       #a07fe0;
@@ -232,6 +247,7 @@
 
     /* 2.1 surfaces and ink */
     --tp-paper:          #0B1A2A;
+    --tp-ticket:         #0B1A2A;
     --tp-sheet:          #12263A;
     --tp-sunken:         #1A3149;
     --tp-ink:            #E6F2FF;
@@ -288,6 +304,12 @@
     --heat-3:            #007378;
     --heat-4:            #00a0a6;
     --heat-5:            #5ac8cd;
+    --heat-ink-1:        #E6F2FF;
+    --heat-ink-2:        #E6F2FF;
+    --heat-ink-3:        #E6F2FF;
+    --heat-ink-4:        #0B1A2A;
+    --heat-ink-5:        #0B1A2A;
+    --viz-band:          #123A5C;
 
     /* 2.2 activity groups over the itinerary categories */
     --cat-culture:       #a07fe0;

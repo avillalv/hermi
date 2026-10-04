@@ -57,6 +57,11 @@ starts, and the plane joining them is the trip you take together.
 | `hermi-logo-preview.png` | Review sheet: both lockups, the icon and small sizes |
 | `generate_logo.py` | Regenerates every SVG; see "Regenerating" below |
 
+Today `generate_logo.py` writes the five SVGs above (the two lockups have an opaque paper or night
+background). WF-130 extends it to also emit transparent lockups (light and dark), a light wordmark for
+dark grounds and the web icon set (favicon, touch icon and the PWA sizes). The app copies the generated
+files from this folder into `apps/web/public/` (WF-130); do not hand-edit the copies.
+
 The wordmark is Fredoka SemiBold (600) converted to outlines, so it renders the same everywhere without
 the font installed.
 
@@ -125,9 +130,11 @@ meaning on their own (for example a traveler's name in their color) use the text
 
 ## Type
 
-- Display, titles, headings and airport codes: Fredoka Variable (the wordmark is Fredoka 600).
-- Body and labels: Atkinson Hyperlegible Next Variable.
-- Numbers, codes, fares: Atkinson Hyperlegible Mono Variable.
+- Display, titles, headings and airport codes: Fredoka Variable, family name `'Fredoka Variable'` (the wordmark is Fredoka 600).
+- Body and labels: Atkinson Hyperlegible Next Variable, family name `'Atkinson Hyperlegible Next Variable'`.
+- Numbers, codes, fares: Atkinson Hyperlegible Mono Variable, family name `'Atkinson Hyperlegible Mono Variable'`.
+
+The app bundles all three through `@fontsource-variable` (Latin subset) and makes no request to Google Fonts.
 
 ## Design language: two routes, one trip
 
