@@ -6,5 +6,5 @@ export default defineConfig({
   envDir: "../..",
   plugins: [react(), tailwindcss()],
   server: { port: 5173, strictPort: true },
-  test: { environment: "jsdom", setupFiles: ["./src/setup.ts"] },
+  test: { environment: "jsdom", setupFiles: ["./src/setup.ts"], css: { include: [/tokens\.css/] } },
 });

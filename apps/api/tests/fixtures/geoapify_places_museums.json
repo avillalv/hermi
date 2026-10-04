@@ -1,0 +1,377 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "本能寺大寶殿宝物館",
+    "country": "Japan",
+    "country_code": "jp",
+    "county": "Kyoto Prefecture",
+    "city": "Kyoto",
+    "postcode": "604-8091",
+    "district": "Tenshojimaecho",
+    "suburb": "Nakagyo Ward",
+    "street": "Teramachi Street",
+    "iso3166_2": "JP-26",
+    "lon": 135.7675663,
+    "lat": 35.0102889,
+    "formatted": "Honnoji Temple Treasure Hall, Teramachi Street, Nakagyo Ward, Kyoto, Tenshojimaecho 604-8091, Japan",
+    "address_line1": "Honnoji Temple Treasure Hall",
+    "address_line2": "Teramachi Street, Nakagyo Ward, Kyoto, Tenshojimaecho 604-8091, Japan",
+    "categories": [
+     "entertainment",
+     "entertainment.museum"
+    ],
+    "details": [
+     "details"
+    ],
+    "datasource": {
+     "sourcename": "openstreetmap",
+     "attribution": "© OpenStreetMap contributors",
+     "license": "Open Database License",
+     "url": "https://www.openstreetmap.org/copyright",
+     "raw": {
+      "lat": 35.0102889,
+      "lon": 135.7675663,
+      "name": "本能寺大寶殿宝物館",
+      "osm_id": 7319933585,
+      "name:en": "Honnoji Temple Treasure Hall",
+      "name:ja": "本能寺大寶殿宝物館",
+      "tourism": "museum",
+      "osm_type": "n"
+     }
+    },
+    "name_international": {
+     "en": "Honnoji Temple Treasure Hall",
+     "ja": "本能寺大寶殿宝物館"
+    },
+    "distance": 153,
+    "place_id": "51608033e78ff860405983818c2551814140f00103f90191524db40100000092031be69cace883bde5afbae5a4a7e5afb6e6aebfe5ae9de789a9e9a4a8"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     135.7675663,
+     35.0102889
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "島津製作所創業記念資料館",
+    "country": "Japan",
+    "country_code": "jp",
+    "county": "Kyoto Prefecture",
+    "city": "Kyoto",
+    "postcode": "604-0922",
+    "district": "Nishiikesucho",
+    "suburb": "Nakagyo Ward",
+    "street": "Kiyamachi Street",
+    "iso3166_2": "JP-26",
+    "lon": 135.7702481,
+    "lat": 35.0128505,
+    "formatted": "Shimadzu Foundation Memorial Museum, Kiyamachi Street, Nakagyo Ward, Kyoto, Nishiikesucho 604-0922, Japan",
+    "address_line1": "Shimadzu Foundation Memorial Museum",
+    "address_line2": "Kiyamachi Street, Nakagyo Ward, Kyoto, Nishiikesucho 604-0922, Japan",
+    "categories": [
+     "building",
+     "building.tourism",
+     "entertainment",
+     "entertainment.museum"
+    ],
+    "details": [
+     "details",
+     "details.wiki_and_media"
+    ],
+    "datasource": {
+     "sourcename": "openstreetmap",
+     "attribution": "© OpenStreetMap contributors",
+     "license": "Open Database License",
+     "url": "https://www.openstreetmap.org/copyright",
+     "raw": {
+      "lat": 35.012884727840685,
+      "lon": 135.77024660616004,
+      "name": "島津製作所創業記念資料館",
+      "osm_id": 190551080,
+      "name:en": "Shimadzu Foundation Memorial Museum",
+      "name:ja": "島津製作所創業記念資料館",
+      "tourism": "museum",
+      "website": "https://www.shimadzu.co.jp/visionary/memorial-hall/",
+      "building": "yes",
+      "osm_type": "w",
+      "wikidata": "Q11476799",
+      "wikipedia": "ja:島津創業記念資料館",
+      "opening_hours": "9:30-17:00"
+     }
+    },
+    "website": "https://www.shimadzu.co.jp/visionary/memorial-hall/",
+    "opening_hours": "9:30-17:00",
+    "name_international": {
+     "en": "Shimadzu Foundation Memorial Museum",
+     "ja": "島津製作所創業記念資料館"
+    },
+    "wiki_and_media": {
+     "wikidata": "Q11476799",
+     "wikipedia": "ja:島津創業記念資料館"
+    },
+    "distance": 242,
+    "place_id": "51ffe935dca5f8604059c858ee34a6814140f00102f90128945b0b00000000920324e5b3b6e6b4a5e8a3bde4bd9ce68980e589b5e6a5ade8a898e5bfb5e8b387e69699e9a4a8"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     135.77024660616004,
+     35.012884727840685
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "京都府京都文化博物館",
+    "country": "Japan",
+    "country_code": "jp",
+    "county": "Kyoto Prefecture",
+    "city": "Kyoto",
+    "postcode": "604-8111",
+    "district": "Higashikatamachi",
+    "suburb": "Nakagyo Ward",
+    "street": "Takakura Street",
+    "iso3166_2": "JP-26",
+    "lon": 135.7623128,
+    "lat": 35.0094898,
+    "formatted": "The Museum of Kyoto, Takakura Street, Nakagyo Ward, Kyoto, Higashikatamachi 604-8111, Japan",
+    "address_line1": "The Museum of Kyoto",
+    "address_line2": "Takakura Street, Nakagyo Ward, Kyoto, Higashikatamachi 604-8111, Japan",
+    "categories": [
+     "entertainment",
+     "entertainment.museum"
+    ],
+    "details": [
+     "details",
+     "details.wiki_and_media"
+    ],
+    "datasource": {
+     "sourcename": "openstreetmap",
+     "attribution": "© OpenStreetMap contributors",
+     "license": "Open Database License",
+     "url": "https://www.openstreetmap.org/copyright",
+     "raw": {
+      "lat": 35.00917493973491,
+      "lon": 135.76227532474718,
+      "name": "京都府京都文化博物館",
+      "osm_id": 352042994,
+      "name:en": "The Museum of Kyoto",
+      "name:ja": "京都府京都文化博物館",
+      "tourism": "museum",
+      "osm_type": "w",
+      "wikidata": "Q11375592"
+     }
+    },
+    "name_international": {
+     "en": "The Museum of Kyoto",
+     "ja": "京都府京都文化博物館"
+    },
+    "wiki_and_media": {
+     "wikidata": "Q11375592"
+    },
+    "distance": 596,
+    "place_id": "51c8ca388f64f8604059570df9a42c814140f00102f901f2bffb140000000092031ee4baace983bde5ba9ce4baace983bde69687e58c96e58d9ae789a9e9a4a8"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     135.76227532474718,
+     35.00917493973491
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "京都万華鏡ミュージアム",
+    "country": "Japan",
+    "country_code": "jp",
+    "county": "Kyoto Prefecture",
+    "city": "Kyoto",
+    "postcode": "604-8185",
+    "district": "Anedaitocho",
+    "suburb": "Nakagyo Ward",
+    "street": "Aneyakoji Street",
+    "iso3166_2": "JP-26",
+    "lon": 135.7613759,
+    "lat": 35.0096386,
+    "formatted": "京都万華鏡ミュージアム, Aneyakoji Street, Nakagyo Ward, Kyoto, Anedaitocho 604-8185, Japan",
+    "address_line1": "京都万華鏡ミュージアム",
+    "address_line2": "Aneyakoji Street, Nakagyo Ward, Kyoto, Anedaitocho 604-8185, Japan",
+    "categories": [
+     "entertainment",
+     "entertainment.museum",
+     "fee",
+     "wheelchair",
+     "wheelchair.yes"
+    ],
+    "details": [
+     "details",
+     "details.facilities"
+    ],
+    "datasource": {
+     "sourcename": "openstreetmap",
+     "attribution": "© OpenStreetMap contributors",
+     "license": "Open Database License",
+     "url": "https://www.openstreetmap.org/copyright",
+     "raw": {
+      "fee": "yes",
+      "lat": 35.0096386,
+      "lon": 135.7613759,
+      "name": "京都万華鏡ミュージアム",
+      "museum": "art",
+      "osm_id": 9342783969,
+      "tourism": "museum",
+      "operator": "NPO法人京都万華鏡こう房",
+      "osm_type": "n",
+      "check_date": "2023-10-04",
+      "wheelchair": "yes"
+     }
+    },
+    "operator": "NPO法人京都万華鏡こう房",
+    "facilities": {
+     "wheelchair": true
+    },
+    "distance": 651,
+    "place_id": "51cdcefd305df8604059bee36fd63b814140f00103f901e191df2c02000000920321e4baace983bde4b887e88fafe98fa1e3839fe383a5e383bce382b8e382a2e383a0"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     135.7613759,
+     35.0096386
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "京都サムライ忍者体験ミュージアム",
+    "country": "Japan",
+    "country_code": "jp",
+    "county": "Kyoto Prefecture",
+    "city": "Kyoto",
+    "postcode": "604-8061",
+    "district": "Eirakucho",
+    "suburb": "Nakagyo Ward",
+    "street": "Teramachi Street",
+    "iso3166_2": "JP-26",
+    "lon": 135.7667948,
+    "lat": 35.0048435,
+    "formatted": "Samurai and Ninja Museum, Teramachi Street, Nakagyo Ward, Kyoto, Eirakucho 604-8061, Japan",
+    "address_line1": "Samurai and Ninja Museum",
+    "address_line2": "Teramachi Street, Nakagyo Ward, Kyoto, Eirakucho 604-8061, Japan",
+    "categories": [
+     "entertainment",
+     "entertainment.museum",
+     "fee"
+    ],
+    "details": [
+     "details",
+     "details.contact"
+    ],
+    "datasource": {
+     "sourcename": "openstreetmap",
+     "attribution": "© OpenStreetMap contributors",
+     "license": "Open Database License",
+     "url": "https://www.openstreetmap.org/copyright",
+     "raw": {
+      "fee": "yes",
+      "lat": 35.0048435,
+      "lon": 135.7667948,
+      "city": "京都市",
+      "name": "京都サムライ忍者体験ミュージアム",
+      "email": "samurai@mai-ko.com",
+      "phone": "+81-075-585-5410",
+      "museum": "history",
+      "osm_id": 5755521721,
+      "suburb": "中京区",
+      "name:en": "Samurai and Ninja Museum",
+      "name:ja": "京都サムライ忍者体験ミュージアム",
+      "tourism": "museum",
+      "website": "https://mai-ko.com/samurai/",
+      "osm_type": "n",
+      "province": "京都府",
+      "opening_hours": "Mo-Su 10:00-19:00"
+     }
+    },
+    "website": "https://mai-ko.com/samurai/",
+    "opening_hours": "Mo-Su 10:00-19:00",
+    "name_international": {
+     "en": "Samurai and Ninja Museum",
+     "ja": "京都サムライ忍者体験ミュージアム"
+    },
+    "contact": {
+     "phone": "+81-075-585-5410",
+     "email": "samurai@mai-ko.com"
+    },
+    "distance": 759,
+    "place_id": "51c6973f9589f8604059910c39b69e804140f00103f901b94a0e5701000000920330e4baace983bde382b5e383a0e383a9e382a4e5bf8de88085e4bd93e9a893e3839fe383a5e383bce382b8e382a2e383a0"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     135.7667948,
+     35.0048435
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "中山美術館",
+    "country": "Japan",
+    "country_code": "jp",
+    "county": "Kyoto Prefecture",
+    "city": "Kyoto",
+    "hamlet": "辰巳町",
+    "postcode": "605-0081",
+    "district": "Ishibashicho",
+    "suburb": "Higashiyama Ward",
+    "street": "Furumonzen-dori",
+    "iso3166_2": "JP-26",
+    "lon": 135.7744005,
+    "lat": 35.0071011,
+    "formatted": "中山美術館, Furumonzen-dori, Higashiyama Ward, Kyoto, Ishibashicho 605-0081, Japan",
+    "address_line1": "中山美術館",
+    "address_line2": "Furumonzen-dori, Higashiyama Ward, Kyoto, Ishibashicho 605-0081, Japan",
+    "categories": [
+     "entertainment",
+     "entertainment.museum"
+    ],
+    "details": [],
+    "datasource": {
+     "sourcename": "openstreetmap",
+     "attribution": "© OpenStreetMap contributors",
+     "license": "Open Database License",
+     "url": "https://www.openstreetmap.org/copyright",
+     "raw": {
+      "lat": 35.0071011,
+      "lon": 135.7744005,
+      "name": "中山美術館",
+      "osm_id": 5309600324,
+      "tourism": "museum",
+      "osm_type": "n"
+     }
+    },
+    "distance": 761,
+    "place_id": "5132b08ee3c7f8604059002258b0e8804140f00103f90144127a3c0100000092030fe4b8ade5b1b1e7be8ee8a193e9a4a8"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     135.7744005,
+     35.0071011
+    ]
+   }
+  }
+ ]
+}

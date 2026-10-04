@@ -1,0 +1,12 @@
+/* Hermi theme: bundled fonts (no Google Fonts request), the tokens, and the base type.
+ * Font stacks are --tp-font-* in tokens.css (05 section 2.4). Imported once by apps/web/src/index.css. */
+@import "@fontsource-variable/fredoka";
+@import "@fontsource-variable/atkinson-hyperlegible-next";
+@import "@fontsource-variable/atkinson-hyperlegible-mono";
+@import "./tokens.css";
+
+html {
+  font: var(--tp-type-body);
+  color: var(--tp-ink);
+  background: var(--tp-paper);
+}

@@ -1,1 +1,17 @@
-{ "name": "@hermi/tokens", "private": true, "version": "0.0.0", "type": "module", "main": "index.ts" }
+{
+  "name": "@hermi/tokens",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./theme.css": "./theme.css",
+    "./tokens.css": "./tokens.css"
+  },
+  "dependencies": {
+    "@fontsource-variable/atkinson-hyperlegible-mono": "^5.3.0",
+    "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
+    "@fontsource-variable/fredoka": "^5.3.0"
+  }
+}

@@ -1,0 +1,137 @@
+{
+ "results": [
+  {
+   "datasource": {
+    "sourcename": "openstreetmap",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "Open Database License",
+    "url": "https://www.openstreetmap.org/copyright"
+   },
+   "name": "Kinkaku-ji",
+   "other_names": {
+    "name": "金閣寺",
+    "name:de": "Goldener-Pavillon-Tempel (Kinkaku-ji)",
+    "name:he": "המקדש המוזהב",
+    "name:ja": "金閣寺",
+    "name:ko": "금각사",
+    "name:pl": "Złoty Pawilon",
+    "name:ru": "Кинкаку-дзи",
+    "name:th": "วัดทอง",
+    "name:uk": "Монастир Кінкаку",
+    "name:vi": "Kinkakuji",
+    "name:zh": "鹿苑寺",
+    "alt_name:de": "Rehgarten-Tempel",
+    "alt_name:en": "Golden Pavilion Temple",
+    "alt_name:fr": "Temple du Pavillon d’or",
+    "name:ja-Hira": "きんかくじ",
+    "official_name": "鹿苑寺",
+    "official_name:de": "Rokuon-ji",
+    "official_name:en": "Rokuon-ji",
+    "official_name:fr": "Temple Rokuon",
+    "official_name:ja-Hira": "ろくおんじ",
+    "official_name:ja-Latn": "Rokuon-ji"
+   },
+   "country": "Japan",
+   "country_code": "jp",
+   "county": "Kyoto Prefecture",
+   "city": "Kyoto",
+   "hamlet": "馬喰町",
+   "postcode": "603-8361",
+   "district": "Kinkakuji-chō",
+   "suburb": "Kita Ward",
+   "iso3166_2": "JP-26",
+   "lon": 135.7295373,
+   "lat": 35.0395293,
+   "result_type": "amenity",
+   "distance": 4687.725340313237,
+   "formatted": "Kinkaku-ji, Kita Ward, Kyoto, Kinkakuji-chō 603-8361, Japan",
+   "address_line1": "Kinkaku-ji",
+   "address_line2": "Kita Ward, Kyoto, Kinkakuji-chō 603-8361, Japan",
+   "timezone": {
+    "name": "Asia/Tokyo",
+    "offset_STD": "+09:00",
+    "offset_DST": "+09:00",
+    "offset_STD_seconds": 32400,
+    "offset_DST_seconds": 32400,
+    "abbreviation_STD": "JST",
+    "abbreviation_DST": "JST"
+   },
+   "plus_code": "8Q7Q2PQH+RR",
+   "plus_code_short": "2PQH+RR Kyoto, Kyoto Prefecture, Japan",
+   "rank": {
+    "importance": 0.46239436852783805,
+    "popularity": 4.357273411056632,
+    "confidence": 1,
+    "match_type": "full_match"
+   },
+   "place_id": "51ca969b5e58f7604059ec5dcd4b0f854140f00102f9014d21d90500000000c0020192030a4b696e6b616b752d6a69",
+   "bbox": {
+    "lon1": 135.7270998,
+    "lat1": 35.03791,
+    "lon2": 135.7319127,
+    "lat2": 35.0412605
+   }
+  },
+  {
+   "datasource": {
+    "sourcename": "openstreetmap",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "Open Database License",
+    "url": "https://www.openstreetmap.org/copyright"
+   },
+   "name": "Golden Pavilion",
+   "other_names": {
+    "name": "金閣",
+    "name:fr": "Pavillon d'Or",
+    "name:ja": "金閣",
+    "name:ja-Hira": "きんかく",
+    "name:ja-Latn": "Kinkaku"
+   },
+   "country": "Japan",
+   "country_code": "jp",
+   "county": "Kyoto Prefecture",
+   "city": "Kyoto",
+   "hamlet": "馬喰町",
+   "postcode": "603-8361",
+   "district": "Kinugasa-Nishibabacho",
+   "suburb": "Kita Ward",
+   "street": "衣笠経35号線",
+   "iso3166_2": "JP-26",
+   "lon": 135.7284537,
+   "lat": 35.0395179,
+   "result_type": "amenity",
+   "distance": 4761.257568360501,
+   "formatted": "Golden Pavilion, 衣笠経35号線, Kita Ward, Kyoto, Kinugasa-Nishibabacho 603-8361, Japan",
+   "address_line1": "Golden Pavilion",
+   "address_line2": "衣笠経35号線, Kita Ward, Kyoto, Kinugasa-Nishibabacho 603-8361, Japan",
+   "category": "tourism.attraction",
+   "timezone": {
+    "name": "Asia/Tokyo",
+    "offset_STD": "+09:00",
+    "offset_DST": "+09:00",
+    "offset_STD_seconds": 32400,
+    "offset_DST_seconds": 32400,
+    "abbreviation_STD": "JST",
+    "abbreviation_DST": "JST"
+   },
+   "plus_code": "8Q7Q2PQH+R9",
+   "plus_code_short": "2PQH+R9 Kyoto, Kyoto Prefecture, Japan",
+   "rank": {
+    "importance": 7.531471732657385e-05,
+    "popularity": 4.323863704286567,
+    "confidence": 0,
+    "match_type": "full_match"
+   },
+   "place_id": "51ce44227e4ff7604059a50d2cec0e854140f00103f901433e877101000000c0020192030f476f6c64656e20506176696c696f6e",
+   "bbox": {
+    "lon1": 135.7284037,
+    "lat1": 35.0394679,
+    "lon2": 135.7285037,
+    "lat2": 35.0395679
+   }
+  }
+ ],
+ "query": {
+  "text": "kinkaku"
+ }
+}

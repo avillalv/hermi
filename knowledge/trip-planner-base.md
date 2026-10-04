@@ -1,9 +1,8 @@
 # The Trip Planner base code
 
 Hermi is built on top of the owner's existing single-household app, Trip Planner. This page says where it is, what
-carries over, and which pieces now matter for the local AI provider and the native Windows setup. Prompt 02
-(`app-buildout/prompts/02-port-reusable-modules.md`) completes it: after the port, replace the starter map below
-with where each piece actually landed and the helper names as ported.
+carries over, and which pieces now matter for the local AI provider and the native Windows setup. Where each file
+actually landed after prompt 02 is in `docs/porting-map.md`.
 
 ## Where it is
 
@@ -45,7 +44,7 @@ the repo root. All were confirmed on 2026-10-03. The provider side is in detail 
 | `services/claude_cli.py` | Finding `claude`, the stripped environment, `claude auth status`, `NO_WINDOW` | `apps/api/hermi/providers/ai/claude_cli.py` |
 | `worker/agents/runner.py` | The `claude -p` runner: watchdog, stderr drain, stdin writer, process-tree kill, model guard, failure messages | `apps/api/hermi/providers/ai/` only: only providers spawn `claude`, so nothing goes to `hermi_worker/agents/` |
 | `worker/agents/stream.py` | Turns stream-json into run events and keeps the `init` and `result` facts | `apps/api/hermi/providers/ai/` only, as the stream parser behind the `run_events` writer and the init assertions |
-| `services/agent_ingest.py` | The trust boundary for AI output: `blocked_domain`, `source_problem`, observed-during-the-run, price bounds, rejection records | `modules/ai/ingest.py` |
+| `services/agent_ingest.py` | The trust boundary for AI output: `blocked_domain`, `source_problem`, observed-during-the-run, price bounds, rejection records | `modules/ai/ingest.py` (pure rules ported: `source_problem`, `price_in_bounds`, `observed_during_run`); `modules/ai/policy.py` holds `BLOCKED_HOSTS`, `blocked_domain`, `api_blocked_domains()` and `cli_disallowed_tools()` |
 | `backend/tests/fake_claude.py` | A scripted stand-in for the CLI, so tests never call the real one | The provider and parser tests |
 | `worker/agents/smoke.py` | One real run on a throwaway trip | `hermi ai-smoke` |
 
