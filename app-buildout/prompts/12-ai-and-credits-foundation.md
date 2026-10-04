@@ -1,6 +1,6 @@
 # Prompt 12: AI schema, flags, metering, credits, ceilings, jobs and email
 
-Phase 1 build, step 12 of 28. Follow `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (branch, models, checks, PR, merge, progress).
+Phase 1 build, step 12 of 28. Follow `app-buildout/prompts/AUTOPILOT.md` and `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (the driver merges).
 
 ## Goal
 
@@ -18,6 +18,7 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 | WF-044 | Credit ledger service |
 | WF-045 | Spend ceilings and budget service |
 | WF-046 | Job queue and worker lanes |
+| WF-131 | AI provider seam |
 | WF-047 | Notification service and email |
 
 ## Read before starting
@@ -32,6 +33,10 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 ## Notes
 
 - No real Claude calls yet: use a fake Anthropic client in tests. Ceilings and credit prices come from seed data.
+- WF-046 runs as sub-steps `WF-046.1` queue and `WF-046.2` fairness. There is no `routines` lane. Local worker concurrency is 4, 2, 4 and 1 (lanes `api`, `ai`, `notify` and `batch`).
+- Build against the provider seam (WF-131) and `AI_PROVIDER`; tests use `AI_PROVIDER=fake`.
+- This prompt registers the `release_stale_reservations`, `maintain_partitions` and `purge_trash` jobs. `scan_due_routes` is WF-051's and `retention_sweep` is WF-092's.
+- The plan sets `gate: month-2`.
 
 ## Owner-only steps
 
@@ -45,4 +50,4 @@ Add these to `app-buildout/prompts/HUMAN_TASKS.md` (do not block on them; use fa
 - `npm run lint` and `npm test` pass locally and in CI (and `npm run gen:api` is committed when routes changed, and the e2e smoke test passes when a user flow changed).
 - No secrets, no em dashes in UI copy, no fetching of Airbnb, Vrbo or Booking.com pages.
 - `PROGRESS.md` and `HUMAN_TASKS.md` are updated.
-- The pull request `Phase 1 / P12: AI schema, flags, metering, credits, ceilings, jobs and email` is merged into `main`.
+- The pull request `Phase 1 / P12: AI schema, flags, metering, credits, ceilings, jobs and email` is ready with the `e2e` label and the `PROGRESS.md` row says Done; the driver merges it after `ci` passes.

@@ -1,6 +1,6 @@
 # Prompt 13: Claude features, agent loop, research, evidence and guest mode
 
-Phase 1 build, step 13 of 28. Follow `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (branch, models, checks, PR, merge, progress).
+Phase 1 build, step 13 of 28. Follow `app-buildout/prompts/AUTOPILOT.md` and `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (the driver merges).
 
 ## Goal
 
@@ -19,6 +19,7 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 | WF-054 | AI consent, labels and reports |
 | WF-055 | Evidence labels |
 | WF-120 | Evidence freshness and one-tap recheck |
+| WF-132 | AI sheet and action screens |
 | WF-062 | Guest mode and claim |
 
 ## Read before starting
@@ -26,7 +27,7 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 - `app-buildout/prompts/PROGRESS.md` (what is already built, decisions made)
 - `app-buildout/phase-1-launch/06-ai-agents-spec.md` (all features)
 - `app-buildout/phase-1-launch/01-product-spec.md` (AI features)
-- `app-buildout/phase-1-launch/05-ui-ux-spec.md` (AI screens)
+- `app-buildout/phase-1-launch/05-ui-ux-spec.md` (AI screens; sections 6.2 and 6.15 to 6.17)
 - `app-buildout/phase-1-launch/04-api-spec.md` (AI endpoints)
 - `app-buildout/phase-1-launch/design/screens/08-ai-actions.html` and `app-buildout/phase-1-launch/design/screens/09-agent-run.html` (the AI actions and agent run screens)
 
@@ -35,12 +36,15 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 - Models: `claude-haiku-4-5` for short answers and extraction, `claude-sonnet-5-5` for drafts, research and agents, exactly as 06 says. Read the claude-api skill before writing Anthropic SDK code.
 - Every run has a dollar hard stop and turn, search and fetch caps. Blocked domains include Airbnb, Vrbo and Booking.com.
 - CI uses a fake client; a manual `npm run evals` uses the real API when a key is present.
+- WF-049 runs as sub-steps `WF-049.1` loop and `WF-049.2` ingest.
+- Owner verification pending: WF-049 (a live run on a real key, under $0.80, recorded).
 
 ## Owner-only steps
 
 Add these to `app-buildout/prompts/HUMAN_TASKS.md` (do not block on them; use fakes, fixtures and flags until they are done):
 
-- Create an Anthropic API key with a monthly spend limit and add it to staging.
+- Create an Anthropic API key with a monthly spend limit, put `ANTHROPIC_API_KEY` in `.env` and set `AI_PROVIDER=anthropic_api`, then add it to staging (see `HUMAN_TASKS.md`).
+- Do one manual agent run on staging with the real key and record its cost (it must stay under $0.80).
 
 ## Done when
 
@@ -48,4 +52,4 @@ Add these to `app-buildout/prompts/HUMAN_TASKS.md` (do not block on them; use fa
 - `npm run lint` and `npm test` pass locally and in CI (and `npm run gen:api` is committed when routes changed, and the e2e smoke test passes when a user flow changed).
 - No secrets, no em dashes in UI copy, no fetching of Airbnb, Vrbo or Booking.com pages.
 - `PROGRESS.md` and `HUMAN_TASKS.md` are updated.
-- The pull request `Phase 1 / P13: Claude features, agent loop, research, evidence and guest mode` is merged into `main`.
+- The pull request `Phase 1 / P13: Claude features, agent loop, research, evidence and guest mode` is ready with the `e2e` label and the `PROGRESS.md` row says Done; the driver merges it after `ci` passes.

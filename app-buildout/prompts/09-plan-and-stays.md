@@ -1,6 +1,6 @@
 # Prompt 09: Itinerary, places, map, stays and notes
 
-Phase 1 build, step 9 of 28. Follow `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (branch, models, checks, PR, merge, progress).
+Phase 1 build, step 9 of 28. Follow `app-buildout/prompts/AUTOPILOT.md` and `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (the driver merges).
 
 ## Goal
 
@@ -21,7 +21,7 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 
 - `app-buildout/prompts/PROGRESS.md` (what is already built, decisions made)
 - `app-buildout/phase-1-launch/01-product-spec.md` (plan, places, stays, notes)
-- `app-buildout/phase-1-launch/05-ui-ux-spec.md` (plan, stays)
+- `app-buildout/phase-1-launch/05-ui-ux-spec.md` (plan, stays; sections 6.12 to 6.14 and 6.18)
 - `app-buildout/phase-1-launch/04-api-spec.md` (itinerary, places, lodging, notes)
 - `app-buildout/phase-1-launch/design/screens/04-plan-day.html` and `app-buildout/phase-1-launch/design/screens/06-stays-vote.html` (the plan day and stays vote screens)
 
@@ -33,7 +33,7 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 
 Add these to `app-buildout/prompts/HUMAN_TASKS.md` (do not block on them; use fakes, fixtures and flags until they are done):
 
-- Create a Geoapify account and key.
+- Create a Geoapify account and key, and put `GEOAPIFY_API_KEY` in `.env`.
 
 ## Done when
 
@@ -41,4 +41,4 @@ Add these to `app-buildout/prompts/HUMAN_TASKS.md` (do not block on them; use fa
 - `npm run lint` and `npm test` pass locally and in CI (and `npm run gen:api` is committed when routes changed, and the e2e smoke test passes when a user flow changed).
 - No secrets, no em dashes in UI copy, no fetching of Airbnb, Vrbo or Booking.com pages.
 - `PROGRESS.md` and `HUMAN_TASKS.md` are updated.
-- The pull request `Phase 1 / P09: Itinerary, places, map, stays and notes` is merged into `main`.
+- The pull request `Phase 1 / P09: Itinerary, places, map, stays and notes` is ready with the `e2e` label and the `PROGRESS.md` row says Done; the driver merges it after `ci` passes.

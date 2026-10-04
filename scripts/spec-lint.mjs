@@ -1,12 +1,14 @@
 // Spec lint for the Hermi repo. Node 22, standard library only.
 //
-//   node scripts/spec-lint.mjs            run checks 1 to 3
-//   node scripts/spec-lint.mjs --links    also run check 4 (opt in: links can dangle while the spec is edited)
+//   node scripts/spec-lint.mjs            run every check
 //
 // 1. No em or en dash (U+2014, U+2013) in text files. findings/ is out of scope by design.
 // 2. Every roadmap ticket is in exactly one build prompt table, and no table lists a stranger.
 // 3. prompts/README.md, prompts/PROGRESS.md and each prompt file agree on that prompt's tickets.
-// 4. Relative markdown links point at something that exists.
+// 4. Relative markdown links point at something that exists (app-buildout, CLAUDE.md, knowledge/).
+// 5. Every roadmap ticket that touches UI paths has a "- Kit:" line.
+// 6. The word "routines" is not in 02-architecture.md or 09-build-roadmap.md.
+// 7. Every stated ticket count matches the number of "#### WF-" headings in the roadmap.
 //
 // Exit 0 when clean. Exit 1 with one "path:line: message" per problem.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -18,7 +20,7 @@ const ROADMAP = 'app-buildout/phase-1-launch/09-build-roadmap.md';
 const PROMPTS = 'app-buildout/prompts';
 const FROZEN = 'app-buildout/reference-full-spec/'; // superseded spec: dash check covers it, link check skips it
 const DASH_DIRS = ['app-buildout', 'knowledge', '.claude', 'scripts']; // plus CLAUDE.md and root *.md
-const LINK_DIRS = ['app-buildout', 'knowledge', '.claude'];
+const LINK_DIRS = ['app-buildout', 'knowledge']; // plus CLAUDE.md
 const TEXT_FILE = /\.(svg|md|html|css|py|mjs|js|json|ya?ml|txt)$/;
 const TICKET = /\b(?:WF-\d+|S\d\.\d+)\b/g; // WF-001 is a roadmap ticket, S1.1 a setup prompt ticket
 const EM = String.fromCharCode(0x2014); // built from code points so this file passes its own check
@@ -28,9 +30,8 @@ const DASHES = new RegExp(`[${EN}${EM}]`, 'g');
 const SKIP_NAMES = new Set(['.git', 'node_modules', '__pycache__']);
 const SKIP_PATHS = new Set(['.claude/handoff', '.claude/settings.local.json']);
 
-const args = process.argv.slice(2);
-if (args.some((a) => a !== '--links')) {
-  console.error('usage: node scripts/spec-lint.mjs [--links]');
+if (process.argv.length > 2) {
+  console.error('usage: node scripts/spec-lint.mjs');
   process.exit(2);
 }
 
@@ -148,7 +149,8 @@ function checkTickets() {
 
 // 4. Links -------------------------------------------------------------------------------
 function checkLinks() {
-  const docs = present(LINK_DIRS).flatMap((d) => walk(d)).filter((f) => f.endsWith('.md') && !f.startsWith(FROZEN));
+  const docs = [...present(['CLAUDE.md']), ...present(LINK_DIRS).flatMap((d) => walk(d))]
+    .filter((f) => f.endsWith('.md') && !f.startsWith(FROZEN));
   for (const file of docs) {
     let fence = null; // the opening ``` or ~~~ while inside a fenced code block
     read(file).forEach((raw, i) => {
@@ -171,9 +173,56 @@ function checkLinks() {
   }
 }
 
+// 5. Kit lines ---------------------------------------------------------------------------
+function checkKit() {
+  const lines = read(ROADMAP);
+  let id = null;
+  let ui = null; // line of a UI Touches line in the current ticket
+  let kit = false;
+  const close = () => { if (id && ui && !kit) bad(ROADMAP, ui, `${id} touches UI paths but has no "- Kit:" line`); };
+  lines.forEach((text, i) => {
+    if (/^#{1,6}\s/.test(text)) {
+      close();
+      id = /^#{4}\s+(WF-\d+)\b/.exec(text)?.[1] ?? null;
+      ui = null;
+      kit = false;
+    } else if (id && /^- Touches:/.test(text) && /apps\/web\/src\/(routes|components|shell)\/|apps\/ios\//.test(text)) ui = i + 1;
+    else if (id && /^- Kit:/.test(text)) kit = true;
+  });
+  close();
+}
+
+// 6. Retired word ------------------------------------------------------------------------
+function checkRoutines() {
+  for (const file of ['02-architecture.md', '09-build-roadmap.md'].map((n) => `app-buildout/phase-1-launch/${n}`)) {
+    read(file).forEach((text, i) => {
+      if (/\broutines\b/i.test(text)) bad(file, i + 1, 'the word "routines" is retired, use the current term');
+    });
+  }
+}
+
+// 7. Ticket count ------------------------------------------------------------------------
+// Phase 2 and 3 READMEs count their own tickets, so they are out of scope.
+function checkCount(n) {
+  const docs = walk('app-buildout').filter((f) => f.endsWith('.md') && !f.startsWith(FROZEN)
+    && !/\/(phase-2-growth|phase-3-scale)\//.test(f) && !f.endsWith('/DECISIONS.md') && !f.includes('/S3-')); // S3 quotes the old counts it fixes
+  for (const file of docs) {
+    read(file).forEach((text, i) => {
+      if (/^Tickets WF-/.test(text)) return; // a milestone range, not a total
+      for (const m of text.matchAll(/\b(\d+)\s+(?:Phase 1\s+)?tickets\b|\bWF-001 to WF-(\d+)\b/g)) {
+        const stated = Number(m[1] ?? m[2]);
+        if (stated !== n) bad(file, i + 1, `states ${stated} tickets ("${m[0]}"), the roadmap has ${n}`);
+      }
+    });
+  }
+}
+
 checkDashes();
 const { tickets, prompts } = checkTickets();
-if (args.includes('--links')) checkLinks();
+checkLinks();
+checkKit();
+checkRoutines();
+checkCount(tickets);
 
 if (problems.length) {
   console.log(problems.join('\n'));
