@@ -4,7 +4,24 @@ The build's memory. Every autopilot session updates this file in its pull reques
 
 ## Current prompt
 
-None yet. The first unit is S1.
+S1, spec fixes, runtime (branch `spec/s1-spec-runtime`). Documents only, no code.
+
+Steps, in order (one session each):
+
+1. S1.1 Root README and Phase 1 README: settled values, AI stack row, reuse paragraph (`app-buildout/README.md`, `phase-1-launch/README.md`).
+2. S1.2.1 Architecture, sections 1 to 6: items 1 to 9, 21 and 24 (AI provider seam, layout, no `routines`, bearer auth, database access column, RLS wording, lanes, import pipeline, calendar feed, admin sign-in, webhook names).
+3. S1.2.2 Architecture, sections 7 to 14: items 10 to 20, 22 and 23 (Local column and variables, role names, AI caps, config rules, third-party services, environments, CI aggregator, Docker optional, reuse table, new in Phase 1, `ios.yml`, `serpapi_live_fares` off).
+4. S1.3 Database roles, RLS and grants (03 section 6, section 10 roles, the `audit_log` trigger in 5.16).
+5. S1.4 Database tables, functions and seeds (03, the rest).
+6. S1.5 API contract (`04-api-spec.md`).
+7. S1.6 AI agents spec (`06-ai-agents-spec.md`), adapting `.reference/trip-planner` `claude_cli.py` and the worker agent files.
+8. S1.7 Admin console (`08-admin-control-center.md`).
+
+Tests: `node scripts/spec-lint.mjs` and the dash grep before every commit; `opus-reviewer` checks every fix by its number and that nothing outside the ticket's file group changed.
+
+Risks: S1.2 is split in two because it has 24 items; the reviewer of S1.2.2 checks the whole file for `routines`. S1.3 and S1.4 both edit `03-database-schema.md` and must keep to their own sections. Names a fix does not give are chosen once and recorded in `DECISIONS.md`.
+
+Owner-pending items: none.
 
 ## Setup prompts
 
@@ -12,7 +29,7 @@ Status values: `Not started`, `In progress (<branch>)`, `In review (#<pr>)`, `Do
 
 | # | Prompt | Tickets | Status |
 |---|---|---|---|
-| S1 | [Spec fixes, runtime (README, 02, 03, 04, 06, 08)](S1-spec-runtime.md) | S1.1, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7 | Not started |
+| S1 | [Spec fixes, runtime (README, 02, 03, 04, 06, 08)](S1-spec-runtime.md) | S1.1, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7 | In progress (spec/s1-spec-runtime) |
 | S2 | [Spec fixes, product and UI (01, 05, 07, 10, design kit, brand)](S2-spec-product-ui.md) | S2.1, S2.2, S2.3, S2.4, S2.5 | Not started |
 | S3 | [Spec fixes, roadmap, prompts and lint](S3-spec-roadmap-prompts.md) | S3.1, S3.2, S3.3, S3.4, S3.5 | Not started |
 
