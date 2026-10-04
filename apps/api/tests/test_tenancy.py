@@ -10,6 +10,7 @@ from fastapi import APIRouter
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy import text
+from tests.tenancy.leakwalk import all_routes
 
 from hermi import db
 from hermi.config import Settings
@@ -126,12 +127,13 @@ def test_every_route_with_an_id_parameter_resolves_through_require_trip(client):
             uses_require_trip(d) for d in dep.dependencies
         )
 
+    api = [(p, r) for p, r in all_routes(client.app) if isinstance(r, APIRoute)]
+    assert any(p.startswith("/v1/me") for p, _ in api) and any(p.startswith("/v1/_test/") for p, _ in api)
     bad = [
-        r.path
-        for r in client.app.routes
-        if isinstance(r, APIRoute)
-        and any(p.endswith("_id") or p == "id" for p in r.param_convertors)
-        and r.path not in PUBLIC_ID_ROUTES
+        p
+        for p, r in api
+        if any(n.endswith("_id") or n == "id" for n in r.param_convertors)
+        and p not in PUBLIC_ID_ROUTES
         and not uses_require_trip(r.dependant)
     ]
     assert bad == []
