@@ -872,7 +872,7 @@
         <section class="doc-block" id="tabbar">
           <h3 class="doc-h3">Tab bar</h3>
           <dl class="doc-meta">
-            <div><dt>Classes</dt><dd><code>.h-tabbar</code> <code>__bar</code> <code>__item</code> <code>--active</code></dd></div>
+            <div><dt>Classes</dt><dd><code>.h-tabbar</code> <code>__bar</code> <code>__item</code> <code>__badge</code> <code>--active</code></dd></div>
             <div><dt>Spec</dt><dd>05 section 4.20 Tab bar, becomes <code>&lt;TabBar&gt;</code>.</dd></div>
             <div><dt>Use</dt><dd>Four tabs: Trips, Discover, Activity, Account. A floating pill over a fade. Hide it in full-screen sheets and present mode.</dd></div>
           </dl>
@@ -884,7 +884,7 @@
                   <div class="h-tabbar__bar">
                     <a class="h-tabbar__item h-tabbar__item--active" href="02-trips-home.html" aria-current="page"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-luggage"></use></svg><span>Trips</span></a>
                     <a class="h-tabbar__item" href="#discover"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-compass"></use></svg><span>Discover</span></a>
-                    <a class="h-tabbar__item" href="#activity"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span>Activity</span></a>
+                    <a class="h-tabbar__item" href="#activity" aria-label="Activity, 3 new"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span>Activity</span><span class="h-tabbar__badge" aria-hidden="true">3</span></a>
                     <a class="h-tabbar__item" href="#account"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-circle-user"></use></svg><span>Account</span></a>
                   </div>
                 </nav>
@@ -897,7 +897,7 @@
                   <div class="h-tabbar__bar">
                     <a class="h-tabbar__item h-tabbar__item--active" href="02-trips-home.html" aria-current="page"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-luggage"></use></svg><span>Trips</span></a>
                     <a class="h-tabbar__item" href="#discover"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-compass"></use></svg><span>Discover</span></a>
-                    <a class="h-tabbar__item" href="#activity"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span>Activity</span></a>
+                    <a class="h-tabbar__item" href="#activity" aria-label="Activity, 3 new"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span>Activity</span><span class="h-tabbar__badge" aria-hidden="true">3</span></a>
                     <a class="h-tabbar__item" href="#account"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-circle-user"></use></svg><span>Account</span></a>
                   </div>
                 </nav>
@@ -908,9 +908,9 @@
         <section class="doc-block" id="strip">
           <h3 class="doc-h3">Section strip</h3>
           <dl class="doc-meta">
-            <div><dt>Classes</dt><dd><code>.h-strip</code> <code>__tab</code> <code>[aria-selected="true"]</code></dd></div>
+            <div><dt>Classes</dt><dd><code>.h-strip</code> <code>__tab</code> <code>[aria-selected="true"]</code> <code>[aria-current="page"]</code></dd></div>
             <div><dt>Spec</dt><dd>05 section 5.2 Section strip, becomes <code>&lt;SectionTabs&gt;</code>.</dd></div>
-            <div><dt>Use</dt><dd>Six scrollable pill tabs under a trip header. State comes from aria-selected.</dd></div>
+            <div><dt>Use</dt><dd>Six scrollable pill tabs under a trip header. A nav of links; the current one has aria-current="page".</dd></div>
           </dl>
           <div class="doc-pair">
             <div class="doc-demo light" data-mode="light">

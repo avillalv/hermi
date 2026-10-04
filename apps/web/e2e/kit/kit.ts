@@ -68,11 +68,18 @@ export async function openKit(page: Page, rel: string, scheme: Scheme) {
 }
 
 /**
- * The same kit markup rendered through the app's CSS pipeline: the kit page with its css links swapped for
- * e2e/kit/fixture.css. shortcut: markup comes from the kit file until WF-130.3 renders React components.
+ * The app side. `components.html` is the React component gallery (kit-gallery.html, rendered by the kit components
+ * through the app's CSS pipeline). Screens are still the kit page with its css links swapped for e2e/kit/fixture.css.
+ * shortcut: screen markup comes from the kit files until each screen is built in React (WF-018 and later).
  */
 export async function openApp(page: Page, rel: string, scheme: Scheme) {
   await page.emulateMedia({ colorScheme: scheme, reducedMotion: "reduce" });
+  const hash = scheme === "dark" ? "#dark" : "";
+  if (rel === "components.html") {
+    await page.goto(`/kit-gallery.html${hash}`);
+    await ready(page);
+    return;
+  }
   await page.route(`**/__kit/${rel}`, (r) => {
     const html = readFileSync(join(DESIGN, rel), "utf8")
       .replace(/<link rel="stylesheet" href="(\.\.\/)?(tokens|hermi)\.css">/g, "")
@@ -80,7 +87,7 @@ export async function openApp(page: Page, rel: string, scheme: Scheme) {
       .replace("<head>", '<head><link rel="stylesheet" href="/e2e/kit/fixture.css">');
     return r.fulfill({ contentType: "text/html", body: html });
   });
-  await page.goto(`/__kit/${rel}${scheme === "dark" ? "#dark" : ""}`);
+  await page.goto(`/__kit/${rel}${hash}`);
   await ready(page);
 }
 

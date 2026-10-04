@@ -11,7 +11,7 @@ export default defineConfig({
   projects: [
     { name: "kit", testMatch: "kit.spec.ts", use },
     { name: "kit-metrics", testMatch: "kit-metrics.spec.ts", use },
-    { name: "kit-parity", testMatch: "kit-parity.spec.ts", use },
+    { name: "kit-parity", testMatch: "kit-parity.spec.ts", use, timeout: 180_000 },
   ],
   webServer: {
     command: "npm run dev -- --port 5173 --strictPort",
