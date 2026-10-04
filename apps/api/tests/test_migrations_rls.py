@@ -26,7 +26,8 @@ DEFINER_FUNCTIONS = [  # (signature, search_path pinned, app can execute, worker
     ("visible_trip_ids()", True, True, True),
     ("can_edit_trip(uuid)", True, True, True),
     ("is_trip_owner(uuid)", True, True, True),
-    ("bootstrap_user(text,text,citext,boolean,text)", True, True, False),
+    ("bootstrap_user(text,text,citext,boolean,text,text)", True, True, False),
+    ("resolve_identity(text,text)", True, True, False),
     ("purge_trash(interval)", True, False, True),
     ("retention_sweep()", True, False, True),
     ("maintain_partitions()", True, False, True),
@@ -108,7 +109,7 @@ def _member(c, trip, user, role):
 def test_chain_is_linear_and_0014_follows_0013():
     s = ScriptDirectory.from_config(_alembic_cfg())
     assert s.get_revision("0014_rls").down_revision == "0013_notifications_samples"
-    assert s.get_heads() == ["0015_seed"]  # 0015_seed (WF-020.3) is the head now
+    assert s.get_heads() == ["0016_bootstrap_subject"]  # 0016 (WF-013.1) is the head now
 
 
 # --- RLS on every tenant table ---------------------------------------------------------------------

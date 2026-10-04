@@ -51,7 +51,8 @@ limits and the SSRF guard), `02-architecture.md` sections 3 and 5.4, and `06-ai-
   most 2 MB (cut while streaming, also after decompression), the body must start with `BEGIN:VCALENDAR`, no
   cookies and no authorization headers, `User-Agent: HermiCalendarImport/1.0`.
 - Every other outbound call has an explicit timeout and a response size limit. A client with no timeout is a bug.
-- Only `providers/*` import `httpx` or the Anthropic SDK, and every outbound call writes a `provider_calls` row
+- Only `providers/*` import `httpx` or the Anthropic SDK (one exception: `security/jwt.py` fetches our own
+  auth provider's JWKS from `SUPABASE_JWKS_URL`, no redirects, 5 second timeout, 256 KB cap), and every outbound call writes a `provider_calls` row
   (provider, endpoint, status, latency; for the feed fetcher the host only, never the path).
 
 ## Partner links and evidence
@@ -73,5 +74,5 @@ limits and the SSRF guard), `02-architecture.md` sections 3 and 5.4, and `06-ai-
 # scraping libraries (prints nothing when clean)
 grep -rniE "scrapy|beautifulsoup|bs4|selenium|puppeteer|mechanize" apps/api apps/worker --include=pyproject.toml --include=*.py
 # an HTTP client imported outside providers (prints nothing when clean)
-grep -rnE "import httpx|from httpx|import requests|from requests" apps --include=*.py | grep -v -e "apps/api/hermi/providers/" -e "/tests/"
+grep -rnE "import httpx|from httpx|import requests|from requests" apps --include=*.py | grep -v -e "apps/api/hermi/providers/" -e "apps/api/hermi/security/jwt.py" -e "/tests/"
 ```

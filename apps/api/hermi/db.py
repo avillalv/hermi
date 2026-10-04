@@ -6,6 +6,11 @@ Connection strings come from the environment (hermi.config), never from this fil
 import secrets
 import time
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
+
+from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.orm import Session
 
 # Roles that infra/db/bootstrap.sql creates (03 section 6.1). Migration 0001 checks them.
 REQUIRED_ROLES = (
@@ -90,7 +95,7 @@ def assert_single_head(script) -> str:
 def assert_app_login_is_safe(connection) -> None:
     """Refuse an app connection that could bypass row-level security (03 6.5).
 
-    Call when the app engine opens (not wired yet; the first ticket that opens it must).
+    open_app_engine calls it when the API starts.
     """
     unsafe = connection.exec_driver_sql(
         "SELECT r.rolsuper OR r.rolbypassrls "
@@ -102,3 +107,44 @@ def assert_app_login_is_safe(connection) -> None:
         raise MigrationError(
             "The app connection must not be a superuser, a BYPASSRLS role, or own or be a member of the owner of any table in public."
         )
+
+
+def make_engine(url: str, *, pool_size: int = 5, max_overflow: int = 2, statement_timeout_ms: int = 15000) -> Engine:
+    return create_engine(
+        sqlalchemy_url(url),
+        pool_size=pool_size,
+        max_overflow=max_overflow,
+        pool_pre_ping=True,
+        connect_args={"options": f"-c statement_timeout={int(statement_timeout_ms)}"},
+    )
+
+
+def open_app_engine(settings) -> Engine:
+    """The API engine (DATABASE_URL, hermi_api_login). Refuses a login that could bypass row-level security."""
+    engine = make_engine(
+        settings.require("DATABASE_URL"),
+        pool_size=settings.database_pool_size,
+        max_overflow=settings.database_max_overflow,
+        statement_timeout_ms=settings.database_statement_timeout_ms,
+    )
+    try:
+        with engine.connect() as conn:
+            assert_app_login_is_safe(conn)
+    except Exception:
+        engine.dispose()
+        raise
+    return engine
+
+
+@contextmanager
+def request_transaction(engine: Engine, user_id: uuid.UUID) -> Iterator[Session]:
+    """One transaction per request. app.user_id is transaction-local, so it dies with the commit or rollback
+    and cannot leak to the next request on a pooled connection (02 section 3 step 4)."""
+    with Session(engine) as session:
+        try:
+            session.execute(text("SELECT set_config('app.user_id', :u, true)"), {"u": str(user_id)})
+            yield session
+            session.commit()
+        except BaseException:
+            session.rollback()
+            raise
