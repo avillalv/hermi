@@ -108,7 +108,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           severity: HIGH,CRITICAL
@@ -118,7 +118,7 @@ jobs:
         run: docker build -f infra/docker/Dockerfile -t hermi:scan .
       - name: Trivy image scan
         if: hashFiles('infra/docker/Dockerfile') != ''
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: hermi:scan
           severity: HIGH,CRITICAL

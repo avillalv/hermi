@@ -285,7 +285,7 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Trivy scan (fixable high and critical fail the build)
         if: steps.detect.outputs.present == 'true'
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: hermi:ci
           severity: HIGH,CRITICAL
