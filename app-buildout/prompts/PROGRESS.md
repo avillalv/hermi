@@ -4,23 +4,25 @@ The build's memory. Every autopilot session updates this file in its pull reques
 
 ## Current prompt
 
-S2, spec fixes, product and UI (branch `spec/s2-spec-product-ui`). Documents only, no code.
+S3, spec fixes, roadmap, prompts and lint (branch `spec/s3-spec-roadmap-prompts`). Documents and `scripts/spec-lint.mjs` only, no application code.
 
 Steps, in order (one session each):
 
-1. S2.1.1 UI and UX spec, tokens and rules: items 1 to 8 and 11 to 13 (font stacks, machine-readable token tables, `--tp-ticket`, heat-ink and `--viz-band` with contrast rows, solid focus ring, Secondary button mapping, kit precedence line, 1200 px sidebar, section 6 state rule, section strip as `nav`, Dynamic Type, portrait on phones) in `05-ui-ux-spec.md`.
-2. S2.1.2 UI and UX spec, screens: items 9, 10 and 14 to 19 (Discover sample trips gallery, Overview "Happening now", disclosure snapshot, credit pool display, Delete my AI history, guest local data, import and calendar feed wording, 402 limits) in `05-ui-ux-spec.md`.
-3. S2.2 Design kit and brand (`design/tokens.css`, `design/components.html`, `DESIGN-LANGUAGE.md`, `design/README.md`, `brand/BRAND.md`).
-4. S2.3 Product spec (`01-product-spec.md`).
-5. S2.4 Monetization spec (`07-monetization-spec.md`).
-6. S2.5.1 Quality, security and launch, testing: items 1 to 3 (integration test rules, evals, smoke flows mapped to the journeys).
-7. S2.5.2 Quality, security and launch, the rest: items 4 to 11 (security controls, never-fetch test, privacy, analytics catalogue, alerts, launch checklist tags, calendar feed token, no `routines`).
+1. S3.1.1 Roadmap, new tickets: items 1 to 5 (WF-130 to WF-133 as full entries, their dependencies, sections 1 to 4 milestones, critical path, capacity and cut list, no `routines`) in `09-build-roadmap.md`, plus the four new rows in the tables of prompts 06, 11, 12 and 13 and in their `README.md` and `PROGRESS.md` ticket lists, so spec-lint passes.
+2. S3.1.2 Roadmap, runtime and data rewrites: items 6 to 13 (business gates, WF-004 to WF-008, the P04 schema re-cut, WF-013 dev auth).
+3. S3.1.3 Roadmap, business and feature rewrites: items 14 to 22 (402 paywall, imports, metering, provider seam, evals, admin auth, webhooks, PDF library, deletion).
+4. S3.2.1 Roadmap, `Kit:` lines: item 1 (a `- Kit:` line on every UI ticket, mapped through the `design/README.md` Screens table).
+5. S3.2.2 Roadmap, coverage criteria and the definition of done: items 2 to 16.
+6. S3.3.1 Prompts 01 to 07: items 1 to 7 and 13 for those files.
+7. S3.3.2 Prompts 08 to 14: items 1 and 8 to 13 for those files.
+8. S3.4 Prompts 15 to 28, the prompts README, the `PROGRESS.md` ticket lists and the ticket count.
+9. S3.5 `scripts/spec-lint.mjs` strict checks (relative links by default, `Kit:` lines on UI tickets, no `routines`, ticket count from the roadmap).
 
-Tests: `node scripts/spec-lint.mjs` and the dash grep before every commit; `opus-reviewer` checks every fix by its number and that nothing outside the ticket's file group changed. The S2.2 reviewer diffs 05 section 2 against `tokens.css` (design-token-sync rule).
+Tests: `node scripts/spec-lint.mjs` and the dash grep before every commit; `opus-reviewer` checks every fix by its number and that nothing outside the ticket's file group changed.
 
-Risks: S2.1 and S2.5 are split because of their size; each half must stay within its own items and both halves edit the same file. S2.2 depends on S2.1.1 values. The S1 follow-ups for these files are covered here: 01 and 10 mirror the 04 section 5.26 imports limits table (S2.3 item 7, S2.5 item 8) and 07 section 5.4 states the taster-first rule (S2.4 item 2). Names a fix does not give are chosen once and recorded in `DECISIONS.md`.
+Risks: S3.1, S3.2 and S3.3 are split because of their size; each part stays within its own items and the parts edit the same files in order. The new tickets must appear in prompt tables in the same commit as their roadmap entries (S3.1.1) or spec-lint fails. After reordering, no ticket may depend on a ticket of a later prompt. The S3.5 strict checks (relative links over all docs, ticket count) may surface failures in files the earlier steps did not touch; S3.5 fixes only what its items require and records anything else under "Notes for later prompts". All dependencies (S1, S2) are Done.
 
-Owner-pending items: none.
+Owner-pending items: none (documents only; the owner-pending notes this prompt writes into prompts 01 to 28 apply to later prompts).
 
 ## Setup prompts
 
@@ -30,7 +32,7 @@ Status values: `Not started`, `In progress (<branch>)`, `In review (#<pr>)`, `Do
 |---|---|---|---|
 | S1 | [Spec fixes, runtime (README, 02, 03, 04, 06, 08)](S1-spec-runtime.md) | S1.1, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7 | Done (#5) |
 | S2 | [Spec fixes, product and UI (01, 05, 07, 10, design kit, brand)](S2-spec-product-ui.md) | S2.1, S2.2, S2.3, S2.4, S2.5 | Done (#6) |
-| S3 | [Spec fixes, roadmap, prompts and lint](S3-spec-roadmap-prompts.md) | S3.1, S3.2, S3.3, S3.4, S3.5 | Not started |
+| S3 | [Spec fixes, roadmap, prompts and lint](S3-spec-roadmap-prompts.md) | S3.1, S3.2, S3.3, S3.4, S3.5 | In progress (spec/s3-spec-roadmap-prompts) |
 
 ## Prompts
 
