@@ -1,6 +1,6 @@
 # Prompt 08: Currency, cached fares and price alerts
 
-Phase 1 build, step 8 of 28. Follow `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (branch, models, checks, PR, merge, progress).
+Phase 1 build, step 8 of 28. Follow `app-buildout/prompts/AUTOPILOT.md` and `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (the driver merges).
 
 ## Goal
 
@@ -21,7 +21,7 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 - `app-buildout/prompts/PROGRESS.md` (what is already built, decisions made)
 - `app-buildout/phase-1-launch/01-product-spec.md` (flights)
 - `app-buildout/phase-1-launch/04-api-spec.md` (flights)
-- `app-buildout/phase-1-launch/05-ui-ux-spec.md` (flights screens)
+- `app-buildout/phase-1-launch/05-ui-ux-spec.md` (flights screens; sections 6.9, 6.10, 4.5 and 4.6)
 - `app-buildout/context/business-plan/06-database-and-data-integrations.md` (providers)
 - `app-buildout/phase-1-launch/design/screens/05-fare-detail.html` (the fare detail screen)
 
@@ -33,7 +33,7 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 
 Add these to `app-buildout/prompts/HUMAN_TASKS.md` (do not block on them; use fakes, fixtures and flags until they are done):
 
-- Create a Travelpayouts account, get the API token and affiliate marker.
+- Create a Travelpayouts account, get the API token and affiliate marker, and put `TRAVELPAYOUTS_TOKEN` and `TRAVELPAYOUTS_MARKER` in `.env`.
 
 ## Done when
 
@@ -41,4 +41,4 @@ Add these to `app-buildout/prompts/HUMAN_TASKS.md` (do not block on them; use fa
 - `npm run lint` and `npm test` pass locally and in CI (and `npm run gen:api` is committed when routes changed, and the e2e smoke test passes when a user flow changed).
 - No secrets, no em dashes in UI copy, no fetching of Airbnb, Vrbo or Booking.com pages.
 - `PROGRESS.md` and `HUMAN_TASKS.md` are updated.
-- The pull request `Phase 1 / P08: Currency, cached fares and price alerts` is merged into `main`.
+- The pull request `Phase 1 / P08: Currency, cached fares and price alerts` is ready with the `e2e` label and the `PROGRESS.md` row says Done; the driver merges it after `ci` passes.
