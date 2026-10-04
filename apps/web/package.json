@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "test:kit": "playwright test"
+    "test:kit": "playwright test --project kit --project kit-metrics --project kit-shell --project kit-parity",
+    "test:smoke": "playwright test --project smoke"
   },
   "dependencies": {
     "@hermi/tokens": "*",
+    "@supabase/supabase-js": "^2.117.2",
     "@tanstack/react-query": "^5.60.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

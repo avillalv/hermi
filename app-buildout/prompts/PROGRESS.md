@@ -11,8 +11,8 @@ The build's memory. Every autopilot session updates this file in its pull reques
 3. WF-130.2: Playwright (Chromium, WebKit), kit fixture, frozen clock, fonts routed to the bundled files, pixelmatch in one run, `kit-metrics`, `npm run test:kit` and `npm run test:e2e`; stylelint `declaration-strict-value`.
 4. WF-130.3: React wrappers in `apps/web/src/components/kit/` emitting the `h-` classes (Logo, RoutePattern, ticket, sheet, tab bar, section strip as `nav` with `aria-current`), component parity for every `components.html` block.
 5. WF-130.4: React Router 7 and the scrolling shell in `apps/web/src/shell/` (strip, sheet, tab bar, rail 768 to 1199 px, 248 px sidebar from 1200 px, placeholder tabs), layout tests at 390 to 1440 px, fonts and network check, focus rings.
-6. WF-018.1: sign-in screens (Apple, Google, email code via supabase-js; persona picker when `AUTH_MODE=dev` via `POST /v1/dev/session`), auth guard, sign-out clears state, `locales/en.json`, Playwright smoke flow 1.
-7. WF-018.2: intro, age gate, first-trip wizard, profile sheet (05 6.4), plus `GET` and `POST /v1/trips` so the wizard creates a trip.
+6. WF-018.1: sign-in screens (Apple, Google, email code via supabase-js; persona picker when `AUTH_MODE=dev` via `POST /v1/dev/session`), sign-out clears state, `locales/en.json`, Playwright smoke flow 1.
+7. WF-018.2: auth guard (signed-out visits go to Welcome per 05 6.1 or guest mode, with a signed-in fixture for the shell tests), intro, age gate, first-trip wizard, profile sheet (05 6.4), plus `GET` and `POST /v1/trips` so the wizard creates a trip.
 8. WF-019.1: rest of the trips and destinations API (04 section 5.4), archive as `PATCH` status, duplicate, trash and restore, `route_policy.py` entries, tenancy and viewer-refused tests.
 9. WF-019.2: Trips home (05 6.5) and Overview (6.7) with "Happening now".
 10. WF-019.3: edit, archive, duplicate, trash and restore, trip switcher, place autocomplete and destination time zone, Playwright smoke flow 26 and the prompt's sign-in plus create-trip smoke test.

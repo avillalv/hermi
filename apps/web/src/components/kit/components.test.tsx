@@ -1,5 +1,6 @@
-import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   Avatar,
   Avatars,
@@ -17,6 +18,7 @@ import {
   SheetGrabber,
   StatusStub,
   TabBar,
+  TextField,
   TicketStub,
   TripTicket,
   badgeText,
@@ -200,5 +202,56 @@ describe('Sheet', () => {
     expect(screen.getByRole('dialog', { name: 'Details' }).className).toBe('h-sheet')
     expect(container.querySelector('.h-sheet__grabber')!.getAttribute('aria-hidden')).toBe('true')
     expect(container.querySelector('.h-sheet__body')!.className).toBe('h-sheet__body h-sheet__body--roomy')
+  })
+})
+
+describe('Btn busy', () => {
+  it('sets aria-busy, keeps the label for width, shows the spinner and blocks taps', () => {
+    const onClick = vi.fn()
+    const { container } = render(
+      <Btn variant="primary" busy onClick={onClick}>
+        Send code
+      </Btn>,
+    )
+    const b = screen.getByRole('button', { name: 'Send code' })
+    expect(b.getAttribute('aria-busy')).toBe('true')
+    expect(b.querySelector('.h-btn__label')!.textContent).toBe('Send code')
+    expect(container.querySelector('.h-btn__spin')).toBeTruthy()
+    fireEvent.click(b)
+    expect(onClick).not.toHaveBeenCalled()
+  })
+  it('is a plain button when busy is not passed, and idle when busy is false', () => {
+    const { container, rerender } = render(<Btn variant="primary">Go</Btn>)
+    expect(container.querySelector('.h-btn__label')).toBeNull()
+    rerender(<Btn variant="primary" busy={false}>Go</Btn>)
+    expect(screen.getByRole('button').getAttribute('aria-busy')).toBeNull()
+    expect(container.querySelector('.h-btn__spin')).toBeNull()
+  })
+})
+
+describe('TextField', () => {
+  it('has a visible label, helper and no error by default', () => {
+    const { container } = render(<TextField label="Email" helper="We will send a code." />)
+    const input = screen.getByLabelText('Email')
+    expect(container.firstElementChild!.className).toBe('h-input')
+    expect(input.className).toBe('h-input__field')
+    expect(input.getAttribute('aria-invalid')).toBeNull()
+    expect(screen.getByText('We will send a code.').className).toBe('h-input__help')
+  })
+  it('on error marks it invalid and links the alert, with the danger icon', () => {
+    const { container } = render(<TextField label="Code" helper="Help" error="Not right." code />)
+    const input = screen.getByLabelText('Code')
+    const alert = screen.getByRole('alert')
+    expect(container.firstElementChild!.className).toBe('h-input h-input--error')
+    expect(input.className).toBe('h-input__field h-input__field--code')
+    expect(input.getAttribute('aria-invalid')).toBe('true')
+    expect(input.getAttribute('aria-describedby')!.split(' ')).toContain(alert.id)
+    expect(alert.textContent).toBe('Not right.')
+    expect(alert.querySelector('use')!.getAttribute('href')).toBe('#i-circle-alert')
+  })
+  it('passes the input ref through for focus', () => {
+    const ref = { current: null as HTMLInputElement | null }
+    render(<TextField label="Email" inputRef={ref} />)
+    expect(ref.current).toBe(screen.getByLabelText('Email'))
   })
 })

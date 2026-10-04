@@ -155,6 +155,11 @@ export function Sprite() {
         <path d="M3 6h18" />
         <path d="M16 10a4 4 0 0 1-8 0" />
       </symbol>
+      <symbol id="i-circle-alert" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" x2="12" y1="8" y2="12" />
+        <line x1="12" x2="12.01" y1="16" y2="16" />
+      </symbol>
       <symbol id="i-landmark" viewBox="0 0 24 24">
         <path d="M3 22h18" />
         <path d="M6 18v-7" />

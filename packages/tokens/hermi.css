@@ -850,3 +850,29 @@ a.h-ticket__card:active { transform: translateY(1px); }
 .h-label--section { margin: 4px 2px 0; }
 .h-label--onsky { color: inherit; }
 .h-label .h-num { font-weight: 700; letter-spacing: 0; }
+
+/* 4.2 Text input -> <TextField> */
+/* Label over a 44 px field, helper under it. Error adds a danger border and a danger icon with the message. The focus
+   ring is the global :focus-visible ring. Disabled is 50% and the helper says why. */
+.h-input { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.h-input__label { font: 600 0.8125rem/1.3 var(--tp-font-body); color: var(--tp-ink); }
+.h-input__field { box-sizing: border-box; width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--tp-edge); border-radius: var(--radius-lg); background: var(--tp-sheet); color: var(--tp-ink); font: 400 1rem/1.4 var(--tp-font-body); }
+.h-input__field--code { font-family: var(--tp-font-mono); letter-spacing: 0.3em; text-align: center; }
+.h-input__field:disabled { opacity: 0.5; }
+.h-input--error .h-input__field { border-color: var(--tp-danger); }
+.h-input__help { margin: 0; font: 400 0.8125rem/1.3 var(--tp-font-body); color: var(--tp-ink-soft); }
+.h-input__error { display: flex; align-items: flex-start; gap: 6px; margin: 0; font: 600 0.8125rem/1.3 var(--tp-font-body); color: var(--tp-danger); }
+.h-input__error .h-icon { flex: none; margin-top: 1px; }
+
+/* 4.1 Button, loading and Sign in with Apple -> <Btn busy> */
+/* Loading keeps the width: the label stays in the box but is hidden, a 16 px spinner sits on top. aria-busy blocks taps. */
+.h-btn[aria-busy="true"] { position: relative; cursor: progress; }
+.h-btn[aria-busy="true"] > .h-btn__label { visibility: hidden; }
+.h-btn__spin { position: absolute; top: 50%; left: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; box-sizing: border-box; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: h-spin 800ms linear infinite; }
+@keyframes h-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .h-btn__spin { animation: none; } }
+/* Apple HIG exception: the Sign in with Apple button is black with white text in light mode and white with black text
+   in dark mode, the one place a fixed brand pair beats the tokens. The color keywords are the HIG values. */
+.h-btn--apple { background: black; color: white; }
+.dark .h-btn--apple { background: white; color: black; }
+@media (prefers-color-scheme: dark) { :root:not(.light) .h-btn--apple { background: white; color: black; } }

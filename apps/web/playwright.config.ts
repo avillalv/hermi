@@ -12,6 +12,8 @@ export default defineConfig({
     { name: "kit", testMatch: "kit.spec.ts", use },
     { name: "kit-metrics", testMatch: "kit-metrics.spec.ts", use },
     { name: "kit-shell", testMatch: "shell.spec.ts", use },
+    // Smoke flows (WF-018.1): need the API too, so run `npm run dev` first, then `npx playwright test --project smoke`.
+    { name: "smoke", testDir: "./e2e/smoke", use },
     { name: "kit-parity", testMatch: "kit-parity.spec.ts", use, timeout: 180_000 },
   ],
   webServer: {

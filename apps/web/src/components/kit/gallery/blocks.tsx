@@ -2,7 +2,7 @@
 /* The 05 section 4 component blocks of design/components.html, rendered with the React kit components.
  * Same ids, wrappers and h- classes as the kit file, so the kit tests (e2e/kit) compare it with the kit page.
  * Generated once from components.html; edit it by hand from here. Dev and test only: not in the production build. */
-import { Avatar, Avatars, Btn, DayChip, DayChips, Field, Icon, LinkBtn, SectionTabs, SegmentedControl, SegItem, Sheet, SheetBody, SheetGrabber, StatusStub, TabBar, TicketStub, TripTicket } from '..'
+import { Avatar, Avatars, Btn, DayChip, DayChips, Field, Icon, LinkBtn, SectionTabs, SegmentedControl, SegItem, Sheet, SheetBody, SheetGrabber, StatusStub, TabBar, TextField, TicketStub, TripTicket } from '..'
 
 function Block_screen_Demo() {
   return (
@@ -1997,6 +1997,118 @@ export function Block_btn() {
   )
 }
 
+function Block_input_Demo({ s }: { s: "l" | "d" }) {
+  return (
+    <div className="doc-stage doc-stage--sheet doc-stage--pad doc-stage--gap">
+      <TextField label="Email" id={`in-email-${s}`} type="email" defaultValue="maya@example.com" helper="We will send a six digit code. No password needed." />
+      <TextField label="Six digit code" id={`in-code-${s}`} code defaultValue="123456" error="That code is not right. Check the email we sent and try again." />
+      <TextField label="Destination" id={`in-off-${s}`} disabled helper="Add a trip first." />
+    </div>
+  )
+}
+
+export function Block_input() {
+  return (
+    <section className="doc-block" id="input">
+      <h3 className="doc-h3">Text input</h3>
+      <dl className="doc-meta">
+        <div>
+          <dt>Classes</dt>
+          <dd>
+            <code>.h-input</code>
+            {' '}
+            <code>__label</code>
+            {' '}
+            <code>__field</code>
+            {' '}
+            <code>__help</code>
+            {' '}
+            <code>__error</code>
+            {' '}
+            <code>--error</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Spec</dt>
+          <dd>
+            {"05 section 4.2, becomes "}
+            <code>{"<TextField>"}</code>
+            .
+          </dd>
+        </div>
+        <div>
+          <dt>Use</dt>
+          <dd>{"Label above, 44 px field, helper below. Error adds a danger icon and message and turns the border danger. Disabled is 50% and the helper says why."}</dd>
+        </div>
+      </dl>
+      <div className="doc-pair">
+        <div className="doc-demo light" data-mode="light">
+          <span className="doc-demo__tag">Light</span>
+          <Block_input_Demo s="l" />
+        </div>
+        <div className="doc-demo dark" data-mode="dark">
+          <span className="doc-demo__tag">Dark</span>
+          <Block_input_Demo s="d" />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function Block_btn_state_Demo() {
+  return (
+    <div className="doc-stage doc-stage--sheet doc-stage--pad doc-stage--gap">
+      <Btn variant="primary" busy>Send code</Btn>
+      <Btn variant="secondary" busy>Continue with Google</Btn>
+      <Btn variant="primary" mod={['apple']}>Continue with Apple</Btn>
+    </div>
+  )
+}
+
+export function Block_btn_state() {
+  return (
+    <section className="doc-block" id="btn-state">
+      <h3 className="doc-h3">Button loading and Apple</h3>
+      <dl className="doc-meta">
+        <div>
+          <dt>Classes</dt>
+          <dd>
+            <code>.h-btn[aria-busy]</code>
+            {' '}
+            <code>__label</code>
+            {' '}
+            <code>__spin</code>
+            {' '}
+            <code>--apple</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Spec</dt>
+          <dd>
+            {"05 section 4.1 loading state, becomes "}
+            <code>{"<Btn busy>"}</code>
+            .
+          </dd>
+        </div>
+        <div>
+          <dt>Use</dt>
+          <dd>{"Loading keeps the width, hides the label and shows a 16 px spinner; repeat taps are blocked. Apple follows the Human Interface Guidelines: black in light, white in dark."}</dd>
+        </div>
+      </dl>
+      <div className="doc-pair">
+        <div className="doc-demo light" data-mode="light">
+          <span className="doc-demo__tag">Light</span>
+          <Block_btn_state_Demo />
+        </div>
+        <div className="doc-demo dark" data-mode="dark">
+          <span className="doc-demo__tag">Dark</span>
+          <Block_btn_state_Demo />
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function Block_chart_Demo() {
   return (
     <>
@@ -3369,6 +3481,8 @@ export const BLOCKS = [
   { id: "listcard", Block: Block_listcard },
   { id: "ai", Block: Block_ai },
   { id: "btn", Block: Block_btn },
+  { id: "input", Block: Block_input },
+  { id: "btn-state", Block: Block_btn_state },
   { id: "chart", Block: Block_chart },
   { id: "timeline", Block: Block_timeline },
   { id: "small", Block: Block_small },

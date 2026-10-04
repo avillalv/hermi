@@ -1,0 +1,31 @@
+{
+  "auth": {
+    "title": "Sign in to Hermi",
+    "apple": "Continue with Apple",
+    "google": "Continue with Google",
+    "email": "Continue with email",
+    "emailLabel": "Email",
+    "emailHelper": "We will send a six digit code. No password needed.",
+    "sendCode": "Send code",
+    "codeLabel": "Six digit code",
+    "codeHelper": "We sent a code to {email}.",
+    "resendIn": "Resend code in {seconds} s",
+    "resend": "Resend code",
+    "differentEmail": "Use a different email",
+    "legal": "By continuing you agree to the Terms and the Privacy policy.",
+    "devTitle": "Dev personas",
+    "devHelper": "Local sign-in for testing. Pick who you want to be.",
+    "signOut": "Sign out",
+    "signIn": "Sign in",
+    "errors": {
+      "wrongCode": "That code is not right. Check the email we sent and try again.",
+      "wrongCodeWarning": "Five wrong tries cancel the code. You can send a new one.",
+      "expired": "That code expired. Send a new one.",
+      "rateLimited": "Too many tries. Wait 10 minutes, then send a new code.",
+      "offline": "You are offline. Connect to sign in.",
+      "unavailable": "Sign in is not available right now. Try again in a moment.",
+      "invalidEmail": "Enter an email like name@example.com.",
+      "generic": "We could not sign you in. Try again."
+    }
+  }
+}
