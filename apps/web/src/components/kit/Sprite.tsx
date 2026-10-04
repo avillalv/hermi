@@ -168,6 +168,10 @@ export function Sprite() {
         <path d="M18 18v-7" />
         <path d="M12 2 3 7v4h18V7z" />
       </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24">
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </symbol>
     </svg>
   )
 }

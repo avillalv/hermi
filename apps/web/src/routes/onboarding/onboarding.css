@@ -1,0 +1,13 @@
+/* Welcome, onboarding, Trips home and Create trip layout (WF-018.2). Tokens only; fields, buttons and chips come from the kit. */
+.onboarding__age { display: flex; align-items: center; gap: var(--tp-space-3); min-height: 44px; font: var(--tp-type-body-strong); }
+.onboarding__age input { width: 24px; height: 24px; accent-color: var(--tp-sky); }
+.create__bar { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: var(--tp-space-2); }
+.create__options { margin: 0; padding: 0; list-style: none; border: 1px solid var(--tp-rule); border-radius: var(--radius-lg); }
+.create__option { display: flex; align-items: center; min-height: 44px; padding: 0 var(--tp-space-3); color: var(--tp-ink); font: var(--tp-type-body); cursor: pointer; }
+.create__option--active { background: var(--tp-sunken); outline: 2px solid var(--tp-brand); outline-offset: -2px; }
+.trips__head { display: flex; align-items: center; justify-content: space-between; gap: var(--tp-space-3); }
+.trips__stack, .trips__empty { display: flex; flex-direction: column; gap: var(--tp-space-3); align-items: flex-start; margin-top: var(--tp-space-4); }
+.trips__route { width: 100%; max-width: 360px; height: 100px; }
+.trips__list { display: flex; flex-direction: column; gap: var(--tp-space-3); margin: var(--tp-space-4) 0 0; padding: 0; list-style: none; }
+.trips__card { display: flex; flex-direction: column; gap: var(--tp-space-1); padding: var(--tp-space-3); border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-paper); }
+.trips__skel { min-height: 72px; background: var(--tp-sunken); border-color: transparent; }

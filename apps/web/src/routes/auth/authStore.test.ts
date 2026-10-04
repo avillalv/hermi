@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest"
 import { queryClient } from "../../lib/queryClient"
+import { ONBOARDED_KEY } from "../onboarding/trips"
 import { authStore } from "./authStore"
 
 beforeEach(() => authStore.signOut())
@@ -26,4 +27,10 @@ test("subscribers hear about changes", () => {
   off()
   authStore.signOut()
   expect(fn).toHaveBeenCalledTimes(1)
+})
+
+test("sign-out clears the onboarded flag", () => {
+  sessionStorage.setItem(ONBOARDED_KEY, "1")
+  authStore.signOut()
+  expect(sessionStorage.getItem(ONBOARDED_KEY)).toBeNull()
 })

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { Navigate } from "react-router"
 import { Btn, Icon, Logo, TextField } from "../../components/kit"
 import { t } from "../../lib/i18n"
+import { useOnline } from "../../lib/useOnline"
 import { api } from "./api"
 import { authStore, useAuth } from "./authStore"
 import { AuthError, identity, type AuthErrorCode, type IdentityAdapter } from "./identity"
@@ -20,19 +21,10 @@ const COPY: Record<AuthErrorCode, string> = {
 const RESEND_SECONDS = 30
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-const subscribeOnline = (cb: () => void) => {
-  window.addEventListener("online", cb)
-  window.addEventListener("offline", cb)
-  return () => {
-    window.removeEventListener("online", cb)
-    window.removeEventListener("offline", cb)
-  }
-}
-
 /** 05 6.3. Apple, Google and email code, plus the persona picker when the API runs with AUTH_MODE=dev. */
 export function SignIn({ adapter = identity }: { adapter?: IdentityAdapter }) {
   const { token } = useAuth()
-  const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine)
+  const online = useOnline()
   const [step, setStep] = useState<Step>("options")
   const [personas, setPersonas] = useState<Persona[]>([])
   const [busy, setBusy] = useState<string | null>(null)

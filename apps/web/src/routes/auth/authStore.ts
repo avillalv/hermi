@@ -39,6 +39,7 @@ export const authStore = {
   /** Clears the token, the stored session and every cached query. */
   signOut() {
     sessionStorage.removeItem(KEY)
+    sessionStorage.removeItem("hermi.onboarded") // see onboarding/trips.ts
     queryClient.clear()
     set(SIGNED_OUT)
   },

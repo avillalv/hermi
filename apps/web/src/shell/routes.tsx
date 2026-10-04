@@ -1,6 +1,10 @@
 import { Route, Routes } from "react-router";
 import { SessionControl } from "../routes/auth/SessionControl";
 import { SignIn } from "../routes/auth/SignIn";
+import { CreateTrip } from "../routes/onboarding/CreateTrip";
+import { Onboarding } from "../routes/onboarding/Onboarding";
+import { TripsHome } from "../routes/onboarding/TripsHome";
+import { Welcome } from "../routes/onboarding/Welcome";
 import { AppShell, TABS } from "./AppShell";
 
 /** Placeholder until each tab's ticket lands. Trips is the home route `/` (05 5.4). */
@@ -17,8 +21,12 @@ function Placeholder({ tab }: { tab: (typeof TABS)[number] }) {
 export function AppRoutes() {
   return (
     <Routes>
+      <Route path="/welcome" element={<Welcome />} />
       <Route path="/sign-in" element={<SignIn />} />
-      {TABS.map((t) => (
+      <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/trips/new" element={<CreateTrip />} />
+      <Route path="/" element={<TripsHome />} />
+      {TABS.filter((t) => t.key !== "trips").map((t) => (
         <Route key={t.key} path={t.href} element={<Placeholder tab={t} />} />
       ))}
     </Routes>

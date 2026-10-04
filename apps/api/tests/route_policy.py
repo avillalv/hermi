@@ -20,6 +20,8 @@ POLICY: dict[str, str] = {
     "POST /v1/waitlist": "public",
     "POST /v1/me/bootstrap": "user_scoped",
     "GET /v1/me": "user_scoped",
+    "GET /v1/trips": "user_scoped",
+    "POST /v1/trips": "user_scoped",
     # Mounted only when AUTH_MODE=dev in local and ci (main.create_app).
     "GET /v1/dev/personas": "public",
     "POST /v1/dev/session": "public",

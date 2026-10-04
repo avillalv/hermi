@@ -1,12 +1,15 @@
+# ruff: noqa: E501  (long SQL strings)
 """Trip queries. Each filters by membership of the given user (RLS is the second lock, 02 s4.3)."""
 
 import uuid
+from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from hermi.modules.collaboration.models import TripMember
-from hermi.modules.trips.models import Trip
+import hermi.modules.auth.models  # noqa: F401  (registers `users` for the foreign keys)
+from hermi.modules.collaboration.models import TripMember, TripPerson
+from hermi.modules.trips.models import Trip, TripDestination
 
 
 def get_trip_with_member(
@@ -30,3 +33,82 @@ def list_my_trips(session: Session, user_id: uuid.UUID) -> list[Trip]:
             .order_by(Trip.created_at.desc())
         )
     )
+
+
+# --- WF-018.2 ---------------------------------------------------------------------------------------------------------
+
+
+def active_trip_limit(session: Session, user_id: uuid.UUID) -> int:
+    """plans.limits.active_trips for the caller's tier; the entitlements snapshot wins when it has one (Free 2)."""
+    row = session.execute(
+        text(
+            "SELECT coalesce((e.limits->>'active_trips')::int, (p.limits->>'active_trips')::int, 2) "
+            "  FROM entitlements e JOIN plans p ON p.code = e.tier_code WHERE e.user_id = :u"
+        ),
+        {"u": user_id},
+    ).scalar()
+    return 2 if row is None else row
+
+
+def count_active_owned(session: Session, user_id: uuid.UUID) -> int:
+    """03 section 11: owned, not in trash, planning or booked, and no active pass on the trip."""
+    return session.execute(
+        text(
+            "SELECT count(*) FROM trips t WHERE t.owner_user_id = :u AND t.deleted_at IS NULL "
+            "   AND t.status IN ('planning', 'booked') "
+            "   AND NOT EXISTS (SELECT 1 FROM trip_passes p WHERE p.trip_id = t.id AND p.status = 'active' "
+            "                    AND now() >= p.starts_at AND now() < p.expires_at)"
+        ),
+        {"u": user_id},
+    ).scalar_one()
+
+
+def user_home_currency(session: Session, user_id: uuid.UUID) -> str:
+    return session.execute(text("SELECT home_currency::text FROM users WHERE id = :u"), {"u": user_id}).scalar_one()
+
+
+def my_person_ids(session: Session, user_id: uuid.UUID) -> list[uuid.UUID]:
+    """The people rows the caller owns (the travelers they may put on a trip), "Me" first."""
+    return list(
+        session.scalars(
+            text("SELECT id FROM people WHERE owner_user_id = :u ORDER BY is_self DESC, created_at"), {"u": user_id}
+        )
+    )
+
+
+def create_trip(session: Session, user_id: uuid.UUID, values: dict, destinations: list[dict], people: list[uuid.UUID]) -> Trip:
+    """Inserts the trip (trg_trips_add_owner_member adds the owner row), its destinations and its traveler links."""
+    trip = Trip(owner_user_id=user_id, **values)
+    session.add(trip)
+    session.flush()
+    for i, d in enumerate(destinations):
+        session.add(TripDestination(trip_id=trip.id, position=i, **d))
+    for pid in people:
+        session.add(TripPerson(trip_id=trip.id, person_id=pid, added_by=user_id))
+    session.flush()
+    session.refresh(trip)
+    return trip
+
+
+def destinations_of(session: Session, trip_id: uuid.UUID) -> list[TripDestination]:
+    return list(session.scalars(select(TripDestination).where(TripDestination.trip_id == trip_id).order_by(TripDestination.position)))
+
+
+def list_summaries(session: Session, user_id: uuid.UUID, *, limit: int, after: tuple[datetime, uuid.UUID] | None, status: str | None):
+    """Keyset page of the caller's trips (owned and joined), newest activity first. Returns up to limit + 1 rows."""
+    sql = (
+        "SELECT t.id, t.version, t.name, t.status::text AS status, t.start_date, t.end_date, m.role::text AS my_role, "
+        "       (SELECT count(*) FROM trip_members x WHERE x.trip_id = t.id) AS member_count, t.updated_at, "
+        "       coalesce((SELECT string_agg(d.name, ', ' ORDER BY d.position) FROM trip_destinations d WHERE d.trip_id = t.id), '') AS destinations_label "
+        "  FROM trips t JOIN trip_members m ON m.trip_id = t.id AND m.user_id = :u "
+        " WHERE t.deleted_at IS NULL"
+    )
+    args: dict = {"u": user_id, "n": limit + 1}
+    if status:
+        sql += " AND t.status = :s"
+        args["s"] = status
+    if after:
+        sql += " AND (t.updated_at, t.id) < (:at, :id)"
+        args["at"], args["id"] = after
+    sql += " ORDER BY t.updated_at DESC, t.id DESC LIMIT :n"
+    return list(session.execute(text(sql), args).mappings())

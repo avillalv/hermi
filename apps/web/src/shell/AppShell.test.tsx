@@ -1,9 +1,16 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { authStore } from '../routes/auth/authStore'
 import { MemoryRouter } from 'react-router'
 import { AppRoutes } from './routes'
 import { AppShell } from './AppShell'
+
+// The Trips tab needs a session; the list call is stubbed.
+beforeEach(() => {
+  vi.stubGlobal('fetch', async () => Response.json({ items: [], next_cursor: null, has_more: false }))
+  authStore.signIn('tok', 'free')
+})
 
 const at = (path: string) =>
   render(
@@ -45,8 +52,10 @@ describe('shell nav', () => {
     expect(within(nav).getByRole('link', { name: 'Discover' })).not.toHaveAttribute('aria-current')
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Tabs' })).getByRole('link', { name: 'Activity' }))
     expect(screen.getByRole('heading', { level: 1, name: 'Activity' })).toBeInTheDocument()
-    expect(within(nav).getByRole('link', { name: 'Activity' })).toHaveAttribute('aria-current', 'page')
-    expect(within(nav).getByRole('link', { name: 'Trips' })).not.toHaveAttribute('aria-current')
+    // Trips and Activity are different screens, so the shell remounts: read the nav again.
+    const after = screen.getByRole('navigation', { name: 'Main' })
+    expect(within(after).getByRole('link', { name: 'Activity' })).toHaveAttribute('aria-current', 'page')
+    expect(within(after).getByRole('link', { name: 'Trips' })).not.toHaveAttribute('aria-current')
   })
   it('renders a sticky strip nav with aria-current when given strip items', () => {
     render(

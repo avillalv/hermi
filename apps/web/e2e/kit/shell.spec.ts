@@ -6,6 +6,11 @@ const FAMILIES = ["Fredoka Variable", "Atkinson Hyperlegible Next Variable", "At
 
 async function open(page: Page, width: number, path = "/") {
   await page.setViewportSize({ width, height: 844 });
+  // Start signed in as the dev Free persona (authStore keeps the session in sessionStorage); the list is stubbed so layout checks do not depend on data.
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem("hermi.auth")) sessionStorage.setItem("hermi.auth", JSON.stringify({ token: "dev-free", persona: "free" }));
+  });
+  await page.route("**/v1/trips", (r) => r.fulfill({ json: { items: [], next_cursor: null, has_more: false } }));
   await page.goto(path);
   await page.evaluate(() => document.fonts.ready);
 }
@@ -116,7 +121,7 @@ test("fonts come from bundled files: three families load, no googleapis or gstat
 
 for (const width of [390, 768, 1200]) {
   test(`shell controls at ${width}: tab order, 3px solid focus ring, 44px targets`, async ({ page }) => {
-    await open(page, width);
+    await open(page, width, "/discover"); // a screen with no controls of its own, so Tab reaches only the shell
     const names: string[] = [];
     const count = width === 390 ? 4 : 5; // the rail and sidebar add the logo link first
     for (let i = 0; i < count; i++) {
