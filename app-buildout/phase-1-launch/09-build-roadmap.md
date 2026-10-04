@@ -19,7 +19,7 @@ The month table is copied from the Phase 1 README. Months 3 and 5 are five weeks
 | 5 | 18 to 22 | iOS and polish: Capacitor shell, push, offline, calendar feed and opt-in feed polling, Verify this plan screens, presentation, accessibility, performance, onboarding, empty and error states, status banner; TestFlight beta | 30 beta testers, crash-free sessions above 99.5% |
 | 6 | 23 to 26 | Launch: App Review, privacy labels, support, monitoring, runbooks, SEO pages, comparison pages, trust pages, Android install guide and testing, Verify evals, launch campaign | Live on the App Store and web |
 
-Do not start a month's feature work until the previous exit is met, except for the long-lead items in section 3. Each exit gets a short gate review written to `docs/gates/month-N.md` (see section 9). The biggest schedule risks are Month 3 (AI cost and ceilings) and Month 5 (the first native build, which needs a Mac).
+Do not start a month's feature work until the previous exit is met, except for the long-lead items in section 3. Each exit gets a short gate review written to `docs/gates/month-N.md` (see section 8). The biggest schedule risks are Month 3 (AI cost and ceilings) and Month 5 (the first native build, on a GitHub macOS runner; see knowledge/ios-builds-on-ci.md).
 
 ### Month 1 (weeks 1 to 4): validate and set up
 
@@ -32,7 +32,7 @@ Tickets WF-001 to WF-019 and WF-130. About 90 ticket hours plus about 20 hours o
 | 3 | Merge to `main` deploys to staging; database at head with roles; identity and trips schema; JWT verification; interviews 7 to 10 done; go or no-go decision record signed | WF-009, 011, 012, 013 |
 | 4 | Data access layer, row-level security and cross-tenant leak tests green; kit port and shell (WF-130) before every UI ticket; web client signs in; a signed-in user creates a trip on staging | WF-014, 015, 016, 017, 130, 018, 019 |
 
-Exit: demand signal recorded (a "no-go" stops the backlog after week 3); a signed-in user can create a trip on staging; zero leaks in the tenant suite.
+Exit: demand signal recorded (a "no-go" stops the backlog after week 3); a signed-in user can create a trip on staging; zero leaks in the tenant suite. Gate checklist: 10 section 7.1, run in the ship session of prompt 07; `[agent]` items are checked with a command, `[owner]` items become `HUMAN_TASKS.md` rows.
 
 ### Month 2 (weeks 5 to 8): core planning
 
@@ -45,7 +45,7 @@ Tickets WF-020 to WF-040, WF-125 and WF-133. About 100 ticket hours.
 | 7 | Cached fares and alerts rules; itinerary with calendar and ICS export; places and map; FX; analytics base; the "Synced N seconds ago" indicator | WF-029, 030, 031, 032, 033, 038, 125 |
 | 8 | Lodging with hearts and compare (and the shared SSRF guard); backup and restore drill; the owner's own trips migrated so the owner and a partner plan a real trip together on staging; the demo seed, sample trips and the Discover tab | WF-034, 039, 040, 133 |
 
-Exit: two people can plan a trip together on the web; restore drill passed once.
+Exit: two people can plan a trip together on the web; restore drill passed once. Gate checklist: 10 section 7.1, run in the ship session of prompt 12; `[agent]` items are checked with a command, `[owner]` items become `HUMAN_TASKS.md` rows.
 
 ### Month 3 (weeks 9 to 13): AI and credits
 
@@ -59,7 +59,7 @@ Tickets WF-041 to WF-062, WF-120, WF-131 and WF-132. About 134 ticket hours. The
 | 12 | Live fare provider behind its flag; agent runs API and screen with the taster; evidence labels; global breakers; first 50-run cost batch starts | WF-052, 053, 055, 056, 057 |
 | 13 | Admin foundation, audit log, kill switch console and AI spend screen; evidence freshness flag and one-tap recheck; the AI sheet and action screens; 50 runs measured; a spend drill and a kill switch drill recorded | WF-058, 059, 060, 061, 120, 132 |
 
-Exit: agent run cost measured over 50 runs and inside the $0.80 cap; every ceiling enforced; AI off switch stops AI in under 30 seconds.
+Exit: agent run cost measured over 50 runs and inside the $0.80 cap; every ceiling enforced; AI off switch stops AI in under 30 seconds. Gate checklist: 10 section 7.2, run in the ship session of prompt 16; `[agent]` items are checked with a command, `[owner]` items become `HUMAN_TASKS.md` rows.
 
 ### Month 4 (weeks 14 to 17): money, imports, admin essentials
 
@@ -72,11 +72,11 @@ Tickets WF-063 to WF-079 and WF-116, 117 and 121. About 104 ticket hours plus 2 
 | 16 | Switching import: ICS file, ICS feed (SSRF guarded), pasted confirmations; first import earns a free Trip Pass; Verify this plan schema and reading a pasted plan | WF-071, 072, 073, 074, 116 |
 | 17 | Booked-fare drop alert; a throwaway sandbox purchase harness proves every product end to end; admin users, subscriptions and overview; Verify this plan item checks and credit settlement (runs about 4 hours over the week's hours; week 14 has about 7 spare) | WF-075, 076, 077, 078, 079, 117 |
 
-Exit: sandbox purchases work end to end (harness build); affiliate clicks and conversions tracked in the overview; all three import paths and the named entries work on staging; a pasted plan can be read and checked through the API on staging.
+Exit: sandbox purchases work end to end (harness build); affiliate clicks and conversions tracked in the overview; all three import paths and the named entries work on staging; a pasted plan can be read and checked through the API on staging. Gate checklist: 10 section 7.3, run in the ship session of prompt 21; `[agent]` items are checked with a command, `[owner]` items become `HUMAN_TASKS.md` rows.
 
 ### Month 5 (weeks 18 to 22): iOS and polish, TestFlight beta
 
-Tickets WF-080 to WF-103 and WF-118, 122, 123 and 126. About 134 ticket hours (WF-122 is built and counted here). This month needs a Mac or Xcode Cloud, and it is the most loaded month (106 percent of its hours, section 3): the Verify screens and feed polling are web work that can run while a device build waits.
+Tickets WF-080 to WF-103 and WF-118, 122, 123 and 126. About 134 ticket hours (WF-122 is built and counted here). This month builds on a GitHub macOS runner (see knowledge/ios-builds-on-ci.md), with device checks owner-pending, and it is the most loaded month (106 percent of its hours, section 3): the Verify screens and feed polling are web work that can run while a device build waits.
 
 | Week | Milestone | Tickets |
 |---|---|---|
@@ -86,7 +86,7 @@ Tickets WF-080 to WF-103 and WF-118, 122, 123 and 126. About 134 ticket hours (W
 | 21 | Presentation mode and PDF; onboarding switching question; accessibility; performance pass; analytics events; external TestFlight beta opens (30 testers) | WF-091, 095, 096, 097, 098 |
 | 22 | Admin affiliate revenue; uptime and status page; public status summary and banner; Verify this plan screens; Google Maps export file import; purchase matrix passed; beta report | WF-099, 100, 102, 103, 118, 122, 126 |
 
-Exit: 30 beta testers, crash-free sessions above 99.5 percent over 100 or more sessions, purchase matrix passed, a trip fully browsable in airplane mode on a real device.
+Exit: 30 beta testers, crash-free sessions above 99.5 percent over 100 or more sessions, purchase matrix passed, a trip fully browsable in airplane mode on a real device. Gate checklist: 10 section 7.4, run in the ship session of prompt 25; `[agent]` items are checked with a command, `[owner]` items become `HUMAN_TASKS.md` rows.
 
 ### Month 6 (weeks 23 to 26): launch
 
@@ -99,7 +99,7 @@ Tickets WF-104 to WF-115 and WF-119, 124, 127 and 128. About 92 ticket hours. It
 | 25 | Load test at 10 times launch traffic; runbooks drilled; admin user actions and flags and health screens; Android install guide and Android Chrome test pass; answer review feedback | WF-112, 113, 114, 115, 127, 128 |
 | 26 | Release (manual), launch campaign, 72-hour monitoring | WF-115 |
 
-Exit: live on the App Store and web; the Verify evals pass their gates or the `verify_plan` flag stays off; Android Chrome tested; no P0 in the first 72 hours; crash-free at least 99.5 percent; API error rate under 1 percent.
+Exit: live on the App Store and web; the Verify evals pass their gates or the `verify_plan` flag stays off; Android Chrome tested; no P0 in the first 72 hours; crash-free at least 99.5 percent; API error rate under 1 percent. Gate checklist: 10 section 7.5; `[agent]` items are checked with a command, `[owner]` items become `HUMAN_TASKS.md` rows.
 
 ## 2. Critical path
 
@@ -111,7 +111,7 @@ WF-004 scaffold -> WF-007 CI -> WF-008 Docker -> WF-011 migrations -> WF-012 ide
   -> WF-041 AI schema -> WF-044 ledger -> WF-045 ceilings -> WF-131 AI provider seam -> WF-048 Claude client
   -> WF-049 agent loop -> WF-057 50-run cost measurement                       (Month 3 gate)
   -> WF-022 billing schema -> WF-023 resolver -> WF-063 RevenueCat webhook
-  -> WF-076 sandbox harness (Mac)                                              (Month 4 gate)
+  -> WF-076 sandbox harness (runner)                                            (Month 4 gate)
   -> WF-080 Capacitor shell -> WF-084 purchases in the app -> WF-102 purchase matrix
   -> WF-101 TestFlight pipeline -> WF-104 store listing -> WF-111 review notes
   -> WF-115 submit and launch                                                  (Month 6 gate)
@@ -121,7 +121,7 @@ WF-130 (kit port and shell) follows WF-017 and comes before every UI ticket (the
 
 Verify this plan (WF-116, 117, 118, 119) hangs off the AI path (Claude client WF-048, evidence labels WF-055, credits WF-044) and the redaction built in WF-073; it is server-side except the screens, so it can be switched off with the `verify_plan` flag if its evals are not ready. Switching import (WF-071 to WF-074, 121, 123), offline (WF-088, WF-089), the calendar feed, referral credits and the public pages hang off this path: they must finish before the binary is submitted in week 24 only where they ship inside the app (offline, import screens, referral screen, onboarding question, Verify screens, the cancel row and the sync indicator). Web-only work (public pages, `/vs` pages, most admin screens) can finish during review.
 
-Long-lead items that are off the code path but on the calendar path: Apple Developer enrollment (days to weeks; start in week 1), Paid Applications Agreement and tax forms, a Mac or Xcode Cloud, Travelpayouts approval, Viator and Stay22 approvals, booking the outside penetration test firm (book by week 18 for week 23), and App Review itself.
+Long-lead items that are off the code path but on the calendar path: Apple Developer enrollment (days to weeks; start in week 1), Paid Applications Agreement and tax forms, the GitHub macOS runner setup (see knowledge/ios-builds-on-ci.md), Travelpayouts approval, Viator and Stay22 approvals, booking the outside penetration test firm (book by week 18 for week 23), and App Review itself.
 
 ## 3. Capacity check
 
@@ -185,7 +185,7 @@ Cutting items 1 to 5 saves 32 hours; 1 to 8 saves 48; 1 to 11 saves 64; 1 to 13 
 | 5 | App Review rejection (4.2, 3.1.2, 5.1.1(v), 1.2, privacy labels) | Medium | Medium | Offline, push, Restore, deletion, report and block, review notes, TestFlight self-check | WF-080 to WF-102, WF-111 |
 | 6 | Entitlement mismatch or double credit grant | Medium | Medium | Idempotent webhooks keyed on transaction id, nightly reconcile, replay tool | WF-063, WF-064, WF-078 |
 | 7 | Affiliate disclosure or tracking failure | Low | High | Disclosure component with tests, no ranking by commission test, no fetching of Airbnb, Vrbo or Booking.com pages | WF-067, WF-068 |
-| 8 | No Mac available | Certain | Medium | Buy a Mac mini or use Xcode Cloud; book it before week 17 | WF-076, WF-080 |
+| 8 | No Mac available | Certain | Medium | Builds run on a GitHub macOS runner, free for this public repository; device checks wait for the owner's iPhone | WF-076, WF-080 |
 | 9 | Import abuse: SSRF through feed URLs, hostile ICS files, PII leaking to the AI | Medium | High | Shared SSRF guard, sandboxed parser with limits, fuzzing, redaction before every model call | WF-071 to WF-073, WF-110 |
 | 10 | Import reward and referral farming | Medium | Medium | One reward per account, at least 3 items including a flight or a stay, verified email, no active Plus, referrer caps of 5 per 30 days and 10 per year, device and IP checks, revocation | WF-074, WF-108 |
 | 11 | Public pages leak private data or host abusive content | Low | High | Redaction tests, noindex by default, report queue, one-click takedown | WF-106, WF-107 |
@@ -212,6 +212,9 @@ Conventions for every ticket:
   6. UI copy follows the copy rules (sentence case, plain verbs, no em dashes) and the Hermi design tokens.
   7. The work respects the non-negotiable rules in the [root README](../README.md) (no ranking by commission, no fetching Airbnb, Vrbo or Booking.com pages, sources on every AI fact).
   8. A new analytics event is added to the catalogue in [10-quality-security-launch.md](10-quality-security-launch.md) section 4 and to `packages/shared/src/events.ts` before it fires.
+  9. UI tickets match their `Kit:` mockup (`npm run test:kit` passes) and the DL section 11 checklist was run.
+  10. Every state listed for the screen in 05 section 6 is built and has a component test; offline and error also have a Playwright test.
+  11. `scripts/check-copy.mjs` and stylelint pass.
 
 ### Month 1: validate and set up
 
@@ -250,8 +253,8 @@ Conventions for every ticket:
 
 #### WF-005 Port reusable modules [M1, L]
 - Depends on: WF-004.
-- Description: copy and adapt from the Trip Planner repo the modules that carry over: flight route and fare logic, itinerary and lodging logic, presentation mode, Hermi design tokens ([05-ui-ux-spec.md](05-ui-ux-spec.md) section 2; the values replace the old repo's, only the plumbing and neutral names are ported; into `packages/tokens`, including every token that section marks new, such as `--tp-edge`, `--tp-warning-ink` and `--tp-sky`), Travelpayouts, Geoapify, Wikipedia and Frankfurter providers, evidence rules in `services/agent_ingest.py`, and agent prompts. Leave behind passcode auth, the Claude CLI runner and the MCP bridge (WF-131 adapts the CLI runner as the dev-only provider), APScheduler, Windows scripts and Tailscale sharing. The Airbnb, Vrbo and Booking.com never-fetch list is one constant `BLOCKED_HOSTS` in `apps/api/hermi/modules/ai/policy.py` (06 section 2.4) holding the brands `airbnb`, `vrbo` and `booking`, matched on the registrable-domain label with any ending and any subdomain (so `airbnb.co.kr`, `www.airbnb.co.uk`, `vrbo.com` and `secure.booking.com` are refused), with no setting, flag or admin screen that can change it, imported by `security/ssrf.py` and the ingest checks. The API list and the CLI `--disallowedTools` rules are generated from it (the CLI rules add `WebFetch(domain:<brand>.*.*)` and `WebFetch(domain:*.<brand>.*.*)` to the `<brand>.*` and `*.<brand>.*` forms) and the stream check stays as a backstop. Follow the module map in [02-architecture.md](02-architecture.md). Port the flight and provider modules first; the rest may land as each feature ticket needs it.
-- Accept: ported modules import cleanly and keep their original unit tests passing; a `docs/porting-map.md` lists each source file and its new home; no Windows-only code in `apps/` or `packages/`.
+- Description: copy and adapt from the Trip Planner repo the modules that carry over: flight route and fare logic, itinerary and lodging logic, presentation mode, Hermi design tokens ([05-ui-ux-spec.md](05-ui-ux-spec.md) section 2; the values replace the old repo's, only the plumbing and neutral names are ported; into `packages/tokens`, including every token that section marks new, such as `--tp-edge`, `--tp-warning-ink` and `--tp-sky`), Travelpayouts, Geoapify, Wikipedia and Frankfurter providers, evidence rules in `services/agent_ingest.py`, and agent prompts. Leave behind passcode auth, the Claude CLI runner and the MCP bridge (WF-131 adapts the CLI runner as the dev-only provider), APScheduler, Windows scripts and Tailscale sharing. The Airbnb, Vrbo and Booking.com never-fetch list is one constant `BLOCKED_HOSTS` in `apps/api/hermi/modules/ai/policy.py` (06 section 2.4) holding the brands `airbnb`, `vrbo` and `booking`, matched on the registrable-domain label with any ending and any subdomain (so `airbnb.co.kr`, `www.airbnb.co.uk`, `vrbo.com` and `secure.booking.com` are refused), with no setting, flag or admin screen that can change it, imported by `security/ssrf.py` and the ingest checks. The API list and the CLI `--disallowedTools` rules are generated from it (the CLI rules add `WebFetch(domain:<brand>.*.*)` and `WebFetch(domain:*.<brand>.*.*)` to the `<brand>.*` and `*.<brand>.*` forms) and the stream check stays as a backstop. Fonts and tokens: install the three `@fontsource-variable` packages (`fredoka`, `atkinson-hyperlegible-next`, `atkinson-hyperlegible-mono`; OFL, bundled) and add `theme.css`. Follow the module map in [02-architecture.md](02-architecture.md). Port the flight and provider modules first; the rest may land as each feature ticket needs it.
+- Accept: ported modules import cleanly and keep their original unit tests passing; a vitest test parses 05 sections 2.1 to 2.3, asserts they equal `tokens.css` and recomputes every WCAG ratio; a `docs/porting-map.md` lists each source file and its new home; no Windows-only code in `apps/` or `packages/`.
 - Touches: `apps/api/hermi/providers/`, `apps/api/hermi/modules/ai/policy.py`, `apps/api/hermi/security/ssrf.py`, `apps/api/hermi/modules/*/service.py` (ported logic), `packages/tokens/`, `apps/web/src/lib/`.
 - Tests: the original tests for each ported module, adapted; a test that greps for forbidden imports (`subprocess` is allowed only in `apps/api/hermi/providers/ai/claude_cli.py`; `apscheduler` is forbidden); one test covers the four hosts `airbnb.co.kr`, `www.airbnb.co.uk`, `vrbo.com` and `secure.booking.com`.
 - Done: DoD plus the porting map reviewed.
@@ -266,9 +269,9 @@ Conventions for every ticket:
 
 #### WF-007 CI pipeline [M1, M]
 - Depends on: WF-004.
-- Description: GitHub Actions `ci.yml` in `.github/workflows/`: lint, tests with a `postgres:18` service, OpenAPI drift check, migration test from empty and from the previous release, image build; `e2e.yml` for the Playwright smoke test. One aggregator job `ci` needs every other job and always runs (red if any needed job failed or was cancelled); it is the required check. WF-007 replaces the placeholder `.github/workflows/ci.yml` that already exists on `main`, and the rewrite keeps two things from it: the always-running job named exactly `ci` (branch protection requires that check name, and the driver merges only after the check named `ci` passes) and its "Autopilot tests" step (`node --test "scripts/autopilot/**/*.test.mjs"`, the driver's own tests). Deploy and live-eval jobs are gated on repository variables so `main` stays green without secrets. Dependency audits are non-blocking. The `e2e` workflow runs on pull requests with the `e2e` label and on `main`. Add a nightly `windows-latest` job.
+- Description: GitHub Actions `ci.yml` in `.github/workflows/`: lint, tests with a `postgres:18` service, OpenAPI drift check, migration test from empty and from the previous release, image build; `e2e.yml` for the Playwright smoke test. One aggregator job `ci` needs every other job and always runs (red if any needed job failed or was cancelled); it is the required check. WF-007 replaces the placeholder `.github/workflows/ci.yml` that already exists on `main`, and the rewrite keeps two things from it: the always-running job named exactly `ci` (branch protection requires that check name, and the driver merges only after the check named `ci` passes) and its "Autopilot tests" step (`node --test "scripts/autopilot/**/*.test.mjs"`, the driver's own tests). Deploy and live-eval jobs are gated on repository variables so `main` stays green without secrets. Dependency audits are non-blocking. The `e2e` workflow runs on pull requests with the `e2e` label and on `main`. Add a nightly `windows-latest` job. Copy lint runs in CI: `scripts/check-copy.mjs` over `locales/en.json` (created in WF-018; the script passes when the file does not exist yet), stylelint `declaration-strict-value`, and `jsx-a11y`.
 - Accept: a PR with a failing test, lint error, API drift or two Alembic heads turns CI red; a clean PR is green in under 10 minutes.
-- Touches: `.github/workflows/ci.yml`, `.github/workflows/e2e.yml`.
+- Touches: `.github/workflows/ci.yml`, `.github/workflows/e2e.yml`, `scripts/check-copy.mjs`.
 - Tests: a deliberately broken branch for each check (recorded in the PR).
 - Done: DoD plus branch protection requires CI on `main`.
 
@@ -363,21 +366,21 @@ Conventions for every ticket:
 
 #### WF-018 Sign-in and first-trip wizard [M1, M]
 - Depends on: WF-017, WF-130.
-- Description: Sign in with Apple, Google and email code screens (when `AUTH_MODE=dev` the sign-in screen shows a persona picker: Free, Plus, admin); a short intro; "Create your first trip" wizard (destination, dates, who is going). The "Coming from TripIt, Tripsy or Wanderlog?" question arrives in WF-095 and guest mode in WF-062. Spec: [05-ui-ux-spec.md](05-ui-ux-spec.md).
+- Description: Sign in with Apple, Google and email code screens (when `AUTH_MODE=dev` the sign-in screen shows a persona picker: Free, Plus, admin); a short intro; "Create your first trip" wizard (destination, dates, who is going); the age gate; `locales/en.json` is created here; the profile screen (05 6.4) is built here (moved early). The "Coming from TripIt, Tripsy or Wanderlog?" question arrives in WF-095 and guest mode in WF-062. Spec: [05-ui-ux-spec.md](05-ui-ux-spec.md).
 - Accept: new user reaches a created trip in under 2 minutes on staging; sign-out clears state; copy follows the rules.
 - Touches: `apps/web/src/routes/auth/`, `apps/web/src/routes/onboarding/`.
 - Kit: 05 6.1, 6.3, 6.4, 6.6; screens/01-welcome.html
-- Tests: component tests, Playwright sign-in with a test identity.
+- Tests: component tests, Playwright sign-in with a test identity. Smoke flow 1 (10 section 1.6), the dev sign-in persona flow: pick the Free persona and land on an empty Trips screen.
 - Done: DoD.
 
 #### WF-019 Trips module [M1, M]
 - Depends on: WF-014, WF-018.
-- Description: trips CRUD, destinations, dates and currency, archive, duplicate, trip switcher. Limits (2 active trips on Free) are enforced by the resolver in WF-023.
+- Description: trips CRUD, destinations, dates and currency, archive, duplicate, trip switcher; the Overview (05 6.7) including the "Happening now" state (F-TRP-3, F-TRP-7); trash and restore (the `purge_trash` job is registered by WF-046); place autocomplete and the destination time zone (shared with WF-032; the keyboard alternative to drag and drop is in WF-032). Limits (2 active trips on Free) are enforced by the resolver in WF-023.
 - Accept: create, edit, archive and duplicate work for the owner and are refused for viewers; a signed-in user creates a trip on staging.
 - Touches: `apps/api/hermi/modules/trips/`, `apps/web/src/routes/trips/`.
 - Kit: 05 6.5, 6.7, 4.4; screens/02-trips-home.html and screens/03-trip-overview.html
-- Tests: CRUD, archive and duplicate tests; tenancy cases.
-- Done: DoD plus Month 1 gate review recorded.
+- Tests: CRUD, archive and duplicate tests; tenancy cases. Smoke flow 26 (10 section 1.6, 01 section 3.11): archive a past trip, then duplicate it into a new trip that appears in Trips.
+- Done: DoD.
 
 ### Month 2: core planning
 
@@ -407,7 +410,7 @@ Conventions for every ticket:
 
 #### WF-023 Entitlement resolver and limit enforcement [M2, L]
 - Depends on: WF-022, WF-019, WF-014.
-- Description: a resolver that returns a trip's capabilities as the best of its owner's tier (`free`, `plus`) and any pass on that trip; enforces the limits of the Phase 1 tier table (active trips: Free 2, Plus fair use 25; cached-fare route per trip: Free 1; live routes: Plus 3, Trip Pass 2; alerts; collaborators: Free 1, Plus and Trip Pass 6); `GET /v1/me/entitlements`; paywall triggers `third_trip`, `invite`, `track_live` and `out_of_credits_*` (04 section 2.2 `PaywallHint`). Plan limits and missing entitlements return 402 with the `paywall` hint (403 stays for role, account and consent). Credit charging attaches when the ledger lands (WF-044).
+- Description: a resolver that returns a trip's capabilities as the best of its owner's tier (`free`, `plus`) and any pass on that trip; enforces the limits of the Phase 1 tier table (active trips: Free 2, Plus fair use 25; cached-fare route per trip: Free 1; live routes: Plus 3, Trip Pass 2; alerts; collaborators: Free 1, Plus and Trip Pass 6); `GET /v1/me/entitlements`; paywall triggers `third_trip`, `invite`, `track_live` and `out_of_credits_*` (04 section 2.2 `PaywallHint`), and the other triggers follow 07 section 6.2 (`second_route`, `alert_limit`, `ninth_stay`, `export_footer`, `lifecycle_14d` with their mute caps from 6.5). A per-tier table test covers every limit key. Plan limits and missing entitlements return 402 with the `paywall` hint (403 stays for role, account and consent). Credit charging attaches when the ledger lands (WF-044).
 - Accept: every limited route calls the resolver; creating a third active trip on Free returns 402 with the `third_trip` paywall hint (403 only for role, account and consent) and archived trips do not count; Plus with a Trip Pass takes the higher limit; invitees get the owner's tier on that trip only.
 - Touches: `apps/api/hermi/modules/billing/` (resolver), `apps/api/hermi/modules/trips/service.py` (`trip_capabilities()`), `packages/shared/src/entitlements.ts`.
 - Tests: table-driven tier and pass tests, invitee tests.
@@ -415,7 +418,7 @@ Conventions for every ticket:
 
 #### WF-024 People (travelers) [M2, M]
 - Depends on: WF-014, WF-130.
-- Description: `people` with `owner_user_id` and `linked_user_id`, `trip_people`, "Which traveler are you?" linking. Children are a first name and a color only. Households are not built in Phase 1.
+- Description: `people` with `owner_user_id` and `linked_user_id`, `trip_people`, "Which traveler are you?" linking; the Group screen (05 6.21). Children are a first name and a color only. Households are not built in Phase 1.
 - Accept: a person can be linked to a user and unlinked; removal keeps history; no birthdate or email fields exist for travelers.
 - Touches: `apps/api/hermi/modules/trips/` (people), `apps/web/src/routes/trips/`.
 - Kit: 05 6.21; none, follow DL section 11
@@ -437,12 +440,12 @@ Conventions for every ticket:
 - Accept: a Free owner invites one person and sees the paywall on the second; pending invites count; lapse handling demotes extras and sets a banner flag; the invitee never needs a plan to join.
 - Touches: `apps/api/hermi/modules/collaboration/service.py`, `apps/api/hermi/modules/billing/` (resolver hook), `apps/web/src/routes/invite/`.
 - Kit: 05 6.8; none, follow DL section 11
-- Tests: Free, Plus, pass and lapse tests; invitee-on-Free test; paywall body test.
+- Tests: Free, Plus, pass and lapse tests; invitee-on-Free test; paywall body test. Smoke flows 3 and 4 (10 section 1.6): a Free owner invites one person by link and a second context accepts; the second invite shows the paywall with a visible close control.
 - Done: DoD.
 
 #### WF-027 Activity log and feed [M2, S]
 - Depends on: WF-025.
-- Description: `activity_log` writes for trip changes (who added, moved or removed what) with actor attribution, and a feed endpoint and screen. Notes marked private never appear.
+- Description: `activity_log` writes for trip changes (who added, moved or removed what) with actor attribution, and a feed endpoint and screen: the Activity inbox and its tab (05 6.24). Notes marked private never appear.
 - Accept: an edit by one member appears in the other's feed within 30 seconds; private notes excluded; deleted users show as "Deleted user".
 - Touches: `apps/api/hermi/modules/collaboration/` (activity), `apps/web/src/routes/activity/`.
 - Kit: 05 6.24; none, follow DL section 11
@@ -469,7 +472,7 @@ Conventions for every ticket:
 #### WF-030 Cached fares module [M2, M]
 - Depends on: WF-014, WF-021, WF-005, WF-020, WF-130.
 - Description: flight routes and Travelpayouts cached fares as the free baseline, fare observations and links to trips, chosen flight (with "Mark as booked" and the price paid, used by WF-075).
-- Accept: Free gets 1 cached-fare route per trip; cached reads never spend credits; observations dedupe; every fare shows its age.
+- Accept: Free gets 1 cached-fare route per trip; cached reads never spend credits; observations dedupe; every fare shows its age; the screen has a price calendar, price history, a cheapest highlight, 330 days ahead, and "Choose".
 - Touches: `apps/api/hermi/modules/flights/`, `apps/api/hermi/providers/travelpayouts.py`, `apps/web/src/routes/flights/`.
 - Kit: 05 6.9, 6.10, 4.5, 4.6; screens/05-fare-detail.html
 - Tests: provider mocked tests, limit tests, dedupe tests.
@@ -481,39 +484,39 @@ Conventions for every ticket:
 - Accept: the detection function triggers once per drop; duplicate triggers blocked by a unique key; limit per tier enforced by the resolver.
 - Touches: `apps/api/hermi/modules/flights/`, `apps/web/src/routes/flights/`.
 - Kit: 05 6.9, 4.5; screens/05-fare-detail.html
-- Tests: threshold tests, idempotent trigger test.
+- Tests: threshold tests, idempotent trigger test. Smoke flow 20 (10 section 1.6, 01 section 3.4): add a route, see cached fares, choose a fare, set an alert.
 - Done: DoD.
 
 #### WF-032 Itinerary, calendar view and ICS export [M2, L]
 - Depends on: WF-014, WF-021, WF-130.
 - Description: itinerary days and items, drag and drop, calendar view with a phone-friendly list mode and a "Move to..." sheet, conflict hints, ICS file export.
-- Accept: day reorder works on web and phone; ICS file imports into Apple Calendar; edits by viewers rejected; two editors changing one item get a 409 with the latest row.
+- Accept: day reorder works on web and phone; ICS file imports into Apple Calendar; edits by viewers rejected; two editors changing one item get a 409 with the latest row; place autocomplete and the destination time zone work (shared with WF-019); a keyboard alternative to drag and drop exists.
 - Touches: `apps/api/hermi/modules/itinerary/`, `apps/web/src/routes/itinerary/`.
 - Kit: 05 6.12, 6.13; screens/04-plan-day.html
-- Tests: CRUD and role tests, ICS golden file, component tests, conflict test.
+- Tests: CRUD and role tests, ICS golden file, component tests, conflict test. Smoke flow 2 (10 section 1.6): create a trip with two destinations, add an itinerary item, reload, it persists.
 - Done: DoD.
 
 #### WF-033 Places and map [M2, M]
 - Depends on: WF-014, WF-021, WF-130.
-- Description: Geoapify search with `places_cache`, saved places, ideas list, MapLibre map with clustering, "Open in Apple Maps" handoff, attributions (OpenStreetMap, Wikimedia), Wikipedia summaries.
+- Description: Geoapify search with `places_cache`, saved places, ideas list, MapLibre map with clustering, "Open in Apple Maps" handoff, attributions (OpenStreetMap, Wikimedia), Wikipedia summaries; the places-per-day cap.
 - Accept: repeated searches hit the cache; places search rate limited at 30 a minute; map remains smooth with 200 markers.
 - Touches: `apps/api/hermi/modules/places/`, `apps/web/src/routes/places/`.
 - Kit: 05 6.14; none, follow DL section 11
-- Tests: cache tests, rate limit test, marker clustering test.
+- Tests: cache tests, rate limit test, marker clustering test. Smoke flow 22 (10 section 1.6, 01 section 3.6): drag items onto days, then use Add activity with place search and the map.
 - Done: DoD.
 
 #### WF-034 Lodging, hearts and compare [M2, M]
 - Depends on: WF-014, WF-021, WF-130.
 - Description: lodging options, pasted links, hearts (`lodging_votes`), compare view for 2 to 4 stays. Pasted links stay exactly as pasted; the server never fetches Airbnb, Vrbo or Booking.com pages; a separate labeled "Book via partner" button is built from the URL text only (wired in WF-068). Builds the shared SSRF guard `security/ssrf.py` and `providers/link_preview.py` that WF-072 reuses, with the hostile URL table of 10 section 2.5.
-- Accept: no outbound request to those domains in tests (network blocked in test); hearts counted once per member; sort order is stated and never by commission; hostile URLs are refused.
+- Accept: no outbound request to those domains in tests (network blocked in test); hearts counted once per member; sort order is stated and never by commission; hostile URLs are refused; the bookmarklet works; each stay shows a per-night price; exactly one stay can be "Booked"; the compare cap is enforced.
 - Touches: `apps/api/hermi/modules/lodging/`, `apps/api/hermi/security/ssrf.py`, `apps/api/hermi/providers/link_preview.py`, `apps/web/src/routes/lodging/`.
 - Kit: 05 6.11, 4.10; screens/06-stays-vote.html
-- Tests: network-blocked test, heart tests, link preservation test, SSRF table test.
+- Tests: network-blocked test, heart tests, link preservation test, SSRF table test. Smoke flows 5 and 21 (10 section 1.6): heart a stay in both contexts and the tally updates within 30 seconds; paste a stay link, heart it, compare two to four stays, mark one Booked.
 - Done: DoD.
 
 #### WF-035 Notes with sources [M2, S]
 - Depends on: WF-021, WF-130.
-- Description: trip, day, item and stay notes with optional `source_url`, `source_site`, `checked_at` and a private flag; a shared source chip component. AI-found notes must carry a source (enforced in WF-049 and WF-055).
+- Description: trip, day, item and stay notes with optional `source_url`, `source_site`, `checked_at` and a private flag; a shared source chip component; the notes screen (05 6.18). AI-found notes must carry a source (enforced in WF-049 and WF-055).
 - Accept: notes save with sources; private notes are visible only to their author; chips open the source.
 - Touches: `apps/api/hermi/modules/trips/` (notes), `apps/web/src/components/`.
 - Kit: 05 6.18; none, follow DL section 11
@@ -522,8 +525,8 @@ Conventions for every ticket:
 
 #### WF-036 Responsive layout, empty and error states [M2, L]
 - Depends on: WF-017, WF-130.
-- Description: bottom tab bar under 768 px (Trips, Itinerary, Flights, Lodging, More), safe areas, 44 pt targets, 16 px inputs, bottom sheets for dialogs, empty states with one action, error states (offline, 401, out of credits, 429, maintenance, forced update).
-- Accept: every main route works at 390 px wide; no horizontal scroll; Playwright mobile project (iPhone 15 profile) passes.
+- Description: built from 05 sections 4.20, 5.3 and 10 on top of the WF-130 shell: the bottom tab bar (Trips, Discover, Activity, Account) as a floating pill under 768 px, the icon rail from 768 to 1199 px, the 248 px sidebar from 1200 px, safe areas, 44 pt targets, 16 px inputs, bottom sheets for dialogs, and every empty and error state of 05 section 4 (offline, 401, out of credits, 429, maintenance, forced update included).
+- Accept: every main route works at 390 px wide and at widths 1023, 1024, 1199, 1200 and 1440; no horizontal scroll; Playwright mobile project (iPhone 15 profile) passes.
 - Touches: `apps/web/src/app/` (layout), `apps/web/src/routes/errors.tsx`, `apps/web/playwright.config.ts`.
 - Kit: 05 5.3, 10, 4.15 to 4.18; none, follow DL section 11
 - Tests: mobile viewport smoke test, axe checks in light and dark, and the contrast unit test over the Hermi palette token pairs in [05-ui-ux-spec.md](05-ui-ux-spec.md) section 2.3, including `--tp-edge` (control borders), `--tp-warning-ink` (small warning text) and `--tp-sky-ink` on `--tp-sky`.
@@ -563,11 +566,11 @@ Conventions for every ticket:
 
 #### WF-125 "Synced N seconds ago" indicator [M2, S]
 - Depends on: WF-025, WF-035.
-- Description: the sync indicator in every trip header (05 section 4.21): "Synced 12 s ago" from the last successful conditional sync response (200 or 304) or accepted queued edit, refreshed every 5 seconds, with the states Syncing, "Offline, N edits waiting" (wired to the offline queue when WF-089 lands) and "Could not sync, retrying" after three failed polls; tap runs a sync now. Text plus icon, state changes announced politely, never the ticking seconds.
+- Description: the sync indicator in every trip header (05 section 4.21): "Synced 12 s ago" from the last successful conditional sync response (200 or 304) or accepted queued edit, refreshed every 5 seconds, with the states Syncing, "Offline, N edits waiting" (wired to the offline queue when WF-089 lands) and "Could not sync, retrying" after three failed polls; tap runs a sync now. Text plus icon, state changes announced politely, never the ticking seconds. Sync uses conditional polling every 15 to 30 seconds; a conflict opens a "Keep mine" and "Use theirs" sheet.
 - Accept: after a successful poll the header reads "Synced 0 s ago" and counts up; with the network off it reads the offline state within 5 seconds; a failed server poll never resets the timer; VoiceOver hears state changes only.
 - Touches: `apps/web/src/components/sync-indicator/`, `apps/web/src/lib/sync.ts`.
 - Kit: 05 6.41, 4.21; none, follow DL section 11
-- Tests: fake-timer component tests for every state, an aria-live test, a Playwright test that cuts the network.
+- Tests: fake-timer component tests for every state, an aria-live test, a Playwright test that cuts the network, and a two-context Playwright conflict test. Smoke flow 18 (10 section 1.6): the header shows "Synced N s ago" and "Offline, 1 edit waiting" when the network is cut (the degraded status banner half is in WF-126 Tests).
 - Done: DoD.
 
 #### WF-133 Demo seed, sample trips and Discover [M2, M]
@@ -576,7 +579,7 @@ Conventions for every ticket:
 - Accept: after `npm run setup` the Plus persona signs in and finds the demo trip, and any persona finds the gallery; a sample opens read-only; "Use this plan" calls `POST /public/sample-trips/{slug}/copy`, creates an editable copy (days, items and saved places, never flights or prices) and respects the active-trip limit (402 `limit_reached` and the `third_trip` paywall on Free); a guest builds a local copy with no server write; the seed is idempotent and creates no second persona.
 - Touches: `apps/api/hermi/seed/demo.py`, `apps/api/hermi/api/public.py` (the 5.28 sample routes), `apps/api/hermi/modules/trips/` (copy from a sample), `apps/api/hermi/cli.py`, `apps/web/src/routes/discover/`, `apps/web/e2e/discover/`.
 - Kit: 05 6.23, 6.35; screens/02-trips-home.html (card pattern)
-- Tests: seed idempotency, sample read-only and copy route tests, and a Playwright flow that opens a sample and taps "Use this plan".
+- Tests: seed idempotency, sample read-only and copy route tests, and a Playwright flow that opens a sample and taps "Use this plan". Smoke flow 19 (10 section 1.6), the Discover flow: open a sample trip, tap "Use this plan", and see it as a new trip in Trips.
 - Done: DoD plus the demo trip shown in the PR.
 
 ### Month 3: AI and credits
@@ -639,7 +642,7 @@ Conventions for every ticket:
 
 #### WF-047 Notification service and email [M3, M]
 - Depends on: WF-046.
-- Description: a `notify` lane service with preferences by type, quiet hours, per-trip mute, unique keys per user and alert, and Resend email templates for invites, price drops, booked-fare drops, run results, pre-trip reminders and deletion confirmation, plus unsubscribe handling. Delivery follows `EMAIL_BACKEND` (`console`, `file`, `resend`). Push delivery is added in WF-086.
+- Description: a `notify` lane service with preferences by type, quiet hours, per-trip mute, unique keys per user and alert, and Resend email templates for invites, price drops, booked-fare drops, run results, pre-trip reminders and deletion confirmation, plus unsubscribe handling. Jobs: the 7-day pre-departure reminder, the hourly activity digest and the trial-ending reminder (WF-051 wires the trial-ending trigger), each deduplicated per user and trip. Delivery follows `EMAIL_BACKEND` (`console`, `file`, `resend`). Push delivery is added in WF-086.
 - Accept: a retried job never sends twice; each `EMAIL_BACKEND` value delivers as named; quiet hours defer; marketing needs opt-in.
 - Touches: `apps/api/hermi/modules/notifications/`, `apps/worker/hermi_worker/jobs/send_email.py`.
 - Tests: dedupe test, quiet hours test, preference test.
@@ -671,7 +674,7 @@ Conventions for every ticket:
 
 #### WF-051 Scheduler and price-check jobs [M3, M]
 - Depends on: WF-046, WF-031.
-- Description: one leader (advisory lock) scans `flight_routes.next_check_at` every 30 to 60 seconds with `FOR UPDATE SKIP LOCKED` (the `scan_due_routes` job), enqueues due jobs with a stable per-route jitter, advances the slot; jobs `refresh_cached_fares` (every 6 hours for routes with alerts), `check_fare_route` (live routes daily within 120 days of departure, within tier limits) and `evaluate_price_alerts` (notify lane). It only schedules API price checks; no agent job is ever scheduled in Phase 1.
+- Description: one leader (advisory lock) scans `flight_routes.next_check_at` every 30 to 60 seconds with `FOR UPDATE SKIP LOCKED` (the `scan_due_routes` job), enqueues due jobs with a stable per-route jitter, advances the slot; jobs `refresh_cached_fares` (every 6 hours for routes with alerts), `check_fare_route` (live routes daily within 120 days of departure, within tier limits) and `evaluate_price_alerts` (notify lane). It only schedules API price checks; no agent job is ever scheduled in Phase 1. It also schedules the 7-day pre-departure reminder, the hourly activity digest and the trial-ending reminder as jobs, each deduplicated per user and trip.
 - Accept: two schedulers never double-fire; an outage fires one check, not twelve; no agent job is ever scheduled; an alert triggers once per drop and hands a request to the notify lane.
 - Touches: `apps/worker/hermi_worker/scheduler.py`, `apps/worker/hermi_worker/jobs/scan_due_routes.py`, `jobs/evaluate_price_alerts.py`.
 - Tests: two-leader test, jitter stability test, misfire test, idempotent notification test.
@@ -766,7 +769,7 @@ Conventions for every ticket:
 
 #### WF-062 Guest mode and claim [M3, M]
 - Depends on: WF-018, WF-019, WF-132, WF-130.
-- Description: a guest can create and edit a local trip on the device without an account (`guest_trip_created`); the "Save your trip" sheet appears when the guest tries to invite, sync, use AI, export or buy; on sign-up the local trips are claimed into the new account exactly once (`guest_claimed`). Guest data is local-only: `POST /me/claim` carries the trip JSON and a client-generated claim id, and there is no `is_guest` flag. The guest attestation endpoints and the `guest_allowances` table (F-ACC-2) back the one guest AI route. Guests cannot invite.
+- Description: a guest can create and edit a local trip on the device without an account (`guest_trip_created`); the "Save your trip" sheet appears when the guest tries to invite, sync, use AI, export or buy; on sign-up the local trips are claimed into the new account exactly once (`guest_claimed`). Guest data is local-only: `POST /me/claim` carries the trip JSON and a client-generated claim id, and there is no `is_guest` flag. The guest attestation endpoints and the `guest_allowances` table (F-ACC-2) back the one guest AI route. Guests cannot invite. Guest AI uses a device-attested allowance. On sign-up the user chooses "Merge" or "Keep separate" with counts shown, and over-limit claims are archived.
 - Accept: guest creates a trip with no network account; claim moves trips to the new user once and is idempotent; guest requests never reach tenant tables without a claim; nothing is stored server side for an unclaimed guest; a repeated claim with the same claim id returns the first result; `POST /guest/ai/draft-day` works only with a valid App Attest assertion and draws from `guest_allowances`.
 - Touches: `apps/web/src/features/guest/`, `apps/api/hermi/modules/auth/` (claim), `apps/api/hermi/modules/trips/`.
 - Kit: 05 6.2; none, follow DL section 11
@@ -788,7 +791,7 @@ Conventions for every ticket:
 - Accept: each action works end to end on `fake` with its states (loading, empty, error, offline, limit); credit chips show the right price and pool; the free repeat within 6 hours charges nothing; a draft at 0 credits shows the blurred day one and the `out_of_credits_draft` paywall; the balance and history match the ledger.
 - Touches: `apps/web/src/routes/ai/`, `apps/web/src/components/ai/`, `apps/web/e2e/ai/`.
 - Kit: 05 6.15, 6.26, 4.11; screens/08-ai-actions.html
-- Tests: component tests for every state; one Playwright test per action (explain, draft day, draft trip, research, packing list, credits history); the free-repeat and blurred-day tests.
+- Tests: component tests for every state; one Playwright test per action (explain, draft day, draft trip, research, packing list, credits history); the free-repeat and blurred-day tests. Smoke flow 6 (10 section 1.6): the AI consent screen appears on first use (WF-054 owns the consent gating), declining leaves the app usable, accepting runs `explain` and shows 1 credit spent. Smoke flow 23 (10 section 1.6, 01 sections 3.6 and 3.7): draft a day and a trip, run research and an agent with its live log (fake Anthropic).
 - Done: DoD plus the DL section 11 checklist run.
 
 ### Month 4: money, imports, admin essentials
@@ -820,11 +823,11 @@ Conventions for every ticket:
 
 #### WF-066 Paywall logic and screens [M4, M]
 - Depends on: WF-023, WF-018, WF-132, WF-130.
-- Description: server-decided paywall moments (Trip Pass first when a trip is within 120 days, annual Plus first with 2 or more active trips, credit packs when credits run out, `invite` when a Free owner invites a second person, `track_live` for live routes), `GET /paywall`, purchase screens with price, period and trial terms, Terms and Privacy links, Restore, and a visible free path. Purchases happen only in the iOS app; on the web the same sheet returns `purchasable: false` and shows what the upgrade gives, the free path and "Upgrade in the iOS app" with an App Store link, and no price, purchase button or checkout (there are no web purchases in Phase 1). The paywall legal row links to "How billing works" (WF-124). Adds the trigger `out_of_credits_verify` for plan checks and rechecks. Paywall reason codes follow 04 section 2.2 and 07 section 6.2 (`third_trip` is `trip_limit`; `second_route`, `track_live` and `alert_limit` are `live_routes`; `invite` is `sharing`; the four `out_of_credits_*` triggers are `credits`). Anti-patterns avoided: no fake urgency.
+- Description: server-decided paywall moments (Trip Pass first when a trip is within 120 days, annual Plus first with 2 or more active trips, credit packs when credits run out, `invite` when a Free owner invites a second person, `track_live` for live routes), `GET /paywall`, purchase screens with price, period and trial terms, Terms and Privacy links, Restore, and a visible free path. Purchases happen only in the iOS app; on the web the same sheet returns `purchasable: false` and shows what the upgrade gives, the free path and "Upgrade in the iOS app" with an App Store link, and no price, purchase button or checkout (there are no web purchases in Phase 1). The paywall legal row links to "How billing works" (WF-124). Adds the trigger `out_of_credits_verify` for plan checks and rechecks. Paywall reason codes follow 04 section 2.2 and 07 section 6.2 (`third_trip` is `trip_limit`; `second_route`, `track_live` and `alert_limit` are `live_routes`; `invite` is `sharing`; the four `out_of_credits_*` triggers are `credits`). Anti-patterns avoided: no fake urgency. Builds a paywall screen for every 07 section 6.2 trigger; the Account and Subscription screens (05 6.25, 6.26) are shared with WF-094 and WF-132.
 - Accept: the reason code returned by the server (the 402 `paywall` hint or `GET /paywall`) drives the screen and matches the 07 section 6.2 mapping; Plus annual is shown first with the trial only on annual; the close control is always visible; web shows "Upgrade in the iOS app" and no price or purchase control.
 - Touches: `apps/web/src/routes/paywall/`, `apps/api/hermi/modules/billing/router.py`.
 - Kit: 05 4.14, 6.27, 8; screens/07-paywall.html
-- Tests: decision table tests, component tests.
+- Tests: decision table tests, component tests. Smoke flow 17 (10 section 1.6): on web the paywall says "Upgrade in the iOS app" with no price or purchase button (the public pages `/how-we-earn` and `/billing` load without sign-in and pass axe: WF-124 Tests).
 - Done: DoD.
 
 #### WF-067 Outbound API and redirect [M4, M]
@@ -832,7 +835,7 @@ Conventions for every ticket:
 - Description: `POST /v1/outbound` (checks trip access, picks program by flags, geography and cell, inserts `link_clicks`, returns `/go/{click_id}`) and `GET /go/{click_id}` (fresh under 10 minutes, single use, 302 from a stored template, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`), with the outcomes of 04 section 5.21 and 07 section 6.2: an expired or used id or an off kill switch is a 302 to the plain non-affiliate destination, an unknown id is a 404 with an empty body, and `/go` carries no paywall reason code. No open redirects; user id, trip id and email never in URLs.
 - Accept: expired or reused ids and an off kill switch 302 to the plain destination, unknown ids 404 with an empty body; no `url=` parameter path exists; repeat clicks within 30 seconds deduped; 60 an hour rate limit.
 - Touches: `apps/api/hermi/modules/affiliate/router.py`, `modules/affiliate/service.py`.
-- Tests: redirect tests, open-redirect attack tests, dedupe test.
+- Tests: redirect tests, open-redirect attack tests, dedupe test. Smoke flow 9 (10 section 1.6): a partner card shows the disclosure, `/go/{click_id}` answers 302 to the template host (intercepted).
 - Done: DoD.
 
 #### WF-068 Link builders, disclosure and placements [M4, L]
@@ -855,10 +858,10 @@ Conventions for every ticket:
 #### WF-070 Checklist "Before you go" [M4, M]
 - Depends on: WF-021, WF-068.
 - Description: `checklist_items` by destination: official visa and entry links first, then labeled partner items (eSIM, insurance referral, transfers, bookings). At least half of the items are unmonetized; insurance uses insurer-approved copy only; the AI gives no insurance, visa or legal advice. The after-trip flight compensation prompt is Phase 2.
-- Accept: checklist templates generated by destination; at least half of the items have no partner link; copy reviewed against [08-affiliate-revenue.md](../context/business-plan/08-affiliate-revenue.md) rules.
+- Accept: checklist templates generated by destination; at least half of the items have no partner link; each item can be marked "Not needed" and custom items can be added; copy reviewed against [08-affiliate-revenue.md](../context/business-plan/08-affiliate-revenue.md) rules.
 - Touches: `apps/api/hermi/modules/trips/` (checklist), `apps/web/src/routes/checklist/`.
 - Kit: 05 6.20; none, follow DL section 11
-- Tests: template tests (ratio of monetized items), copy lint for forbidden advice phrases.
+- Tests: template tests (ratio of monetized items), copy lint for forbidden advice phrases. Smoke flow 24 (10 section 1.6, 01 section 3.9): after a stay is Booked the checklist shows on the Overview; one item done and one not needed persist after reload.
 - Done: DoD.
 
 #### WF-071 Switching import: ICS file [M4, M]
@@ -885,7 +888,7 @@ Conventions for every ticket:
 - Accept: the outbound model request contains none of the test PII; output that fails validation is discarded; instructions hidden in pasted text do not change behavior; a pasted Airbnb or Vrbo confirmation works without any fetch; the user confirms every item before it is saved.
 - Touches: `apps/api/hermi/modules/ai/features/booking_import.py`, `apps/api/hermi/modules/trips/import_paste.py`, `apps/web/src/routes/import/`.
 - Kit: 05 6.30; none, follow DL section 11
-- Tests: a redaction corpus of 40 real-shaped confirmations asserting zero PII in the recorded request, extraction eval set (10 section 1.5), injection fixtures, refund test, consent test.
+- Tests: a redaction corpus of 40 real-shaped confirmations asserting zero PII in the recorded request, extraction eval set (10 section 1.5), injection fixtures, refund test, consent test. Smoke flow 8 (10 section 1.6): paste a sample confirmation with the model faked, the preview shows "From your pasted text" labels, nothing is saved before confirming.
 - Done: DoD plus the redaction corpus and eval results saved in `docs/evals/`.
 
 #### WF-074 First-import Trip Pass reward [M4, M]
@@ -894,7 +897,7 @@ Conventions for every ticket:
 - Accept: the reward is granted once per account and never twice for the same file or trip; junk imports under 3 items, imports with no flight or stay, unverified emails and Plus owners grant nothing and keep the reward available; the pass appears in trip settings as free; expiry works like a paid pass; admin can revoke it.
 - Touches: `apps/api/hermi/modules/billing/passes.py`, `apps/api/hermi/modules/trips/` (import hook), `apps/web/src/routes/import/`.
 - Kit: 05 6.30; none, follow DL section 11
-- Tests: once-per-account test, idempotency test under concurrent imports, minimum item test, flight-or-stay test, verified-email test, Plus owner test, places-only import test, revoke test.
+- Tests: once-per-account test, idempotency test under concurrent imports, minimum item test, flight-or-stay test, verified-email test, Plus owner test, places-only import test, revoke test. Smoke flow 7 (10 section 1.6): import a sample TripIt `.ics`, the free Trip Pass banner appears once, importing the file again adds nothing.
 - Done: DoD.
 
 #### WF-075 Booked-fare drop alert [M4, M]
@@ -908,7 +911,7 @@ Conventions for every ticket:
 
 #### WF-076 Sandbox purchase harness [M4, M]
 - Depends on: WF-063, WF-064, WF-065.
-- Description: a throwaway iOS test app (StoreKit configuration plus the RevenueCat SDK, `app_user_id` set to `users.id`) used to prove every product end to end before the Capacitor shell exists: Plus monthly, Plus annual (trial), Trip Pass, credit packs, cancel, refund, restore. It is deleted after WF-084 ships the real purchase flow. Needs a Mac or Xcode Cloud; App Store Connect products and the sandbox tester must exist.
+- Description: a throwaway iOS test app (StoreKit configuration plus the RevenueCat SDK, `app_user_id` set to `users.id`) used to prove every product end to end before the Capacitor shell exists: Plus monthly, Plus annual (trial), Trip Pass, credit packs, cancel, refund, restore. It is deleted after WF-084 ships the real purchase flow. Builds on a GitHub macOS runner (see knowledge/ios-builds-on-ci.md), with the device checks owner-pending; App Store Connect products and the sandbox tester must exist.
 - Accept: each product purchased in the sandbox unlocks the right entitlement within seconds against staging; replaying the webhook grants nothing twice; results written to `docs/qa/purchase-harness.md`.
 - Touches: `apps/ios/harness/` (temporary), `docs/qa/`.
 - Kit: 05 8; none, follow DL section 11
@@ -948,7 +951,7 @@ Conventions for every ticket:
 - Accept: each entry opens the right method; pasting Wanderlog or Maps place names gives a preview with matched places and "Not the right place"; a pasted Maps list link is never requested (no network call, asserted); a places-only import never triggers the first-import reward; the entry is stored and no other parsing changes; no third-party logos.
 - Touches: `apps/api/hermi/modules/trips/import_places.py`, `apps/api/hermi/modules/places/`, `apps/web/src/routes/import/`.
 - Kit: 05 6.30; none, follow DL section 11
-- Tests: place-matching golden set (30 lists), no-network test for list links, reward exclusion test, origin analytics test, copy lint.
+- Tests: place-matching golden set (30 lists), no-network test for list links, reward exclusion test, origin analytics test, copy lint. Smoke flow 15 (10 section 1.6): the TripIt, Tripsy, Wanderlog and Google Maps entries each open the right method.
 - Done: DoD plus the rival help-page check dated in `docs/import-sources.md`.
 
 #### WF-116 Verify this plan: schema, endpoints and reading a pasted plan [M4, M]
@@ -969,18 +972,18 @@ Conventions for every ticket:
 
 ### Month 5: iOS and polish, TestFlight beta
 
-#### WF-080 Capacitor shell, signing and CI [M5, L, needs a Mac or Xcode Cloud]
+#### WF-080 Capacitor shell, signing and CI [M5, L, GitHub macOS runner]
 - Depends on: WF-017, WF-036.
-- Description: `apps/ios` Capacitor project (bundled, no `server.url`), bundle id `world.hermi.ios` with Push, Associated Domains, Sign in with Apple, In-App Purchase and App Attest, icon and splash from the brand files, signing, Xcode Cloud or Fastlane build, build flag that excludes admin routes.
+- Description: `apps/ios` Capacitor project (bundled, no `server.url`), bundle id `world.hermi.ios` with Push, Associated Domains, Sign in with Apple, In-App Purchase and App Attest, icon and splash from the brand files, signing with an App Store Connect API key on a GitHub macOS runner (`ios.yml`), build flag that excludes admin routes. The iOS app is locked to portrait on phones.
 - Accept: the app launches on a device against staging; the release build contains no admin code; CI produces a signed build.
-- Touches: `apps/ios/`, `apps/ios/fastlane/`, `apps/web/vite.config.ts`.
+- Touches: `apps/ios/`, `.github/workflows/ios.yml`, `apps/web/vite.config.ts`.
 - Kit: 05 5.2, 6.1; screens/01-welcome.html
 - Tests: native launch smoke test; bundle inspection script.
 - Done: DoD plus Apple Developer and Paid Applications Agreement status noted.
 
 #### WF-081 Native plugins [M5, M]
 - Depends on: WF-080.
-- Description: push plugin wiring, share, haptics, status bar, keyboard resize, secure storage (Keychain), in-app review (at most 3 a year, never after an error, never tied to a reward), app URL open, and `SFSafariViewController` through the Capacitor Browser plugin for affiliate links; a document picker for `.ics` import.
+- Description: push plugin wiring, share, haptics, status bar, keyboard resize, secure storage (Keychain), in-app review (at most 3 a year, never after an error, never tied to a reward), app URL open, and `SFSafariViewController` through the Capacitor Browser plugin for affiliate links; a document picker for `.ics` import. Add `@capacitor/text-zoom`; text-bearing shapes use `min-height`; Playwright runs the main screens at 310 percent text zoom; old markup that breaks is rebuilt from kit blocks.
 - Accept: each plugin has a web fallback; partner links open in `SFSafariViewController`; the ICS file picker hands a file to WF-071; attribution loss measured against Safari and recorded.
 - Touches: `apps/web/src/lib/native/`, `apps/ios/plugins/`.
 - Kit: 05 5.2, 9.3, 11; none, follow DL section 11
@@ -1057,11 +1060,11 @@ Conventions for every ticket:
 
 #### WF-090 Calendar subscription feed [M5, M]
 - Depends on: WF-032.
-- Description: a live subscribable feed `GET /trips/{trip_id}/calendar.ics?token=` authenticated by a per-trip secret token (stored as `calendar_token_hash`, rotated by `POST /trips/{id}/calendar-token`), with itinerary items and booked flights and stays as events with stable UIDs and correct time zones, an "Add to calendar" button (`webcal://`), `Cache-Control: private, max-age=300`. Private notes and exact prices are excluded.
-- Accept: a calendar app shows edits within its refresh interval; rotating the token kills the old URL immediately; the token never appears in logs; 60 requests a minute per token.
+- Description: a live subscribable feed `GET /calendar/{token}.ics` (follows 04 section 5.29: token in the path, `If-None-Match`, privacy rules) authenticated by a per-trip secret token (stored as `calendar_token_hash`, rotated by `POST /trips/{id}/calendar-token`), with itinerary items and booked flights and stays as events with stable UIDs and correct time zones, an "Add to calendar" button (`webcal://`), `Cache-Control: private, max-age=300`. Private notes and exact prices are excluded.
+- Accept: a calendar app shows edits within its refresh interval; rotating the token kills the old URL immediately; the token never appears in logs; 120 requests an hour per token and 600 an hour per IP (04 section 5.29).
 - Touches: `apps/api/hermi/modules/itinerary/` (calendar feed), `apps/web/src/routes/trip-settings/`.
 - Kit: 05 6.31; none, follow DL section 11
-- Tests: golden file, token rotation test, privacy test, rate limit test, log scrub test.
+- Tests: golden file, token rotation test, privacy test, rate limit test, log scrub test. Smoke flow 25 (10 section 1.6, 01 section 3.10): the Overview shows "Happening now", the trip reads offline, and the calendar feed can be subscribed to and its token rotated.
 - Done: DoD.
 
 #### WF-091 Presentation mode, read-only share view and PDF export [M5, L]
@@ -1070,7 +1073,7 @@ Conventions for every ticket:
 - Accept: share view shows no private notes or email; present mode works offline once cached; PDF matches the presentation; the Free footer is small and only on Free.
 - Touches: `apps/web/src/routes/present/`, `apps/api/hermi/modules/collaboration/` (share links), `apps/api/hermi/modules/itinerary/` (presentation data, PDF).
 - Kit: 05 6.19; none, follow DL section 11
-- Tests: privacy test on share payload, Playwright present-mode test, PDF golden test.
+- Tests: privacy test on share payload, Playwright present-mode test, PDF golden test. Smoke flow 12 (10 section 1.6): present mode opens full screen and swipes through days; the PDF downloads with the Free footer.
 - Done: DoD.
 
 #### WF-092 Account deletion [M5, M]
@@ -1079,21 +1082,21 @@ Conventions for every ticket:
 - Accept: `DELETE /me/ai-history` removes the user's AI history; deletion writes the identity hash; the `retention_sweep` job runs here; after the sweep no row in any table references the user; shared trips transfer or delete as chosen; the confirmation email is sent; backups purge on their cycle (documented).
 - Touches: `apps/api/hermi/modules/auth/` (deletion), `apps/worker/hermi_worker/jobs/delete_account.py`.
 - Kit: 05 6.25, 6.28; none, follow DL section 11
-- Tests: end-to-end deletion test over all tables, grace cancel test.
+- Tests: end-to-end deletion test over all tables, grace cancel test. Smoke flow 11 (10 section 1.6): account deletion needs re-authentication and lists its effects.
 - Done: DoD.
 
 #### WF-093 Data export [M5, M]
 - Depends on: WF-092.
-- Description: "Export my data" as JSON plus ICS (and a PDF with a wheels-only library such as `reportlab` or `fpdf2`, not WeasyPrint) through a job, stored in R2, emailed link with expiry, available on every tier.
+- Description: "Export my data" as JSON plus ICS (and a PDF with a wheels-only library such as `reportlab` or `fpdf2`, not WeasyPrint) through a job, stored in R2, emailed link with expiry, available on every tier. Formats: PDF, CSV and per-trip export; the disclosure text is snapshotted into the PDF and the email.
 - Accept: export includes all user-owned data (checked against a list generated from the schema); link expires; another user cannot fetch it.
 - Touches: `apps/api/hermi/modules/auth/` (export), `apps/worker/hermi_worker/jobs/export_user_data.py`.
 - Kit: 05 6.25, 6.28; none, follow DL section 11
-- Tests: completeness test, expiry test, authorization test.
+- Tests: completeness test, expiry test, authorization test. Smoke flow 10 (10 section 1.6): the export request shows a pending state in Settings.
 - Done: DoD.
 
 #### WF-094 Settings, consents and legal pages [M5, M]
 - Depends on: WF-054, WF-092.
-- Description: profile and settings screens (AI toggle, analytics opt-out, hide booking links, notifications, export, delete), privacy policy, terms, affiliate disclosure, AI disclaimer, licenses screen (data attributions), consent history.
+- Description: profile and settings screens (AI toggle, analytics opt-out, hide booking links, notifications, export, delete), privacy policy, terms, affiliate disclosure, AI disclaimer, licenses screen (data attributions, listing the licences of the three fonts), consent history, "Sign out everywhere" and preferences.
 - Accept: pages public and linked from Settings and sign-in; policy names Anthropic, affiliate click logging and how imports are processed.
 - Touches: `apps/web/src/routes/legal/`, `apps/web/src/routes/settings/`.
 - Kit: 05 6.25, 6.28; none, follow DL section 11
@@ -1120,7 +1123,7 @@ Conventions for every ticket:
 
 #### WF-097 Performance and empty-state polish [M5, L]
 - Depends on: WF-036, WF-088.
-- Description: profile and fix the cold start (under 2 seconds to interactive on an iPhone 12 with a cached trip), main JS chunk under 500 kB gzip, map and calendar smoothness in the WebView, empty and error states checked on every screen, skeletons, reduced-motion behavior.
+- Description: profile and fix the cold start (under 2 seconds to interactive on an iPhone 12 with a cached trip), main JS chunk under 500 kB gzip, map and calendar smoothness in the WebView, empty and error states checked on every screen, skeletons, reduced-motion behavior; the checks widen to error, limit and offline states.
 - Accept: budgets met and recorded; no screen lacks an empty state; map stays smooth with 200 markers on a device.
 - Touches: `apps/web/src/` (routes and components), `apps/web/vite.config.ts`.
 - Kit: 05 4.16 to 4.18 and 6 (every screen); none, follow DL section 11
@@ -1156,9 +1159,9 @@ Conventions for every ticket:
 - Depends on: WF-080.
 - Description: Maestro native smoke flows (sign in, create trip, import an ICS file, open offline, purchase in sandbox), automated TestFlight upload with dSYM and source map upload to Sentry, internal testers from week 19 and external testers (30) from week 21.
 - Accept: a tagged build reaches TestFlight automatically; crash reports symbolicated.
-- Touches: `apps/ios/fastlane/` or Xcode Cloud workflows, `apps/web/e2e/maestro/`.
+- Touches: `.github/workflows/ios.yml` (GitHub macOS runner; see knowledge/ios-builds-on-ci.md), `apps/web/e2e/maestro/`.
 - Kit: 05 6.3, 6.6, 6.27, 6.30, 6.33; none, follow DL section 11
-- Tests: the Maestro flows.
+- Tests: the Maestro flows. A flow manifest check compares the Playwright smoke flows with the list in 10 section 1.6.
 - Done: DoD.
 
 #### WF-102 Sandbox purchase matrix [M5, M]
@@ -1183,7 +1186,7 @@ Conventions for every ticket:
 - Accept: an unchanged feed creates no preview; a changed feed creates one preview and one notice; nothing changes in the trip until the person confirms; turning the switch off deletes the stored URL; the third failure stops polling and tells the person; the fourth polled feed is refused; the URL never appears in logs, Sentry, `provider_calls` or events; a polling confirmation never earns the import reward.
 - Touches: `apps/api/hermi/modules/imports/`, `apps/worker/hermi_worker/jobs/poll_import_feeds.py`, `apps/web/src/routes/import/`.
 - Kit: 05 6.30; none, follow DL section 11
-- Tests: poll schedule test (6 hours), content hash test, diff test (added, changed, removed), confirm-only-ticked test, failure and stop tests, encryption and deletion tests, log scrub test, limit test, SSRF table reuse.
+- Tests: poll schedule test (6 hours), content hash test, diff test (added, changed, removed), confirm-only-ticked test, failure and stop tests, encryption and deletion tests, log scrub test, limit test, SSRF table reuse. Smoke flow 16 (10 section 1.6): turning the calendar switch on and changing the fake feed produces a "Calendar changed" sheet; nothing changes until "Apply".
 - Done: DoD plus the threat model updated for stored feed addresses.
 
 #### WF-118 Verify this plan: screens [M5, L]
@@ -1192,7 +1195,7 @@ Conventions for every ticket:
 - Accept: a Free account cannot tick more than 5 items and sees the price before the check; results show the evidence label for every green and amber row; red rows are unticked for import; the header reads "Checked 7 of 9..." and never says the plan is verified; leaving mid-run and returning shows progress; axe passes on every step.
 - Touches: `apps/web/src/routes/verify/`, `apps/web/src/components/verdict-chip/`, `apps/web/src/routes/trips/`.
 - Kit: 05 6.38; none, follow DL section 11
-- Tests: component tests per state, Playwright end-to-end with a fake Anthropic client, axe checks, a copy lint test for the forbidden words ("verified", "safe to book").
+- Tests: component tests per state, Playwright end-to-end with a fake Anthropic client, axe checks, a copy lint test for the forbidden words ("verified", "safe to book"). Smoke flow 14 (10 section 1.6): verify a plan end to end with fake Anthropic and fake place data.
 - Done: DoD.
 
 #### WF-126 Public status summary and in-app status banner [M5, S]
@@ -1201,7 +1204,7 @@ Conventions for every ticket:
 - Accept: degrading a component in staging shows the banner within a minute and clearing it removes it; the endpoint answers without auth and without touching the database more than once a minute; offline the app shows the offline banner instead.
 - Touches: `apps/api/hermi/modules/admin/` (status read), `apps/api/hermi/api/public.py`, `apps/web/src/components/status-banner/`.
 - Kit: 05 6.41; none, follow DL section 11
-- Tests: endpoint contract test, banner component tests, caching test.
+- Tests: endpoint contract test, banner component tests, caching test. Smoke flow 18, second half (10 section 1.6): a degraded component in the fake status source shows the status banner.
 - Done: DoD.
 
 #### WF-122 Google Maps export file import [M5, M]
@@ -1247,12 +1250,12 @@ Conventions for every ticket:
 - Accept: pages render without JavaScript; private data never appears in the HTML, JSON or meta tags; disabling a link returns 410 and drops it from the sitemap within 5 minutes; robots rules match the owner's choice (`noindex` unless `trip_share_links.indexable`); "Use this plan" on a sample creates an independent trip.
 - Touches: `apps/api/hermi/modules/collaboration/` (public pages), `apps/web/src/routes/public/`, `apps/web/public/` (robots and sitemap), `apps/web/vite.config.ts`.
 - Kit: 05 6.34, 6.35; none, follow DL section 11
-- Tests: privacy scan of rendered pages against sentinel strings, sitemap test, takedown test, no-JavaScript render test, Lighthouse check.
+- Tests: privacy scan of rendered pages against sentinel strings, sitemap test, takedown test, no-JavaScript render test, Lighthouse check. Smoke flow 13 (10 section 1.6): a public sample trip loads with JavaScript disabled, shows no partner buttons and has a working Report link.
 - Done: DoD.
 
 #### WF-108 Referral credits [M6, L]
 - Depends on: WF-044, WF-064, WF-083, WF-094.
-- Description: each user gets a referral link in Settings ("Invite friends"); when a referred person signs up, verifies their email and creates their first trip with dates, both accounts get 20 credits (settled values in the `setting_referral_credits` flag; `credit_grants` kind `promo`, expiring after 12 months; referral credits never raise the provider-spend ceiling). Uses the `referral_codes` and `referral_rewards` tables and the functions in 03 section 5.9. Abuse controls: no self-referral (same device key, IP hash or normalized email), a referrer is paid for at most 5 rewards in a rolling 30 days and 10 in a calendar year (the referred person still gets theirs), unique per referred account, rewards only from attested devices or verified email, reversal on refund or abuse flag, never tied to a rating or review. Kill switch `referrals.grant`.
+- Description: each user gets a referral link in Settings ("Invite friends"); when a referred person signs up, verifies their email and creates their first trip with dates, both accounts get 20 credits (settled values in the `setting_referral_credits` flag; `credit_grants` kind `promo`, expiring after 12 months; referral credits never raise the provider-spend ceiling). Uses the `referral_codes` and `referral_rewards` tables and the functions in 03 section 5.9. Abuse controls: no self-referral (same device key, IP hash or normalized email), a referrer is paid for at most 5 rewards in a rolling 30 days and 10 in a calendar year (the referred person still gets theirs), unique per referred account, rewards only from attested devices or verified email, reversal on refund or abuse flag, never tied to a rating or review. Kill switch `referrals.grant`. The `/r/<code>` landing page is built here.
 - Accept: a valid referral grants 20 credits to both sides once, expiring in 12 months; the sixth reward in 30 days and the eleventh in a calendar year pay the referrer nothing and the referred person in full; self, duplicate and farmed referrals grant nothing and are logged; admin can revoke and the ledger reverses; the referral link carries no user id or email.
 - Touches: `apps/api/hermi/modules/credits/` (grants), `apps/api/hermi/modules/auth/` (referrals), `apps/web/src/routes/settings/`.
 - Kit: 05 6.37; none, follow DL section 11
@@ -1261,7 +1264,7 @@ Conventions for every ticket:
 
 #### WF-109 Comparison pages (/vs) [M6, M]
 - Depends on: WF-107.
-- Description: honest, server-rendered `/vs/tripit` and `/vs/wanderlog` pages (more later) with a fact table where every claim has a public source URL and a "checked on" date in `docs/vs/facts.json`, what the other app does better, how to switch (a link to the import chooser), and a correction email. Facts are checked by hand; nothing is scraped. No competitor names in App Store metadata.
+- Description: honest, server-rendered `/vs/tripit`, `/vs/wanderlog` and `/vs/tripsy` pages (more later) with a fact table where every claim has a public source URL and a "checked on" date in `docs/vs/facts.json`, what the other app does better, how to switch (a link to the import chooser), and a correction email. Facts are checked by hand; nothing is scraped. No competitor names in App Store metadata.
 - Accept: each fact has a source and date under 90 days old (CI warns); pages render without JavaScript; no claim is unsourced; pages link to sign-up and the import flow.
 - Touches: `apps/web/src/routes/vs/`, `apps/web/public/` (sitemap), `docs/vs/facts.json`.
 - Kit: 05 6.36; none, follow DL section 11
@@ -1332,7 +1335,7 @@ Conventions for every ticket:
 - Accept: adding an active `affiliate_programs` row makes it appear on `/how-we-earn` with no code change; the prices on `/billing` match the paywall (a test compares them); the cancel row is reachable in one tap from the Account screen and opens the subscription sheet in the sandbox build; the trial reminder email contains the link; the pages pass axe and have no em dashes.
 - Touches: `apps/web/src/routes/how-we-earn/`, `apps/web/src/routes/billing/`, `apps/api/hermi/api/public.py`, `apps/api/hermi/modules/affiliate/`, `apps/web/src/routes/account/`.
 - Kit: 05 6.40; none, follow DL section 11
-- Tests: partner-list generation test, price-match test, cancel row test, email template test, copy lint.
+- Tests: partner-list generation test, price-match test, cancel row test, email template test, copy lint. Smoke flow 17, second half (10 section 1.6): the public pages `/how-we-earn` and `/billing` load without sign-in and pass axe.
 - Done: DoD.
 
 #### WF-127 Android install: installable web app and install guide [M6, M]
@@ -1444,6 +1447,6 @@ New in Phase 1 (no old ID): WF-026 (Free owners invite 1 collaborator, split fro
 - **Do not grow the project instructions unprompted.** If something seems worth keeping, say so in one line and let the owner decide. Reference and procedures go in `docs/` or `.claude/skills/`; a procedure that repeats becomes a skill.
 - **Safety rules apply in every session.** No secrets in the repo; no fetching of Airbnb, Vrbo or Booking.com pages; no scraper libraries; no ranking by commission; no em dashes in copy. Feed URLs, pasted confirmations and calendar tokens are secrets or personal data: never log them, never put them in analytics.
 - **Parallelism.** Run 2 or 3 sessions in parallel only when tickets touch different modules and at most one adds a migration. Use separate branches and merge the migration ticket first. Two tickets that both add an Alembic migration must never run at once; they would create two heads.
-- **Mac-bound work.** WF-076 and WF-080 to WF-102 need macOS; do the web and backend parts first and batch the device steps (Month 5 weeks 18 and 19 are the heavy device weeks).
+- **macOS-bound work.** WF-076 and WF-080 to WF-102 build on a GitHub macOS runner (see knowledge/ios-builds-on-ci.md) and their device checks are owner-pending; do the web and backend parts first and batch the device steps (Month 5 weeks 18 and 19 are the heavy device weeks).
 - **When stuck.** If acceptance criteria conflict with a spec, stop and ask; the root README's shared decisions win, then the Phase 1 README, then the topic spec, then this file.
-- **Gate reviews.** At each month exit, run the exit checklist in section 1 as a session of its own and write the result to `docs/gates/month-N.md` before starting the next month. If the review shows more than two weeks of slip, run the cut list in section 4 first.
+- **Gate reviews.** The gate checklist is `10-quality-security-launch.md` section 7 (7.1 to 7.5), split into `[agent]` items (a session checks them with a command and a pass condition) and `[owner]` items (they become `HUMAN_TASKS.md` rows). The gate for month N runs in the ship session of the prompt after the one that ends the month (prompts 07, 12, 16, 21 and 25) and writes `docs/gates/month-N.md` before the next month starts. If the review shows more than two weeks of slip, run the cut list in section 4 first.
