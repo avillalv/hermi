@@ -40,7 +40,7 @@ Same status values as above.
 
 | # | Prompt | Tickets | Status |
 |---|---|---|---|
-| 01 | [Repository foundation, CI and landing page](01-repo-foundation.md) | WF-001, WF-003, WF-004, WF-006, WF-007, WF-008, WF-010, WF-002 | In progress (phase1/p01-repo-foundation) |
+| 01 | [Repository foundation, CI and landing page](01-repo-foundation.md) | WF-001, WF-003, WF-004, WF-006, WF-007, WF-008, WF-010, WF-002 | Done (#8) |
 | 02 | [Port reusable code from the old Trip Planner](02-port-reusable-modules.md) | WF-005 | Not started |
 | 03 | [Staging and production environments](03-deploy-environments.md) | WF-009 | Not started |
 | 04 | [Database foundation and schemas](04-database-foundation.md) | WF-011, WF-012, WF-022, WF-021, WF-020 | Not started |
