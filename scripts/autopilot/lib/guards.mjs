@@ -22,6 +22,8 @@ export const AGENT_HELP =
 export function checkAgent(toolInput = {}) {
   // A worktree or another working directory moves the agent out of the checkout the other guards watch.
   if (toolInput.isolation || toolInput.cwd) return 'agent-guard: Agent calls may not set isolation or cwd; the agent runs in this checkout';
+  // A headless session that ends its turn while a background agent runs exits and kills that agent, so every call must block.
+  if (toolInput.run_in_background !== false) return 'agent-guard: Agent calls must pass run_in_background: false; a headless session that ends its turn while a background agent runs exits and kills that agent';
   const type = toolInput.subagent_type || 'general-purpose';
   const model = toolInput.model ? String(toolInput.model) : '';
   switch (type) {

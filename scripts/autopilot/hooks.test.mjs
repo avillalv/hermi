@@ -30,14 +30,14 @@ const oneLine = (s) => s.trim().split('\n').length === 1;
 
 test('agent-guard allows the four agents on their own tier', () => {
   for (const input of [
-    { subagent_type: 'sonnet-researcher' },
-    { subagent_type: 'sonnet-coder', model: 'sonnet' },
-    { subagent_type: 'sonnet-coder', model: 'claude-sonnet-5-5' },
-    { subagent_type: 'opus-reviewer' },
-    { subagent_type: 'opus-reviewer', model: 'opus' },
-    { subagent_type: 'opus-judge', model: 'claude-opus-5-5' },
-    { subagent_type: 'general-purpose', model: 'sonnet' },
-    { subagent_type: 'Explore', model: 'sonnet' },
+    { subagent_type: 'sonnet-researcher', run_in_background: false },
+    { subagent_type: 'sonnet-coder', model: 'sonnet', run_in_background: false },
+    { subagent_type: 'sonnet-coder', model: 'claude-sonnet-5-5', run_in_background: false },
+    { subagent_type: 'opus-reviewer', run_in_background: false },
+    { subagent_type: 'opus-reviewer', model: 'opus', run_in_background: false },
+    { subagent_type: 'opus-judge', model: 'claude-opus-5-5', run_in_background: false },
+    { subagent_type: 'general-purpose', model: 'sonnet', run_in_background: false },
+    { subagent_type: 'Explore', model: 'sonnet', run_in_background: false },
   ]) {
     const r = agent(input);
     assert.equal(r.code, 0, JSON.stringify(input));
@@ -47,14 +47,14 @@ test('agent-guard allows the four agents on their own tier', () => {
 
 test('agent-guard blocks a model that does not match the agent, with one line naming the allowed agents', () => {
   for (const input of [
-    { subagent_type: 'sonnet-coder', model: 'opus' },
-    { subagent_type: 'sonnet-researcher', model: 'inherit' },
-    { subagent_type: 'opus-reviewer', model: 'sonnet' },
-    { subagent_type: 'opus-judge', model: 'haiku' },
-    { subagent_type: 'general-purpose' },
-    { subagent_type: 'general-purpose', model: 'opus' },
-    { subagent_type: 'Explore', model: 'haiku' },
-    { prompt: 'no subagent_type means general-purpose, which needs model sonnet' },
+    { subagent_type: 'sonnet-coder', model: 'opus', run_in_background: false },
+    { subagent_type: 'sonnet-researcher', model: 'inherit', run_in_background: false },
+    { subagent_type: 'opus-reviewer', model: 'sonnet', run_in_background: false },
+    { subagent_type: 'opus-judge', model: 'haiku', run_in_background: false },
+    { subagent_type: 'general-purpose', run_in_background: false },
+    { subagent_type: 'general-purpose', model: 'opus', run_in_background: false },
+    { subagent_type: 'Explore', model: 'haiku', run_in_background: false },
+    { prompt: 'no subagent_type means general-purpose, which needs model sonnet', run_in_background: false },
   ]) {
     const r = agent(input);
     assert.equal(r.code, 2, JSON.stringify(input));
@@ -65,12 +65,23 @@ test('agent-guard blocks a model that does not match the agent, with one line na
 
 test('agent-guard blocks every other agent and names the allowed ones', () => {
   for (const type of ['Plan', 'claude', 'claude-code-guide', 'statusline-setup', 'fork', 'my-agent']) {
-    const r = agent({ subagent_type: type, model: 'sonnet' });
+    const r = agent({ subagent_type: type, model: 'sonnet', run_in_background: false });
     assert.equal(r.code, 2, type);
     assert.match(r.stderr, /sonnet-researcher and sonnet-coder/);
     assert.match(r.stderr, /opus-reviewer and opus-judge/);
   }
-  assert.equal(agent({ subagent_type: 'Plan' }, 'Task').code, 2, 'the Task tool name is handled like Agent');
+  assert.equal(agent({ subagent_type: 'Plan', run_in_background: false }, 'Task').code, 2, 'the Task tool name is handled like Agent');
+});
+
+test('agent-guard blocks an Agent call that is not run_in_background: false', () => {
+  const valid = { subagent_type: 'sonnet-coder', model: 'sonnet' };
+  for (const input of [valid, { ...valid, run_in_background: true }]) {
+    const r = agent(input);
+    assert.equal(r.code, 2, JSON.stringify(input));
+    assert.match(r.stderr, /run_in_background: false/);
+    assert.ok(oneLine(r.stderr));
+  }
+  assert.equal(agent({ ...valid, run_in_background: false }).code, 0);
 });
 
 test('all three hooks refuse unreadable input (fail closed)', () => {
@@ -363,7 +374,7 @@ test('agent-guard blocks Agent calls that set isolation or cwd (finding 14), wha
     assert.match(r.stderr, /isolation or cwd/);
     assert.ok(oneLine(r.stderr));
   }
-  assert.equal(agent({ subagent_type: 'sonnet-coder', model: 'sonnet' }).code, 0);
+  assert.equal(agent({ subagent_type: 'sonnet-coder', model: 'sonnet', run_in_background: false }).code, 0);
 });
 
 test('bash-guard also guards the PowerShell tool', () => {
@@ -457,8 +468,8 @@ test('guard logic table', () => {
 });
 
 test('checkAgent: missing subagent_type is general-purpose', () => {
-  assert.match(checkAgent({}), /general-purpose needs model "sonnet"/);
-  assert.equal(checkAgent({ model: 'sonnet' }), null);
+  assert.match(checkAgent({ run_in_background: false }), /general-purpose needs model "sonnet"/);
+  assert.equal(checkAgent({ model: 'sonnet', run_in_background: false }), null);
 });
 
 test('parseShell splits commands, redirects and subshells; unwrap strips wrappers', () => {
