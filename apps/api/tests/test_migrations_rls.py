@@ -20,7 +20,6 @@ from hermi import db
 SYSTEM_URL = os.environ.get("TEST_DATABASE_URL_SYSTEM")
 
 # Tables with a trip_id or user_id column that 03 section 6.5 allows to have no RLS (closed by grants).
-RLS_ALLOWLIST = {"admin_users", "deletion_requests", "affiliate_conversions", "provider_calls"}
 NO_POLICY = {"identity_hashes", "device_attestations", "guest_allowances"}
 DEFINER_FUNCTIONS = [  # (signature, search_path pinned, app can execute, worker can execute)
     ("visible_trip_ids()", True, True, True),
@@ -125,7 +124,7 @@ def test_every_trip_or_user_table_has_rls_enabled_and_forced(sysc):
         """
     ).fetchall()
     assert len(rows) > 40
-    bad = [r[0] for r in rows if r[0] not in RLS_ALLOWLIST and not (r[1] and r[2])]
+    bad = [r[0] for r in rows if r[0] not in db.RLS_EXEMPT_TABLES and not (r[1] and r[2])]
     assert bad == []
 
 

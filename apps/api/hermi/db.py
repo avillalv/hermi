@@ -96,7 +96,7 @@ def assert_single_head(script) -> str:
 def assert_app_login_is_safe(connection) -> None:
     """Refuse an app connection that could bypass row-level security (03 6.5).
 
-    open_app_engine calls it when the API starts.
+    open_app_engine calls it, then assert_rls_forced, when the API starts.
     """
     unsafe = connection.exec_driver_sql(
         "SELECT r.rolsuper OR r.rolbypassrls "
@@ -108,6 +108,32 @@ def assert_app_login_is_safe(connection) -> None:
         raise MigrationError(
             "The app connection must not be a superuser, a BYPASSRLS role, or own or be a member of the owner of any table in public."
         )
+
+
+# Tables 03 section 6.5 closes by grants instead of RLS.
+RLS_EXEMPT_TABLES = frozenset({"admin_users", "deletion_requests", "affiliate_conversions", "provider_calls"})
+# Deny-all tables: RLS on with no policy, and no trip_id or user_id column to find them by.
+RLS_DENY_ALL_TABLES = frozenset({"identity_hashes", "device_attestations", "guest_allowances"})
+
+
+def assert_rls_forced(connection) -> None:
+    """Refuse to start when a tenant table lacks ENABLE or FORCE row-level security (03 6.5).
+
+    A table counts as tenant when it has a trip_id or user_id column, has a policy, has RLS on,
+    or is a named deny-all table. That also catches trips, users and people.
+    """
+    rows = connection.exec_driver_sql(
+        "SELECT c.relname FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p') "
+        "AND NOT c.relispartition AND NOT (c.relrowsecurity AND c.relforcerowsecurity) "
+        "AND (c.relrowsecurity OR c.relname = ANY(%(deny)s) "
+        "OR EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = 'public' AND p.tablename = c.relname) "
+        "OR EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attname IN ('trip_id', 'user_id') AND NOT a.attisdropped)) "
+        "ORDER BY 1",
+        {"deny": sorted(RLS_DENY_ALL_TABLES)},
+    )
+    bad = [r[0] for r in rows if r[0] not in RLS_EXEMPT_TABLES]
+    if bad:
+        raise MigrationError(f"Row-level security is not enabled and forced on: {', '.join(bad)}.")
 
 
 def make_engine(url: str, *, pool_size: int = 5, max_overflow: int = 2, statement_timeout_ms: int = 15000) -> Engine:
@@ -131,6 +157,7 @@ def open_app_engine(settings) -> Engine:
     try:
         with engine.connect() as conn:
             assert_app_login_is_safe(conn)
+            assert_rls_forced(conn)
     except Exception:
         engine.dispose()
         raise
