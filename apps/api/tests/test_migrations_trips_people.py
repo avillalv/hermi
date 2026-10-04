@@ -357,13 +357,13 @@ def test_app_login_can_call_definer_functions_and_not_insert_members(conn):
         assert app.execute("SELECT redeem_trip_invite(%s)", (b"tok",)).fetchone() == (tid,)
 
 
-# --- Schema vs DDL: 0002 to 0009 tables against the DDL in 03 sections 5.1 to 5.12 ---------------
+# --- Schema vs DDL: 0002 to 0011 tables against the DDL in 03 sections 5.1 to 5.15 ---------------
 
 
 def _ddl_text():
     lines = SPEC.read_text(encoding="utf-8").split("\n")
     start = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.1 "))
-    end = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.13 "))
+    end = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.16 "))
     out, inside = [], False
     for ln in lines[start:end]:
         if ln.startswith("```sql"):
@@ -406,7 +406,7 @@ def _ddl_indexes(sql):
 
 
 def _norm_cols(s):
-    return re.sub(r"\s+", "", s).replace("''::text", "''").replace("DATE'0001-01-01'", "'0001-01-01'::date")  # pg_get_indexdef adds the cast on empty text literals and renders DATE literals as '...'::date
+    return re.sub(r"(?<!DESC)NULLSLAST", "", re.sub(r"\s+", "", s)).replace("''::text", "''").replace("DATE'0001-01-01'", "'0001-01-01'::date")  # pg_get_indexdef adds the cast on empty text literals and renders DATE literals as '...'::date
 
 
 def _live_indexes(c):
