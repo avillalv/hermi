@@ -74,6 +74,7 @@ flowchart LR
 4. The client never decides anything about money, limits or permissions. It displays what `GET /me/entitlements` and `TripOut.capabilities` return.
 5. Postgres is the only system of record. Caches can be dropped without data loss.
 6. Hosted-only code. The personal Windows mode of the old Trip Planner is not carried into Hermi (section 14).
+7. One AI provider seam. `apps/api/hermi/providers/ai/` holds the `AiProvider` protocol (`single_call`, `agent_run`) and three backends: `anthropic_api`, `claude_cli` and `fake`. `modules/ai/client.py` is a facade that picks the backend through a factory from `AI_PROVIDER`. Metering is provider-neutral: the same `ai_usage` and `runs` rows are written whichever backend served the call, and `ai_usage.provider` and `runs.provider` record which one.
 
 ### 1.2 Processes
 
@@ -93,6 +94,9 @@ One monorepo, one Git history. JS workspaces (npm) for the TypeScript packages, 
 
 ```
 hermi/
+  .python-version                 3.13
+  .data/                          gitignored local state: storage/, outbox/
+  scripts/                        node scripts: setup.mjs, db-init.mjs, doctor.mjs
   .github/                        GitHub reads workflows only from here
     workflows/                    ci.yml, e2e.yml, evals.yml, security.yml, deploy-staging.yml, deploy-prod.yml, ios.yml
     dependabot.yml                weekly grouped updates (not a workflow)
@@ -116,6 +120,7 @@ hermi/
           groups/                   added in Phase 2 or 3
           advisors/                 added in Phase 2 or 3
         providers/                one file per third party (section 8), including feed_fetcher.py
+          ai/                     AiProvider protocol and backends: anthropic_api, claude_cli, fake
         migrations/               Alembic env and versions
         seed/                     airports, affiliate_programs, feature_flags defaults
       tests/
@@ -123,7 +128,7 @@ hermi/
       hermi_worker/
         app.py                    Procrastinate app, lanes, retry strategies
         jobs/                     one file per job (section 5.1)
-        scheduler.py              leader election, next_run_at scanner
+        scheduler.py              leader election, route scan (`scan_due_routes`)
         agents/                   AgentLoop, tools, prompts, evals hooks
       tests/
     web/                          React 19 + Vite SPA (also the Capacitor bundle)
@@ -148,7 +153,9 @@ hermi/
   infra/
     docker/
       Dockerfile
-      compose.yml                 local Postgres 18, Mailpit, MinIO
+      compose.yml                 optional: local Postgres 18, Mailpit, MinIO
+    db/
+      bootstrap.sql               idempotent roles and databases, run by npm run db:init
     render/
       render.yaml                 services, cron, env groups, Postgres
     cloudflare/
@@ -171,6 +178,7 @@ Rules for the tree:
 - `apps/worker` imports from `apps/api` (`hermi.modules.*`) and never the other way. Business rules live in the modules; the worker only schedules and runs them.
 - `packages/shared` is the only place constants are duplicated between Python and TypeScript. A CI step (`npm run gen:shared`) generates `credits.ts`, `entitlements.ts` and `flags.ts` from Python enums, and fails on drift.
 - `apps/web` has no knowledge of Capacitor except in `src/lib/native/`, which is a thin adapter that returns no-ops on the web.
+- Local ports: `npm run dev` serves the API on port 8100, bound to `127.0.0.1` (never `0.0.0.0`, because the `claude_cli` guard requires a loopback bind), and the web app on 5173. Vite reads the repo-root `.env` (`envDir: '../..'`).
 - Root scripts: `npm run dev` (api, worker, web with reload), `npm test`, `npm run lint`, `npm run format`, `npm run gen:api` (OpenAPI to `apps/web/src/lib/api/schema.d.ts`, committed), `npm run test:e2e`, `npm run ios:sync`.
 
 
@@ -187,7 +195,7 @@ Each module under `apps/api/hermi/modules/<name>/` has the same five files: `rou
 | `lodging` | `lodging_options`, `lodging_votes` | Shortlist, pasted-link previews (no Airbnb, Vrbo or Booking.com fetches), hearts, compare, rental search | `places`, `affiliate`, `providers` |
 | `itinerary` | `itinerary_days`, `itinerary_items` | Days and items, ordering, times and time zones, conflicts, presentation data, calendar feed generation (section 5.5) | `places`, `trips` |
 | `places` | `places_cache`, `saved_places` | Geoapify search and details, Wikipedia summaries, map data, cache expiry per provider terms | `providers` |
-| `ai` | `routines`, `runs`, `run_events`, `ai_usage`, `provider_calls`, `shared_research_cache` | `AgentLoop`, tool definitions, prompts, evidence rules, run lifecycle, metering, shared research cache, AI consent check, kill switches for AI, the pasted-text booking extraction call that `imports` uses (section 5.4) | `credits`, `flights`, `trips`, `providers.anthropic` |
+| `ai` | `runs`, `run_events`, `ai_usage`, `provider_calls`, `shared_research_cache` | `AgentLoop`, tool definitions, prompts, evidence rules, run lifecycle, metering, shared research cache, AI consent check, kill switches for AI, the pasted-text booking extraction call that `imports` uses (section 5.4) | `credits`, `flights`, `trips`, `providers.ai` |
 | `verification` | `plan_verifications`, `plan_verification_items` | "Verify this plan": start, selection, check, import of verified items, and the one-tap evidence recheck of notes and items (06 sections 5.11 and 5.12) | `ai`, `credits`, `itinerary`, `places`, `trips` |
 | `imports` | `trip_imports` | Import pipeline: ICS file, ICS feed fetch and opt-in polling, pasted text, Google Maps export and pasted places; preview, confirm, undo, first-import reward call (section 5.4) | `trips`, `itinerary`, `flights`, `lodging`, `ai`, `billing` (promo pass), `notifications`, `providers.feed_fetcher` |
 | `billing` | `plans`, `store_products`, `subscriptions`, `entitlements`, `trip_passes`, `store_transactions`, `webhook_events` | RevenueCat webhooks, entitlement computation, Trip Pass binding, the first-import reward pass (`grant_import_reward()`), restore and reconcile | `credits` |
@@ -204,7 +212,7 @@ Cross-cutting code (not modules): `security/` (owns `rate_limit_counters` and `i
 Boundary rules that tests enforce:
 
 - Only `credits.service` writes `credit_ledger` and `credit_grants`. Only `billing.service` writes `entitlements`, `subscriptions`, `trip_passes` and `store_transactions`. A grep-based test fails on any other writer.
-- Only `providers/*` import `httpx` or the Anthropic SDK. Modules call provider classes, which record a `provider_calls` row for every outbound call (provider, endpoint, cost units, latency, status, cached).
+- Only `providers/*` import `httpx` or the Anthropic SDK. Modules call provider classes (AI calls go through the `modules/ai/client.py` facade, never `providers/ai/*` directly), which record a `provider_calls` row for every outbound call (provider, endpoint, cost units, latency, status, cached).
 - Only `affiliate.service` builds outbound partner URLs. Templates come from `affiliate_link_templates`. No other module concatenates a partner URL.
 - No module imports `worker`. Jobs are deferred through `jobs.enqueue(name, **args)` in `hermi/jobs.py`, which is a thin wrapper over Procrastinate's `defer_async` that uses the caller's transaction.
 - Only `imports.service` writes `trip_imports`. It creates trips and items only by calling the owning module services, never their repositories.
@@ -216,8 +224,8 @@ Boundary rules that tests enforce:
 
 1. **Edge.** Cloudflare terminates TLS, applies WAF and per-IP rate rules, and forwards to Render. The origin accepts traffic only from Cloudflare (authenticated origin pulls). `TRUSTED_PROXY_CIDRS` makes `X-Forwarded-For` trustworthy.
 2. **Middleware order.** Request id (`X-Request-Id`, generated if absent) then access log start, CORS (explicit origins, including `capacitor://localhost`), body size limit (1 MB JSON, uploads go to R2 by signed URL), kill-switch check for maintenance mode, then the route.
-3. **Authentication.** Dependency `CurrentUser` reads `Authorization: Bearer <jwt>` (web also accepts the `hermi_session` cookie set by `POST /auth/session`). It verifies the Supabase JWT: signature against the cached JWKS (selected by `kid`, refreshed on unknown `kid` at most once per minute), `iss` equals `SUPABASE_JWT_ISSUER`, `aud` equals `SUPABASE_JWT_AUDIENCE`, `exp` and `nbf` with 30 seconds of skew. It then maps `sub` through `auth_identities` to a `users` row, creating the user and the "Me" person on first sight in one transaction. A user whose status is not `active` gets 403 `account_inactive` (`suspended` or `deleted`), and `pending_deletion` gets 403 `account_pending_deletion` so the app can offer recovery (04 section 1.2).
-4. **Session variable.** `DbSession` opens a transaction and runs `SELECT set_config('app.user_id', :uuid, true)` (transaction-local). Row-level security policies on trip-owned tables read `current_setting('app.user_id')`. The API database role has no `BYPASSRLS`. Jobs that act for a user set the same variable; system jobs use a separate role `hermi_worker` with `BYPASSRLS` (see [03-database-schema.md](03-database-schema.md) section 6.1).
+3. **Authentication.** Dependency `CurrentUser` reads `Authorization: Bearer <jwt>` (bearer only, for web and iOS; there is no session cookie). It verifies the Supabase JWT: signature against the cached JWKS (selected by `kid`, refreshed on unknown `kid` at most once per minute), `iss` equals `SUPABASE_JWT_ISSUER`, `aud` equals `SUPABASE_JWT_AUDIENCE`, `exp` and `nbf` with 30 seconds of skew. It then maps `sub` through `auth_identities` to a `users` row, creating the user and the "Me" person on first sight in one transaction. With `AUTH_MODE=dev` the API instead accepts tokens signed by a local key pair, served at a local JWKS and minted for seeded personas (Free, Plus, admin) by the dev routes in 04; config refuses `AUTH_MODE=dev` unless `ENVIRONMENT` is `local` or `ci`. A user whose status is not `active` gets 403 `account_inactive` (`suspended` or `deleted`), and `pending_deletion` gets 403 `account_pending_deletion` so the app can offer recovery (04 section 1.2).
+4. **Session variable.** `DbSession` opens a transaction and runs `SELECT set_config('app.user_id', :uuid, true)` (transaction-local). Row-level security policies on trip-owned tables read the variable through `app_user_id()` (03 section 6.2). The API database role has no `BYPASSRLS`. Jobs that act for a user set the same variable; system jobs use a separate role `hermi_worker` with `BYPASSRLS` (see [03-database-schema.md](03-database-schema.md) section 6.1).
 5. **Tenant check.** Every route with a `trip_id` depends on `require_trip(trip_id, min_role)`. It returns a `TripAccess(trip, member, role, capabilities)` object, or raises `NotFound` (404, never 403) when the user is not a member or the trip is in trash. `min_role` is one of `viewer`, `editor`, `owner`. Routes that take a child id (an itinerary item, a lodging option) resolve the child, join up to its trip and then call the same function. No route calls `session.get(Model, id)` on a tenant table. A CI test walks `app.routes` and fails if a path with an id parameter does not resolve through `require_trip` or is not on the public allowlist.
 6. **Entitlement and credit checks.** Routes that cost money call `entitlements.require(capability, trip)` first (402 with a `paywall` body naming the upsell, never a bare error), then `credits.reserve(user, action, trip)` for AI actions. Both are service calls, not decorators, so the order is visible in the code.
 7. **Handler and response.** The handler returns a Pydantic model. Mutations on editable rows use `If-Match` with the row version; a mismatch returns 409 with the latest row. Lists support `updated_since` and ETag for cheap polling.
@@ -226,30 +234,32 @@ Boundary rules that tests enforce:
 
 ### 4.2 Public and special requests
 
-| Route class | Auth | Notes |
-|---|---|---|
-| `GET /health/live`, `/health/ready` | none | Ready checks database, migration head, queue reachability |
-| `GET /go/{click_id}` | none | Never takes a URL from the request. Looks up a `link_clicks` row created by an authenticated call, builds the destination from `affiliate_link_templates`, logs, and 302s. Unknown or expired id goes to the trip page, never elsewhere |
-| `GET /shared/{token}` | token | Read-only trip view with redaction flags, per-token throttle |
-| `POST /webhooks/revenuecat`, `/webhooks/resend`, `/webhooks/supabase-auth` | signature | Verify, insert into `webhook_events` by provider event id, return 200 fast, process in a job (section 5.1) |
-| `POST /auth/session`, `GET /me` | JWT | Session bootstrap |
-| `/admin/*` | admin session | Separate middleware: SSO, 2FA, IP allowlist optional, every call writes `audit_log` |
-| `GET /i/{token}` | none | Universal link landing, JSON for the app, HTML for the web fallback |
-| `GET /calendar/{token}.ics` | token | Calendar subscription feed for one trip, read-only, throttled per token (section 5.5) |
-| `GET /referrals/{code}` | none | Landing data for a referral link (inviter first name and the reward sentence); identical `404` for unknown, disabled and capped codes (04 section 5.27) |
-| `GET /public/status`, `GET /public/how-we-earn` | none | Component summary for the in-app banner (the hosted status page is separate, section 8.1) and the data behind the public "How we earn" page (04 section 5.28). Cached 30 seconds and 1 hour |
+| Route class | Auth | Database access | Notes |
+|---|---|---|---|
+| `GET /health/live`, `/health/ready` | none | API role, no tenant tables | Ready checks database, migration head, queue reachability and reports the AI provider |
+| `GET /go/{click_id}` | none | Allowlisted `SystemSession` | Never takes a URL from the request. Looks up a `link_clicks` row created by an authenticated call, builds the destination from `affiliate_link_templates`, logs, and 302s. Unknown or expired id goes to the trip page, never elsewhere |
+| `GET /shared/{token}` | token | Allowlisted `SystemSession` | Read-only trip view with redaction flags, per-token throttle |
+| `POST /webhooks/revenuecat`, `/webhooks/resend`, `/webhooks/supabase` | signature | Allowlisted `SystemSession` | Verify, insert into `webhook_events` by provider event id, return 200 fast, process in a job (section 5.1) |
+| `GET /me` | JWT | API role under RLS | Session bootstrap |
+| `/admin/*` | Cloudflare Access plus the admin session | Admin role (`DATABASE_URL_ADMIN`) | Separate middleware: Cloudflare Access (checked in the app by `CF_ACCESS_TEAM_DOMAIN` and `CF_ACCESS_AUD`), the app layer and 2FA as in 08; every call writes `audit_log` |
+| `GET /i/{token}` | none | Allowlisted `SystemSession` | Universal link landing, JSON for the app, HTML for the web fallback |
+| `GET /calendar/{token}.ics` | token | Allowlisted `SystemSession` | Calendar subscription feed for one trip, read-only, throttled per token (section 5.5) |
+| `GET /referrals/{code}` | none | `SECURITY DEFINER` function | Landing data for a referral link (inviter first name and the reward sentence); identical `404` for unknown, disabled and capped codes (04 section 5.27) |
+| `GET /public/status`, `GET /public/how-we-earn` | none | API role, public sample pages through a `SECURITY DEFINER` function | Component summary for the in-app banner (the hosted status page is separate, section 8.1) and the data behind the public "How we earn" page (04 section 5.28). Cached 30 seconds and 1 hour |
+
+Public token reads (share links, calendar feed, `/go`, public sample pages) and synchronous writes the API role cannot do directly (invite redemption, owner transfer, deletion requests, claim) use either an allowlisted `SystemSession` or a `SECURITY DEFINER` function that checks `app_user_id()`. A `SystemSession` is opened only by named service functions; the allowlist is one code constant with a test. Every route is tested under the real database roles in CI (the leak suite, 10 section 1.3).
 
 ### 4.3 Row-level security in detail
 
-RLS is the second lock, not the first. Policies exist on: `trips`, `trip_members`, `trip_destinations`, `trip_people`, `flight_routes`, `chosen_flights`, `price_alerts`, `itinerary_days`, `itinerary_items`, `saved_places`, `lodging_options`, `lodging_votes`, `checklist_items`, `notes`, `routines`, `runs`, `run_events`. The standard policy is `EXISTS (SELECT 1 FROM trip_members m WHERE m.trip_id = <table>.trip_id AND m.user_id = current_setting('app.user_id')::uuid)`. User-owned tables (`devices`, `people` by `owner_user_id`, `consents`, `credit_ledger`, `credit_debts`, `idempotency_keys`, `trip_imports`, `referral_codes`) use a direct `user_id = current_setting(...)` policy; `referral_rewards` is readable by its referrer and its referee only; `content_reports` (insert and read your own) has its own policy. A test connects as the API role with no variable set and expects zero rows from every table with a policy. DDL is in [03-database-schema.md](03-database-schema.md).
+RLS is the second lock, not the first. Policies exist on: `trips`, `trip_members`, `trip_destinations`, `trip_people`, `flight_routes`, `chosen_flights`, `price_alerts`, `itinerary_days`, `itinerary_items`, `saved_places`, `lodging_options`, `lodging_votes`, `checklist_items`, `notes`, `runs`, `run_events`. The standard policy is `EXISTS (SELECT 1 FROM trip_members m WHERE m.trip_id = <table>.trip_id AND m.user_id = app_user_id())`. Tenant tables use `FORCE ROW LEVEL SECURITY` (see 03 section 6). The API and pytest refuse to start when the connected role is a superuser, has `BYPASSRLS`, or owns the tables; test fixtures write through the system connection (`DATABASE_URL_SYSTEM`), never as the owner. User-owned tables (`devices`, `people` by `owner_user_id`, `consents`, `credit_ledger`, `credit_debts`, `idempotency_keys`, `trip_imports`, `referral_codes`) use a direct `user_id = app_user_id()` policy; `referral_rewards` is readable by its referrer and its referee only; `content_reports` (insert and read your own) has its own policy. A test connects as the API role with no variable set and expects zero rows from every table with a policy. DDL is in [03-database-schema.md](03-database-schema.md).
 
 ### 4.4 Web and iOS differences
 
 | Concern | Web | iOS (Capacitor) |
 |---|---|---|
-| Token storage | HttpOnly Secure SameSite=Lax cookie via `POST /auth/session` | Supabase session in the Keychain through a secure-storage plugin; bearer header |
+| Token storage | Supabase session in the browser (supabase-js storage), sent as a bearer header | Supabase session in the Keychain through a secure-storage plugin; bearer header |
 | Origin | `https://app.hermi.world` | `capacitor://localhost` |
-| CSRF | `X-Hermi: 1` header plus `Origin` check, cookie requests only | Not applicable (bearer) |
+| CSRF | Not applicable (bearer) | Not applicable (bearer) |
 | API base URL | `VITE_API_BASE_URL` | Same, compiled into the bundle |
 | Push | None at launch | APNs token registered at `POST /devices` |
 | Purchases | None in Phase 1. The paywall says "Upgrade in the iOS app" and links to the App Store; no web checkout, price list or purchase button | RevenueCat over StoreKit 2 |
@@ -264,7 +274,7 @@ RLS is the second lock, not the first. Policies exist on: `trips`, `trip_members
 
 ## 5. Background jobs: how they run
 
-Queue: Procrastinate on the application database. Four lanes (Procrastinate queues): `api` (short provider calls, 20 to 50 concurrent per worker), `ai` (Claude calls, 4 to 10 concurrent), `notify` (push and email, high concurrency), `batch` (polling and bulk work, 2 concurrent). User-visible work has a row in `runs` (status, events, cancel flag) and the job carries only `run_id`. Non-user jobs have no `runs` row; their history is Procrastinate's own job table plus a `job_heartbeats` view.
+Queue: Procrastinate on the application database. Four lanes (Procrastinate queues): `api` (short provider calls, 20 to 50 concurrent per worker), `ai` (Claude calls, 4 to 10 concurrent), `notify` (push and email, high concurrency), `batch` (polling and bulk work, 2 concurrent). The four lanes keep these names everywhere. Local concurrency is 4, 2, 4 and 1 for `api`, `ai`, `notify` and `batch`. `claude_cli` jobs run only on lane `ai` (concurrency 1 or 2), because each job spawns a `claude` process. User-visible work has a row in `runs` (status, events, cancel flag) and the job carries only `run_id`. Non-user jobs have no `runs` row; their history is Procrastinate's own job table plus a `job_heartbeats` view.
 
 Common rules:
 
@@ -281,8 +291,8 @@ Times are UTC unless marked local. "Key" is the idempotency key: a second run wi
 
 | Job | Lane | Trigger | Schedule | Idempotency key | Retries |
 |---|---|---|---|---|---|
-| `scan_due_routines` | api | Scheduler tick | Every 30 seconds (leader only) | `routines.last_slot_at` advanced in the same transaction | none |
-| `check_fare_route` | api | Routine tick, user "refresh", trip pass start (purchased or import reward) | Live routes daily within 120 days of departure, jittered in a 60 minute window by hash of route id | `(route_id, provider, time_bucket_6h)` on `provider_calls` | transient x5 |
+| `scan_due_routes` | api | Scheduler tick | Every 30 seconds (leader only) | `flight_routes.next_check_at` advanced in the same transaction | none |
+| `check_fare_route` | api | Route scan tick, user "refresh", trip pass start (purchased or import reward) | Live routes daily within 120 days of departure, jittered in a 60 minute window by hash of route id | `(route_id, provider, time_bucket_6h)` on `provider_calls` | transient x5 |
 | `refresh_cached_fares` | api | Scheduler | Every 6 hours for routes with `price_alerts` or free cached-fare tracking | `(route_id, bucket_6h)` | transient x5 |
 | `evaluate_price_alerts` | notify | After `check_fare_route` or `refresh_cached_fares` writes `fare_observations` | Event | `(alert_id, observation_id)` | transient x3 |
 | `run_ai_action` | ai | User action (`explain`, `live_search`, `draft_day`, `draft_trip`, `research`, `packing_list`, `booking_import`, `verify_extract`, `recheck`) | Event | `Idempotency-Key` header, unique per user | transient x2, refunds credits on final failure |
@@ -296,6 +306,8 @@ Times are UTC unless marked local. "Key" is the idempotency key: a second run wi
 | `evaluate_booked_fare_drops` | notify | Scheduler | Nightly 09:00; reads the view `booked_fare_drops` and sends the alerts (at least 5 percent and 10 US dollars down, once per flight every 7 days) | `notifications.dedupe_key` `booked_drop:{chosen_flight_id}:{current_minor}` | transient x3 |
 | `grant_referral_rewards` | api | Scheduler | Every 10 minutes; marks `pending` rewards `qualified` when the referee met the rule, then calls `grant_referral_reward()` | `credit_grants` `period_key` `referral:{reward_id}` | transient x5 |
 | `reap_stale_jobs` | batch | Scheduler | Every minute | none (idempotent by nature) | none |
+| `release_stale_reservations` | api | Scheduler | Every 5 minutes; releases credit reservations older than the run deadline plus grace | `(reservation_id)` | transient x3 |
+| `maintain_partitions` | batch | Scheduler | Daily 02:30; creates upcoming partitions through a definer function and alerts when rows land in a default partition | `(table, month)` | transient x3 |
 | `process_webhook_event` | api | Row inserted in `webhook_events` | Event | `(provider, provider_event_id)` unique | transient x10 over 24 hours |
 | `reconcile_entitlements` | api | Scheduler | Every 6 hours, plus on demand from admin; calls RevenueCat REST for users with recent activity | `(user_id, day)` | transient x5 |
 | `grant_monthly_credits` | api | Scheduler | Every hour; grants at each subscriber's monthly anniversary (annual plans) and at calendar month start for comped entitlements. Free accounts are not in this job: their 12 credits are written lazily on first use (`ensure_free_monthly_grant`, 03 section 5.13) | `(user_id, kind, period_key)` unique on `credit_grants` | transient x5 |
@@ -303,7 +315,9 @@ Times are UTC unless marked local. "Key" is the idempotency key: a second run wi
 | `expire_trip_passes` | api | Scheduler | Every 15 minutes | `(trip_pass_id, 'expired')` | transient x3 |
 | `send_push` | notify | Event | Event | `(user_id, alert_id_or_event_id, channel)` unique | transient x5, 410 deletes the `devices` token |
 | `send_email` | notify | Event | Event | `(user_id, template, dedupe_key)` unique | transient x5 |
-| `build_digest` | notify | Scheduler | Hourly; sends at 08:00 local per user, max 1 per hour per trip | `(user_id, trip_id, date)` | transient x3 |
+| `build_digest` | notify | Scheduler | Hourly; the activity digest, sent at 08:00 local per user, max 1 per hour per trip | `(user_id, trip_id, date)`, deduplicated per user and trip | transient x3 |
+| `send_predeparture_reminder` | notify | Scheduler | Hourly; the 7-day pre-departure reminder, at 09:00 local per user | `(user_id, trip_id, 'predeparture_7d')`, deduplicated per user and trip | transient x3 |
+| `send_trial_ending_reminder` | notify | Scheduler | Hourly; reminds a user 2 days before the annual trial converts (01, 05 section 6) | `(user_id, 'trial_ending', period_key)`, deduplicated per user (a trial is per user) | transient x3 |
 | `poll_invites_cleanup` | api | Scheduler | Daily 04:00 | none | none |
 | `import_affiliate_conversions` | api | Scheduler | Nightly 05:00 per network (Travelpayouts, Viator, Stay22) | `(program_id, network_txn_id)` unique on `affiliate_conversions` | transient x5 |
 | `refresh_fx_rates` | api | Scheduler | Daily 06:00 (Frankfurter) | `(base, date)` unique on `fx_rates` | transient x5 |
@@ -311,7 +325,7 @@ Times are UTC unless marked local. "Key" is the idempotency key: a second run wi
 | `export_user_data` | batch | `POST /me/export` | Event; max 1 per day per user | `data_exports.id` | transient x3; 7 day link |
 | `delete_account` | batch | `POST /me/delete` then 30 day timer | Event then day 30 | `deletion_requests.id` and a checklist row per step | transient x10, each step idempotent |
 | `purge_trash` | batch | Scheduler | Daily 04:30; hard deletes trips deleted more than 30 days ago | `(trip_id)` | transient x3 |
-| `retention_sweep` | batch | Scheduler | Daily 05:30; invites older than 30 days, IP hashing after 30 days, prompt content older than 30 days, import files, previews, stored feed URLs and plan verifications on the schedule in 03 sections 5.9 and 5.20, `run_events` payloads older than 14 days, analytics older than 90 days, audit rows by `retention_class` (03 section 8) | `(table, day)` | transient x3 |
+| `retention_sweep` | batch | Scheduler | Daily 05:30; invites older than 30 days, IP hashing after 30 days, prompt content older than 30 days, previews, stored feed URLs and plan verifications on the schedule in 03 sections 5.9 and 5.20, `run_events` payloads older than 14 days, analytics older than 90 days, the 12-month purge of `identity_hashes`, audit rows by `retention_class` (03 section 8) | `(table, day)` | transient x3 |
 | `purge_idempotency_keys` | api | Scheduler | Hourly; deletes `idempotency_keys` past `expires_at` | none | none |
 | `expire_kill_switches` | api | Scheduler | Every minute; disengages switches past `kill_switches.expires_at`, writes `audit_log` as `system`, and warns the owner 15 minutes before expiry (08 section 6.5) | `(key, expires_at)` | none |
 | `ai_spend_guard` | api | Scheduler | Every 5 minutes; sums `ai_usage`, trips the global circuit breaker, raises alerts | `(bucket_5m)` | none |
@@ -320,18 +334,20 @@ Times are UTC unless marked local. "Key" is the idempotency key: a second run wi
 | `db_dump_offsite` | batch | Scheduler | Weekly, Sunday 03:00; encrypted `pg_dump` to R2 backups bucket, 90 day lifecycle | `(week)` | transient x3, alert on failure |
 | `heartbeat_ping` | api | Scheduler | Every minute; pings Better Stack heartbeat URLs for scheduler and queue | none | none |
 
-Later: Phase 2 or 3: concierge digests, group settle reminders and scheduled agent routines are not jobs in Phase 1. `scan_due_routines` only enqueues live fare route checks.
+**Keyless rule.** A job whose provider key is missing (quota check, heartbeat, usage reconcile, offsite dump, conversions) logs and skips; it never fails the queue.
+
+Later: Phase 2 or 3: concierge digests, group settle reminders and scheduled agent runs are not jobs in Phase 1. `scan_due_routes` only enqueues live fare route checks.
 
 ### 5.2 Scheduler design
 
 The scheduler is a loop inside `hermi_worker/scheduler.py`. It enqueues work; it never runs it.
 
 1. **Leader election.** On start it tries `pg_try_advisory_lock(0x57415946)` on a dedicated connection. The holder is the leader; others sleep 10 seconds and retry. If the leader's connection drops, the lock frees and a standby takes over within 10 seconds.
-2. **Routine scan.** Every 30 seconds the leader runs `SELECT id FROM routines WHERE enabled AND next_run_at <= now() ORDER BY next_run_at LIMIT 500 FOR UPDATE SKIP LOCKED`. For each row it checks the kill switch for the routine's kind, checks the account's budget (reserve in the same transaction), inserts a `runs` row (`trigger = 'schedule'`), defers the job, and advances `next_run_at` to the next cron slot after now (never stacking missed slots). An outage of a day fires one check, not many.
-3. **Jitter.** `next_run_at` = cron slot plus `hash(routine_id) mod window`, window 60 minutes for daily checks. This spreads load and is stable per routine.
+2. **Route scan.** Every 30 seconds the leader scans `flight_routes` where `next_check_at <= now()` with `FOR UPDATE SKIP LOCKED` (limit 500). For each row it checks eligibility (step 5), the kill switch and the account's budget (reserve in the same transaction), inserts the `runs` row (`trigger = 'schedule'`), defers the job, and advances `next_check_at` to the next slot after now (never stacking missed slots). An outage of a day fires one check, not many.
+3. **Jitter.** `next_check_at` = slot plus `hash(route_id) mod window`, window 60 minutes for daily checks. This spreads load and is stable per route.
 4. **Periodic jobs.** Fixed-schedule jobs in section 5.1 use Procrastinate periodic tasks registered on the leader only, so they never double-fire. Each has the `slot` timestamp as its lock key.
-5. **Live-route eligibility.** A route is scheduled only if the trip's best capability allows it (Plus 3, Trip Pass 2 per trip, including an import-reward Trip Pass), the departure is within 120 days, and the trip pass has live checks left (60 max). When eligibility ends, `next_run_at` is cleared and the route keeps its last fares.
-6. **Scheduled agents.** Not in Phase 1. Later: Phase 2 (Pro). The scan only enqueues live-route checks and no routine kind for agents exists yet.
+5. **Live-route eligibility.** A route is scheduled only if the trip's best capability allows it (Plus 3, Trip Pass 2 per trip, including an import-reward Trip Pass), the departure is within 120 days, and the trip pass has live checks left (60 max). When eligibility ends, `next_check_at` is cleared and the route keeps its last fares.
+6. **Scheduled agents.** Scheduled agents are Phase 2 (Pro) and no kind of them exists in Phase 1. The scan only enqueues live-route checks.
 7. **Observability.** Each tick writes `scheduler_ticks` metrics (due count, enqueued, skipped by reason, tick duration). A heartbeat URL is pinged each minute; a missing ping for 3 minutes pages.
 
 ### 5.3 Provider call flow inside a job
@@ -358,16 +374,28 @@ Imports bring an existing plan into Hermi from a calendar file, a calendar feed,
 
 **Flow.**
 
-1. **Preview.** The `trip_imports` row moves through `received`, `parsing` and `review`. Candidates are stored in `preview`. An uploaded file lives in R2 (`raw_key`); pasted text is never stored; a feed address is stored encrypted only while polling is on (below); a Google Maps list link is never fetched, stored or resolved (04 section 5.26, rule 5). Files and previews are deleted on the schedule in 03 section 5.9, by `retention_sweep`.
+1. **Preview.** The `trip_imports` row moves through `received`, `parsing` and `review`. Candidates are stored in `preview`. The raw file and pasted text are never stored (only the preview and the created rows are kept); a feed address is stored encrypted only while polling is on (below); a Google Maps list link is never fetched, stored or resolved (04 section 5.26, rule 5). Previews are deleted on the schedule in 03 section 5.9.
 2. **Confirm.** `POST /imports/{id}/confirm` runs one transaction. It creates the trip when the target is new, then creates `itinerary_items` (flights and reservations, `source = 'import'`) and `lodging_options` (stays) by calling the owning module services, each stamped with `import_id` and `import_uid`, and sets the status to `applied`. A flight with a paid amount can also create a cached-mode route and the booked-fare fields on `chosen_flights`, which starts the booked-fare drop alert (5.6). When the commit succeeds, `imports.service` calls `billing.service.grant_import_reward()` for the free first-import Trip Pass (07 section 10), which applies the settled conditions: at least 3 items including a flight or a stay, a verified email, no active pass on the trip, no active Plus, once per user.
 3. **Undo.** Rows an import created carry `import_id`, so one tap removes them.
+
+**Limits.** One table of numbers, mirrored from 04 section 5.26 (the authority; there is no second set):
+
+| Source | Maximum size | Maximum items | Rate limit |
+|---|---|---|---|
+| ICS file | 2 MB | 500 events; description extraction at most 3 AI calls (18 events) | 20 previews a day |
+| ICS feed body | 2 MB | 500 events; description extraction at most 3 AI calls (18 events) | 5 registrations a day, 4 refreshes a day per import; counts toward the 20 previews a day |
+| Pasted booking text | 12,000 characters | 1 AI call | 20 previews a day (file, paste and feed together) |
+| Google Maps file | 5 MB | 200 places | 20 previews a day |
+| Pasted places | 20,000 characters | 200 places | 20 previews a day |
+
+**Import sandbox.** `IMPORT_SANDBOX` is `strict` (POSIX resource limits and a process sandbox) or `timeout_only` (win32 and local: a wall-clock timeout plus a `psutil` memory kill).
 
 **Pasted text and event descriptions.** `ai.service` runs the `booking_import` feature: personal data is replaced with placeholders locally first (06 section 12.3), Haiku (`AI_MODEL_FAST`) is called with no tools at all (no web search, no web fetch), the output must match a strict JSON schema, and every extracted value must appear in the source text. The pasted text is data, never instructions. One call costs 1 credit (the `explain` price, refunded when nothing is recognized) and the kill switch is `ai.import`. The text never appears in logs, `run_events`, Sentry or the shared research cache.
 
 **SSRF guard.** `security/ssrf.py` is the only way to fetch a user-supplied address. Its callers are `providers/feed_fetcher.py` and `providers/link_preview.py`. Rules, in order:
 
 1. Scheme `https` only (`webcal://` is rewritten), port 443 only, no userinfo, the host is a DNS name and not an IP literal, at most 2,048 characters.
-2. Refuse the hosts of Airbnb, Vrbo and Booking.com (the `BLOCKED_HOSTS` constant, 06 section 2.4) and Hermi's own hosts. Product rule 3: the user can download the file and upload it instead (`blocked_source`).
+2. Refuse the hosts of Airbnb, Vrbo and Booking.com and Hermi's own hosts. The first list is one code constant, `BLOCKED_HOSTS` (06 section 2.4), holding the three brands `airbnb`, `vrbo` and `booking`. A host is blocked when its registrable-domain label equals a brand, with any ending and any subdomain (so `airbnb.co.kr`, `www.airbnb.co.uk`, `vrbo.com` and `secure.booking.com` are refused). The API blocklist and the CLI rules are generated from it, and the stream check stays as a backstop. No setting, flag or admin screen can change it, and one test covers those four hosts. Product rule 3: the user can download the file and upload it instead (`blocked_source`).
 3. Resolve DNS ourselves and refuse the fetch if any answer is not a public address: loopback, private (RFC 1918), link-local (including the cloud metadata address 169.254.169.254), carrier-grade NAT `100.64.0.0/10`, multicast, reserved, unspecified, IPv6 loopback, unique local and link-local, and IPv4-mapped, 6to4 or NAT64 forms of any of these.
 4. Connect to the validated IP address (pinned), send the original name in SNI and `Host`, and verify the certificate against that name, so DNS cannot change between the check and the connection.
 5. Follow at most 3 redirects and revalidate every hop from rule 1.
@@ -389,7 +417,7 @@ Imports bring an existing plan into Hermi from a calendar file, a calendar feed,
 A trip can publish a live calendar subscription that phones and desktop calendars refresh on their own (04 section 5.29). It is available on every tier and does not count as a collaborator or a share link.
 
 - **Token.** 256 random bits, stored only as `trips.calendar_token_hash` (SHA-256, unique index `uq_trips_calendar_token`). The URL is returned once, by `POST /trips/{trip_id}/calendar-token`, which also rotates it. Rotating or `DELETE /trips/{trip_id}/calendar-token` stops the old URL at once.
-- **Endpoint.** `GET /calendar/{token}.ics`, served at `https://api.hermi.world/v1/calendar/{token}.ics`. The token is the credential: no JWT, no cookie. Unknown, rotated or disabled tokens and deleted trips return an empty `404`, never `403`. Limits: 120 an hour per token and 600 an hour per IP, and unknown tokens count against the IP limit.
+- **Endpoint.** `GET /v1/calendar/{token}.ics` (04 section 5.29 is the authority), served at `https://api.hermi.world/v1/calendar/{token}.ics`. The token is the credential: no JWT, no cookie. Unknown, rotated or disabled tokens and deleted trips return an empty `404`, never `403`. Limits: 120 an hour per token and 600 an hour per IP, and unknown tokens count against the IP limit.
 - **Content.** Generated by the `itinerary` module from current rows: timed events in the destination's time zone, all-day events, booked stays from check-in to check-out, and chosen flights, with stable `UID` values, `SEQUENCE` from the row version, `REFRESH-INTERVAL` of one hour and at most 2,000 events. Never included: prices, paid amounts, confirmation numbers, private notes, people, partner links or click ids.
 - **HTTP.** `ETag` over the content with `If-None-Match` answered `304`, `Cache-Control: private, max-age=300`, `Referrer-Policy: no-referrer`. Cloudflare does not cache it, because the URL is a bearer secret.
 - **Logging.** The access log records only the route template `/v1/calendar/{token}.ics`. `last_fetched_at` is updated at most once a minute.
@@ -532,7 +560,8 @@ All configuration is environment variables, read once in `config.py` through `py
 
 | Name | Purpose | Example | Secret |
 |---|---|---|---|
-| `ADMIN_OIDC_ISSUER` / `ADMIN_OIDC_CLIENT_ID` / `ADMIN_OIDC_CLIENT_SECRET` | Company SSO for the admin console | `https://accounts.google.com` | Secret only for the last |
+| `ADMIN_AUTH_MODE` | Admin sign-in mode: `cf_access` (Cloudflare Access plus the app layer and 2FA, 08 section 2) or `dev` (local and ci only) | `cf_access` | No |
+| `CF_ACCESS_TEAM_DOMAIN` / `CF_ACCESS_AUD` | Cloudflare Access team domain and application audience the admin API checks | `hermi.cloudflareaccess.com` / random | No |
 | `ADMIN_ALLOWED_DOMAIN` | Only this email domain may sign in to admin | `hermi.world` | No |
 | `ADMIN_SESSION_SECRET` | Signs admin session cookies | random | Yes |
 | `ADMIN_IP_ALLOWLIST` | Optional CIDR list for `/admin` | empty | No |
@@ -556,7 +585,7 @@ All configuration is environment variables, read once in `config.py` through `py
 | Anthropic Claude API | All AI features | Non-urgent `ai` lane pauses on repeated 429 or 5xx; users see "queued, we will finish this when the service recovers" and credits stay reserved up to 30 minutes, then release. Cached data keeps working. Kill switch `ai.all` |
 | Anthropic Batch API | Cache warming | Missed night means stale research; the next night catches up |
 | Render | Compute and Postgres | Multi-instance API survives one instance loss. Regional outage: status page, restore plan in the runbook |
-| Cloudflare (DNS, WAF, Pages, R2) | Edge, web hosting, storage | Pages outage: the iOS app still works because it is bundled. R2 outage: uploads and exports fail with retry, trips keep working |
+| Cloudflare (DNS, WAF, Pages, R2, Access) | Edge, web hosting, storage, admin sign-in (Access plus the app layer and 2FA, 08) | Access outage: the admin console is unreachable, the product is unaffected. Pages outage: the iOS app still works because it is bundled. R2 outage: uploads and exports fail with retry, trips keep working |
 | RevenueCat | Purchases, entitlement events | Webhook backlog delays unlock; `POST /purchases/sync` gives instant unlock for the buyer. Outage: entitlements come from our own table, so nothing locks. Reconcile job catches up |
 | Travelpayouts | Cached fares and affiliate network | Fare cards show last observation with its age; alerts (including booked-fare drop alerts) pause; affiliate links still work |
 | SerpApi | Live fares and rentals, flag `serpapi_live_fares` | Flag off or quota out: live checks fall back to cached fares and say so; credits are not charged for an empty result |
@@ -691,7 +720,7 @@ The existing code is the Trip Planner repository, https://github.com/avillalv/tr
 | Existing module | Decision | Where it goes | Reason |
 |---|---|---|---|
 | `config.py` | Adapt | `apps/api/hermi/config.py` | Keep the typed settings pattern; remove passcode, host list, `CLAUDE_PATH`, backup and Windows paths; add section 7 variables |
-| `db.py` | Adapt | `db.py` | Add pool limits, timeouts, TLS, the `app.user_id` session variable and a system session |
+| `db.py` | Adapt | `db.py` | Add pool limits, timeouts, TLS, the `app.user_id` session variable (`set_config('app.user_id', ...)`, read by policies through `app_user_id()`, 03 section 6.2) and a system session |
 | `main.py` | Adapt | `main.py` | Keep the app factory and router wiring; add CORS, middleware order (section 4), problem+json errors; no SPA serving |
 | `spa.py` | Drop | none | The web app ships from Cloudflare Pages |
 | `security.py` | Adapt | `security/` | Keep constant-time compare and redaction ideas; replace passcode cookie and loopback trust with JWT verification; rate limits move to Postgres |
@@ -706,7 +735,7 @@ The existing code is the Trip Planner repository, https://github.com/avillalv/tr
 | `models/itinerary.py` | Adapt | `itinerary_days`, `itinerary_items` | Rename Activity to item, add created-by, row `version` on all editable rows |
 | `models/lodging.py` | Adapt | `lodging_options`, `lodging_votes` | Votes gain `user_id` |
 | `models/airport.py` | Reuse | `airports` | Static reference data |
-| `models/agents.py`, `automation.py` | Adapt | `routines`, `runs`, `run_events`, `ai_usage` | Add `user_id`, `next_run_at`, slot keys, request ids, cost micro-dollars; drop `pid`, `argv_redacted`, `log_path` |
+| `models/agents.py`, `automation.py` | Adapt | `runs`, `run_events`, `ai_usage` | Add `user_id`, request ids, cost micro-dollars; drop `pid`, `argv_redacted`, `log_path` |
 | `models/system.py` | Drop, Adapt | `feature_flags`, `kill_switches`; heartbeat row dropped | `AppSetting` global key value becomes flags; singleton heartbeat replaced by per-instance job heartbeats |
 | `api/trips.py`, `itinerary.py`, `lodging.py`, `places.py`, `flights.py`, `people.py`, `geo.py` | Adapt | Module routers | Keep route shapes where they fit [04-api-spec.md](04-api-spec.md); add `require_trip`, UUID ids, `If-Match`, `updated_since`; every route covered by the tenant test |
 | `api/agent.py` | Drop | none | Loopback ingest API for the CLI bridge; tools run in process |
@@ -723,7 +752,7 @@ The existing code is the Trip Planner repository, https://github.com/avillalv/tr
 | `services/agent_ingest.py` | Reuse | `modules/ai/ingest.py` | The evidence rules, blocked domains, price bounds and `IngestRejection` are the trust boundary; called in process from tools |
 | `services/agent_context.py` | Adapt | `modules/ai/context.py` | Builds model context from one trip; must read only that trip and exclude private notes and other travelers' names |
 | `services/claude_cli.py` | Drop | none | CLI sign-in and PID handling cannot be multi-tenant |
-| `services/routines.py`, `runs.py` | Adapt | `modules/ai` | Keep run lifecycle and log events; add next_run_at, budgets, refunds |
+| `services/runs.py` and the old scheduled-run service | Adapt | `modules/ai` | Keep run lifecycle and log events; add budgets, refunds; scheduled agent runs are Phase 2 |
 | `services/backups.py` | Drop | `db_dump_offsite` job (new) | Windows `pg_dump.exe` and local folder; PITR is primary, weekly off-provider dump is new Linux code |
 | `services/system_status.py` | Adapt | `health` and admin status | Replace CLI and heartbeat checks with database, queue and provider checks |
 | `services/app_settings.py` | Drop | `feature_flags` | Global key value store replaced by flags and per-user settings |
@@ -735,7 +764,7 @@ The existing code is the Trip Planner repository, https://github.com/avillalv/tr
 | `providers/link_preview.py` | Adapt | `providers/link_preview.py` | Add SSRF protection (resolved IP checks, redirect limits), refuse Airbnb, Vrbo and Booking.com hosts, legal review before scaling |
 | `seed/airports.py` | Reuse | `seed/airports.py` | Static data |
 | `worker/main.py`, `executor.py` | Drop | `apps/worker/app.py` | Two-second loop and thread pools replaced by Procrastinate lanes |
-| `worker/scheduler.py` | Drop | `apps/worker/scheduler.py` (new) | APScheduler per routine double-fires with two instances; replaced by the leader and `next_run_at` scanner |
+| `worker/scheduler.py` | Drop | `apps/worker/scheduler.py` (new) | APScheduler per scheduled agent run double-fires with two instances; replaced by the leader and the `flight_routes.next_check_at` scan (`scan_due_routes`) |
 | `worker/jobs/flight_prices.py` | Adapt | `jobs/check_fare_route.py` | Provider call logic carries over; add cache, dedup and idempotency |
 | `worker/agents/runner.py`, `stream.py`, `smoke.py` | Drop, rebuild | `agents/loop.py` | CLI subprocess becomes `AgentLoop` on the Messages API; `smoke.py` idea becomes an eval runner |
 | `worker/agents/prompts.py` | Adapt | `agents/prompts.py` | Keep `SYSTEM_PROMPT` almost verbatim as the cached prefix; remove the tools section; version it |
@@ -755,7 +784,7 @@ The existing code is the Trip Planner repository, https://github.com/avillalv/tr
 | `components/ui/*` | Reuse | Radix and shadcn primitives |
 | `components/flights/*`, `itinerary/*`, `lodging/*`, `trips/*`, `people/*` | Adapt | Mostly reusable; add role-aware actions, paywall moments, affiliate cards, attribution |
 | `components/deck/*`, `routes/present-page.tsx` | Adapt | Presentation mode carries over; add portrait mobile mode |
-| `components/agents/*`, `routes/agents/*` | Adapt | Runs, timeline and findings carry over; add credits cost and consent; remove routine UI (scheduled routines arrive in Phase 2) |
+| `components/agents/*`, `routes/agents/*` | Adapt | Runs, timeline and findings carry over; add credits cost and consent; remove the scheduled agent run UI (scheduled agent runs arrive in Phase 2) |
 | `components/auth/*` | Drop, rebuild | Passcode gate replaced by sign-in and guest flow |
 | `components/layout/*` | Adapt | Add bottom tab bar under 768 px; remove PC status indicator |
 | `components/common/*` | Reuse | Combobox, error boundary |
