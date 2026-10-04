@@ -1,0 +1,63 @@
+/* App shell (WF-130.4). DL section 3 "From artboard to app" and 05 5.3. Values come from tokens and hermi.css only. */
+.shell { min-height: 100dvh; background: var(--tp-paper); color: var(--tp-ink); }
+.shell-main { min-width: 0; }
+.shell-strip { position: sticky; top: 0; z-index: 10; margin: 0; padding: env(safe-area-inset-top) var(--tp-space-4) 0; background: var(--tp-paper); }
+.shell-sheet { max-width: 1120px; margin: 0 auto; padding: var(--tp-space-4) var(--tp-space-4) calc(86px + env(safe-area-inset-bottom)); }
+
+/* Layout constants stay raw: 72 px rail, 248 px sidebar, 1120 px content (05 5.3, 10), 83 px tab bar fade and 86 px
+ * bottom clearance (DL section 3: content ends above 758 px at 844). */
+@media (max-width: 767px) { html { scroll-padding-bottom: calc(86px + env(safe-area-inset-bottom)); } }
+
+/* Floating tab bar above the safe-area inset (under 768 px). The wrapper lets taps through the fade. */
+.shell-tabs { position: fixed; left: 0; right: 0; bottom: env(safe-area-inset-bottom); height: 83px; z-index: 20; pointer-events: none; }
+.shell-tabs .h-tabbar { pointer-events: none; }
+.shell-tabs .h-tabbar__bar { pointer-events: auto; }
+.shell-tabs .h-tabbar__item { min-height: 44px; }
+
+/* Rail and sidebar: one nav, hidden under 768 px. */
+.shell-side { display: none; }
+.shell-lockup { display: none; }
+
+@media (min-width: 768px) {
+  .shell { display: grid; grid-template-columns: 72px minmax(0, 1fr); }
+  .shell-tabs { display: none; }
+  .shell-sheet { padding: var(--tp-space-4) var(--tp-space-6) var(--tp-space-8); }
+  .shell-side {
+    display: flex; flex-direction: column; gap: var(--tp-space-2); position: sticky; top: 0; height: 100dvh; padding: var(--tp-space-4) var(--tp-space-3);
+    background: var(--sidebar); color: var(--tp-sky-ink);
+  }
+  .shell-brand { display: flex; align-items: center; justify-content: center; height: 44px; }
+  .shell-nav { display: flex; flex-direction: column; gap: var(--tp-space-1); }
+  .shell-link {
+    position: relative; display: flex; align-items: center; justify-content: center; gap: var(--tp-space-3); min-height: 44px; border-radius: 22px;
+    color: var(--tp-sky-ink); text-decoration: none; font: 600 0.9375rem/1 var(--tp-font-body);
+  }
+  .shell-link[aria-current="page"] { background: var(--tp-ink); color: var(--tp-paper); }
+  .shell-link__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* Tooltip on the rail (hover and keyboard focus). */
+  .shell-link__label::after { content: none; }
+  .shell-link:hover .shell-link__label, .shell-link:focus-visible .shell-link__label {
+    left: calc(100% + var(--tp-space-2)); top: 50%; width: auto; height: auto; padding: var(--tp-space-1) var(--tp-space-2); overflow: visible; clip-path: none; transform: translateY(-50%);
+    border-radius: var(--radius-sm); background: var(--tp-ink); color: var(--tp-paper); font: 600 0.8125rem/1.2 var(--tp-font-body); z-index: 30;
+  }
+}
+
+@media (min-width: 1200px) {
+  .shell { grid-template-columns: 248px minmax(0, 1fr); }
+  .shell-side { padding: var(--tp-space-5) var(--tp-space-4); }
+  .shell-brand { justify-content: flex-start; padding: 0 var(--tp-space-2); }
+  .shell-mark { display: none; }
+  .shell-lockup--light { display: block; }
+  .dark .shell-lockup--light { display: none; }
+  .dark .shell-lockup--dark { display: block; }
+  .shell-link { justify-content: flex-start; padding: 0 var(--tp-space-4); }
+  .shell-link .shell-link__label, .shell-link:hover .shell-link__label, .shell-link:focus-visible .shell-link__label {
+    position: static; width: auto; height: auto; padding: 0; overflow: visible; clip-path: none; transform: none; background: none; color: inherit; font: inherit;
+  }
+  .shell-trips { display: block; padding: var(--tp-space-3) var(--tp-space-2); font: 600 0.8125rem/1.3 var(--tp-font-body); }
+}
+.shell-trips { display: none; }
+@media (min-width: 1200px) and (prefers-color-scheme: dark) {
+  :root:not(.light) .shell-lockup--light { display: none; }
+  :root:not(.light) .shell-lockup--dark { display: block; }
+}
