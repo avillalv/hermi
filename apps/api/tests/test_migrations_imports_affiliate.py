@@ -1,7 +1,7 @@
 # ruff: noqa: E501  (long SQL strings; one statement per line reads better)
 """WF-022.3: revisions 0007_imports_referrals and 0008_affiliate (03 sections 5.9, 5.10, 10).
 
-Constraints are exercised as the migrate login (the owner), because grants land in 0014_rls.
+Constraints are exercised as the migrate login (the owner) at revision 0013 (PRE_RLS), before 0014_rls binds the owner with FORCE.
 feature_flags comes from 0012_admin_privacy; the function tests write the two settings they read into it (migrate login).
 The schema-vs-DDL comparison for 5.9 and 5.10 lives in test_migrations_trips_people.py (it spans 0002 to 0008).
 """
@@ -13,7 +13,7 @@ import psycopg
 import pytest
 from alembic import command
 from alembic.script import ScriptDirectory
-from tests.test_migrations import APP_URL, MIGRATE_URL, _alembic_cfg, _need_db
+from tests.test_migrations import APP_URL, MIGRATE_URL, PRE_RLS, _alembic_cfg, _need_db
 
 from hermi import db
 
@@ -31,7 +31,7 @@ def conn():
     _need_db()
     cfg = _alembic_cfg(MIGRATE_URL)
     command.downgrade(cfg, "base")
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, PRE_RLS)
     with psycopg.connect(db.psycopg_url(MIGRATE_URL), autocommit=True) as c:
         yield c
 
@@ -112,7 +112,7 @@ def test_objects_exist_and_round_trip(conn):
         "SELECT to_regclass('trip_imports'), to_regclass('affiliate_programs'), to_regclass('link_clicks'), to_regclass('revenue_by_month')"
     ).fetchone() == (None,) * 4
     assert conn.execute("SELECT count(*) FROM pg_proc WHERE proname = ANY(%s)", (FUNCS,)).fetchone() == (0,)
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, PRE_RLS)
     assert conn.execute("SELECT to_regclass('link_clicks')").fetchone()[0]
 
 

@@ -1,7 +1,7 @@
 # ruff: noqa: E501  (long SQL strings; one statement per line reads better)
 """WF-021.1: revision 0009_flights (03 sections 5.11, 5.12, 10).
 
-Constraints are exercised as the migrate login (the owner), because grants land in 0014_rls.
+Constraints are exercised as the migrate login (the owner) at revision 0013 (PRE_RLS), before 0014_rls binds the owner with FORCE.
 The schema-vs-DDL comparison for 5.11 and 5.12 lives in test_migrations_trips_people.py (it spans 0002 to 0009).
 """
 
@@ -12,7 +12,7 @@ import psycopg
 import pytest
 from alembic import command
 from alembic.script import ScriptDirectory
-from tests.test_migrations import MIGRATE_URL, _alembic_cfg, _need_db
+from tests.test_migrations import MIGRATE_URL, PRE_RLS, _alembic_cfg, _need_db
 
 from hermi import db
 
@@ -27,7 +27,7 @@ def conn():
     _need_db()
     cfg = _alembic_cfg(MIGRATE_URL)
     command.downgrade(cfg, "base")
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, PRE_RLS)
     with psycopg.connect(db.psycopg_url(MIGRATE_URL), autocommit=True) as c:
         yield c
 
@@ -93,7 +93,7 @@ def test_objects_exist_and_round_trip(conn):
         "SELECT to_regclass('flight_routes'), to_regclass('booked_fare_drops'), to_regclass('price_alerts'), "
         "to_regtype('cabin_class'), to_regtype('trip_type'), to_regtype('fare_confidence')"
     ).fetchone() == (None,) * 6
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, PRE_RLS)
     assert conn.execute("SELECT to_regclass('flight_routes')").fetchone()[0]
 
 

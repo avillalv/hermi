@@ -22,6 +22,8 @@ from hermi import db
 API_DIR = Path(__file__).resolve().parents[1]
 MIGRATE_URL = os.environ.get("TEST_MIGRATION_DATABASE_URL")
 APP_URL = os.environ.get("TEST_DATABASE_URL")
+# The last revision before 0014_rls. Constraint tests run as the owner, which FORCE row-level security binds from 0014 on.
+PRE_RLS = "0013_notifications_samples"
 
 
 def _alembic_cfg(url: str | None = None) -> Config:

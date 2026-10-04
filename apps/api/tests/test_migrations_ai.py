@@ -1,7 +1,7 @@
 # ruff: noqa: E501  (long SQL strings; one statement per line reads better)
 """WF-022.1: revision 0005_ai (03 sections 5.6, 7.4, 9, 10) with Procrastinate's schema and job_heartbeats.
 
-Constraints are exercised as the migrate login (the owner), because grants land in 0014_rls.
+Constraints are exercised as the migrate login (the owner) at revision 0013 (PRE_RLS), before 0014_rls binds the owner with FORCE.
 The schema-vs-DDL comparison for 5.6 lives in test_migrations_trips_people.py (it spans 0002 to 0005).
 """
 
@@ -11,7 +11,7 @@ import psycopg
 import pytest
 from alembic import command
 from alembic.script import ScriptDirectory
-from tests.test_migrations import APP_URL, MIGRATE_URL, _alembic_cfg, _need_db
+from tests.test_migrations import APP_URL, MIGRATE_URL, PRE_RLS, _alembic_cfg, _need_db
 
 from hermi import db
 
@@ -21,7 +21,7 @@ def conn():
     _need_db()
     cfg = _alembic_cfg(MIGRATE_URL)
     command.downgrade(cfg, "base")
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, PRE_RLS)
     with psycopg.connect(db.psycopg_url(MIGRATE_URL), autocommit=True) as c:
         yield c
 
@@ -76,7 +76,7 @@ def test_objects_exist_and_round_trip(conn):
         ).fetchone()[0]
         == 0
     )
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, PRE_RLS)
     assert conn.execute("SELECT to_regclass('runs')").fetchone()[0]
 
 

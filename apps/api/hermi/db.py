@@ -92,11 +92,13 @@ def assert_app_login_is_safe(connection) -> None:
 
     Call when the app engine opens (not wired yet; the first ticket that opens it must).
     """
-    row = connection.exec_driver_sql(
-        "SELECT rolsuper, rolbypassrls, pg_has_role(current_user, 'hermi_owner', 'member') "
-        "FROM pg_roles WHERE rolname = current_user"
-    ).fetchone()
-    if any(row):
+    unsafe = connection.exec_driver_sql(
+        "SELECT r.rolsuper OR r.rolbypassrls "
+        "OR EXISTS (SELECT 1 FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p') "
+        "AND (c.relowner = r.oid OR pg_has_role(r.oid, c.relowner, 'member'))) AS unsafe "
+        "FROM pg_roles r WHERE r.rolname = current_user"
+    ).scalar()
+    if unsafe:
         raise MigrationError(
-            "The app connection must not be a superuser, a BYPASSRLS role or a member of hermi_owner."
+            "The app connection must not be a superuser, a BYPASSRLS role, or own or be a member of the owner of any table in public."
         )

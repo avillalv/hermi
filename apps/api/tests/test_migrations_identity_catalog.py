@@ -1,6 +1,6 @@
 """WF-012.1: revisions 0002_identity and 0003_reference_catalog (03 sections 5.1 to 5.3, 10).
 
-Constraints are exercised as the migrate login (the owner), because grants land in 0014_rls.
+Constraints are exercised as the migrate login (the owner) at PRE_RLS, before 0014_rls binds it.
 """
 
 import psycopg
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.script import ScriptDirectory
 from sqlalchemy.dialects.postgresql import DOMAIN
-from tests.test_migrations import MIGRATE_URL, _alembic_cfg, _need_db
+from tests.test_migrations import MIGRATE_URL, PRE_RLS, _alembic_cfg, _need_db
 
 from hermi import db
 from hermi.modules.auth import models as _auth  # noqa: F401  (register on Base.metadata)
@@ -24,7 +24,7 @@ def conn():
     _need_db()
     cfg = _alembic_cfg(MIGRATE_URL)
     command.downgrade(cfg, "base")
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, PRE_RLS)
     with psycopg.connect(db.psycopg_url(MIGRATE_URL), autocommit=True) as c:
         yield c
 
@@ -75,7 +75,7 @@ def test_round_trip_drops_everything_added(conn):
         ).fetchone()
         == (None,) * 6
     )
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, PRE_RLS)
     assert conn.execute("SELECT to_regclass('users')").fetchone()[0]
 
 
