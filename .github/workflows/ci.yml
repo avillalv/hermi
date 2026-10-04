@@ -79,12 +79,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - run: npm ci
       - name: Spec lint
         run: node scripts/spec-lint.mjs
       - name: Autopilot tests
         run: node --test "scripts/autopilot/**/*.test.mjs"
       - name: Script tests
-        run: node --test scripts/lib/local.test.mjs scripts/check-copy.test.mjs
+        run: node --test scripts/lib/local.test.mjs scripts/check-copy.test.mjs infra/scripts/smoke.test.mjs infra/scripts/deploy-workflows.test.mjs infra/render/render.test.mjs
 
   api-tests:
     if: github.event_name != 'schedule'
@@ -338,14 +339,6 @@ jobs:
           uv export --frozen --all-packages --no-emit-workspace --no-hashes -o "$RUNNER_TEMP/req.txt"
           uvx pip-audit==2.10.1 -r "$RUNNER_TEMP/req.txt" --no-deps
 
-  deploy:
-    # Gated on a repository variable so main stays green without secrets.
-    if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - run: echo "::notice::Deploy hook arrives with WF-009 (Render). Nothing to do yet."
-
   live-eval:
     # Gated on a repository variable. Live provider calls never run on pull requests.
     if: github.event_name != 'pull_request' && vars.LIVE_EVALS_ENABLED == 'true'
@@ -375,7 +368,7 @@ jobs:
 
   ci:
     name: ci
-    needs: [lint, scripts, api-tests, web-tests, openapi-drift, migrations, image, deploy, live-eval]
+    needs: [lint, scripts, api-tests, web-tests, openapi-drift, migrations, image, live-eval]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

@@ -1,0 +1,126 @@
+# WF-009.2. Production deploy, manual only, from main. Promotes the image digest that staging already runs
+# (no rebuild) after checking it is the digest staging built for that commit. The `production` GitHub
+# environment holds the manual approval: set required reviewers and a main-only branch policy on it.
+# After the deploy the smoke runs; if it fails, the Render services are rolled back to their previous
+# successful deploy and the job fails. If the deploy or the web upload fails, services that already went
+# live are rolled back (Cloudflare Pages is not). Without DEPLOY_ENABLED or any required secret the run
+# prints what is missing and succeeds. Actions are pinned to major versions. See infra/README.md.
+# Each secret is set only on the step that needs it, never at job level.
+name: deploy-prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_digest:
+        description: "Image digest already deployed to staging (sha256:...)"
+        required: true
+      git_sha:
+        description: "Commit that built that digest (the web app is built from it)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    env:
+      IMAGE: ghcr.io/avillalv/hermi
+      DIGEST: ${{ inputs.image_digest }}
+      GIT_SHA: ${{ inputs.git_sha }}
+    steps:
+      - id: gate
+        env:
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          PROD_API_URL: ${{ vars.PROD_API_URL }}
+          PROD_WEB_URL: ${{ vars.PROD_WEB_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_PROD_API_SERVICE_ID: ${{ secrets.RENDER_PROD_API_SERVICE_ID }}
+          RENDER_PROD_WORKER_SERVICE_ID: ${{ secrets.RENDER_PROD_WORKER_SERVICE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=""
+          [ "$DEPLOY_ENABLED" = "true" ] || missing="variable DEPLOY_ENABLED=true"
+          for n in PROD_API_URL PROD_WEB_URL RENDER_API_KEY RENDER_PROD_API_SERVICE_ID RENDER_PROD_WORKER_SERVICE_ID CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            [ -n "${!n}" ] || missing="$missing $n"
+          done
+          if [ -n "$missing" ]; then
+            echo "skipping deploy: missing${missing}"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$DIGEST" | grep -Eq '^sha256:[0-9a-f]{64}$' || { echo "image_digest must look like sha256:<64 hex>"; exit 1; }
+          echo "$GIT_SHA" | grep -Eq '^[0-9a-f]{40}$' || { echo "git_sha must be a full 40 character sha"; exit 1; }
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check the digest is the one staging built for this commit
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          actual=$(docker buildx imagetools inspect "${IMAGE}:staging-${GIT_SHA}" --format '{{.Manifest.Digest}}')
+          if [ "$actual" != "$DIGEST" ]; then
+            echo "digest mismatch: staging-${GIT_SHA} is ${actual}, input is ${DIGEST}"; exit 1
+          fi
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_sha }}
+          persist-credentials: false
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - id: deploy
+        name: Deploy API then worker to Render production
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_IDS: ${{ secrets.RENDER_PROD_API_SERVICE_ID }},${{ secrets.RENDER_PROD_WORKER_SERVICE_ID }}
+        run: node infra/scripts/deploy.mjs "${IMAGE}@${DIGEST}" "$SERVICE_IDS"
+      - if: steps.gate.outputs.enabled == 'true'
+        run: npm ci
+      - name: Build web
+        if: steps.gate.outputs.enabled == 'true'
+        run: npm run build --workspace apps/web
+        env:
+          VITE_API_BASE_URL: ${{ vars.PROD_API_URL }}
+          VITE_APP_ENV: production
+      - name: Deploy web to Cloudflare Pages
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4.147.0 pages deploy apps/web/dist --project-name hermi-web --branch main
+      - id: smoke
+        name: Smoke, roll back on failure
+        if: steps.gate.outputs.enabled == 'true'
+        run: node infra/scripts/smoke.mjs --api "$PROD_API_URL" --web "$PROD_WEB_URL" --rollback-on-fail
+        env:
+          PROD_API_URL: ${{ vars.PROD_API_URL }}
+          PROD_WEB_URL: ${{ vars.PROD_WEB_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          ROLLBACK_SERVICE_IDS: ${{ secrets.RENDER_PROD_API_SERVICE_ID }},${{ secrets.RENDER_PROD_WORKER_SERVICE_ID }}
+      # The smoke did not fail (so it did not roll back itself) but an earlier step did: roll back the
+      # services that already went live. Cloudflare Pages is not rolled back here.
+      - name: Roll back services that went live
+        if: failure() && steps.smoke.outcome != 'failure' && steps.deploy.outputs.live != ''
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          LIVE: ${{ steps.deploy.outputs.live }}
+        run: node infra/scripts/rollback.mjs "$LIVE"

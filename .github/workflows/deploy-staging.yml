@@ -1,0 +1,110 @@
+# WF-009.2. Staging deploy on every push to main. Build the web app, build the API image once and push it
+# to GHCR, deploy that digest to the Render staging API then worker (render.yaml preDeployCommand runs the
+# migration under the advisory lock before traffic moves), ship the web app to Cloudflare Pages, then smoke
+# the staging URLs. Without the DEPLOY_ENABLED variable or any required secret the run prints what is missing
+# and succeeds. Actions are pinned to major versions. Secrets and variables are listed in infra/README.md.
+# Each secret is set only on the step that needs it, never at job level.
+name: deploy-staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      enabled: ${{ steps.gate.outputs.enabled }}
+    steps:
+      - id: gate
+        env:
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+          STAGING_WEB_URL: ${{ vars.STAGING_WEB_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_STAGING_API_SERVICE_ID: ${{ secrets.RENDER_STAGING_API_SERVICE_ID }}
+          RENDER_STAGING_WORKER_SERVICE_ID: ${{ secrets.RENDER_STAGING_WORKER_SERVICE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=""
+          [ "$DEPLOY_ENABLED" = "true" ] || missing="variable DEPLOY_ENABLED=true"
+          for n in STAGING_API_URL STAGING_WEB_URL RENDER_API_KEY RENDER_STAGING_API_SERVICE_ID RENDER_STAGING_WORKER_SERVICE_ID CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            [ -n "${!n}" ] || missing="$missing $n"
+          done
+          if [ -n "$missing" ]; then
+            echo "skipping deploy: missing${missing}"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/avillalv/hermi
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # Install and build before the GHCR login, so npm scripts never run with packages: write in reach.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build web
+        run: npm run build --workspace apps/web
+        env:
+          VITE_API_BASE_URL: ${{ vars.STAGING_API_URL }}
+          VITE_APP_ENV: staging
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/Dockerfile
+          push: true
+          tags: ghcr.io/avillalv/hermi:staging-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Record the digest to promote to production
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "Staging image digest (input for deploy-prod) - ${DIGEST}" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Deploy API then worker to Render staging
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_IDS: ${{ secrets.RENDER_STAGING_API_SERVICE_ID }},${{ secrets.RENDER_STAGING_WORKER_SERVICE_ID }}
+        run: node infra/scripts/deploy.mjs "${IMAGE}@${DIGEST}" "$SERVICE_IDS"
+      - name: Deploy web to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4.147.0 pages deploy apps/web/dist --project-name hermi-web --branch staging
+      - name: Smoke
+        run: node infra/scripts/smoke.mjs --api "$STAGING_API_URL" --web "$STAGING_WEB_URL"
+        env:
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+          STAGING_WEB_URL: ${{ vars.STAGING_WEB_URL }}
