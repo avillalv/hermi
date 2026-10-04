@@ -228,6 +228,7 @@ Conventions for every ticket:
 - Description: a static page on Cloudflare Pages with the positioning line "Plan together. Know the fare.", the logo, a waitlist form (email plus "who do you plan trips with" and "which app do you use today"), and a privacy note. Waitlist entries are logged (structured log, deduplicated in memory) and added to the Resend audience when `RESEND_API_KEY` is set; there is no waitlist table in Phase 1.
 - Accept: form submit logs one entry per email (duplicates ignored in memory) and adds it to the Resend audience when `RESEND_API_KEY` is set; confirmation email sent; page scores 90 or more on Lighthouse mobile; no ad or tracking SDKs; privacy text links to a policy page.
 - Touches: `apps/web/public/` (static landing page deployed to Cloudflare Pages), a small `POST /v1/waitlist` route in `apps/api/hermi/modules/notifications/`.
+- Kit: 05 6.1; screens/01-welcome.html
 - Tests: route accepts valid email, rejects invalid, dedupes, rate limits; Playwright submit flow.
 - Done: DoD. "Page live on the production domain" is owner-pending (it needs the domain and the Cloudflare Pages account, `HUMAN_TASKS.md`); the rest is checked locally and in CI.
 
@@ -356,6 +357,7 @@ Conventions for every ticket:
 - Description: port the design kit so every screen starts from kit blocks. `packages/tokens` holds `tokens.css` (values equal 05 section 2) and `hermi.css`, imported verbatim; React wrappers in `apps/web/src/components/kit/` emit the `h-` classes (class names do not change). Build the Logo (from the `brand/` files; `generate_logo.py` is extended to emit transparent lockups, a light wordmark and the web icon set), RoutePattern, and the ticket, sheet, tab bar and section strip components. Build the scrolling shell from DL section 3: a sticky strip (a `nav` element with `aria-current="page"`), a scrolling sheet under it, the tab bar floating above the safe-area inset, an icon rail at 768 to 1199 px and the 248 px sidebar from 1200 px. The tabs are Trips, Discover, Activity and Account (each routes to a placeholder until its ticket lands). Add the kit test projects the `verify-ui-against-kit` skill uses: Playwright projects that screenshot the kit HTML and the app on a kit fixture with a frozen clock and Google Fonts routed to the bundled files, compared with pixelmatch inside one run (no committed baselines); a `kit-metrics` test that compares the computed styles of the `h-` components with the kit's; `npm run test:kit` runs them.
 - Accept: `npm run test:kit` passes; `kit-metrics` and component parity pass for every block in `components.html`; the shell shows the rail at 768 and 1199 px and the sidebar at 1200 px; `document.fonts.check` is true for the three variable families and no request goes to `googleapis` or `gstatic`; every shell control has a 3 px solid focus ring and a logical tab order.
 - Touches: `packages/tokens/` (`tokens.css`, `hermi.css`, `index.ts`), `apps/web/src/components/kit/`, `apps/web/src/shell/`, `apps/web/e2e/kit/`, `brand/generate_logo.py`, `apps/web/public/` (icons), root `package.json` (`test:kit`).
+- Kit: 05 4.20, 4.21, 5.2, 5.3, 10; none, follow DL sections 3 and 11
 - Tests: kit-metrics, component parity, shell layout at 390, 768, 1023, 1024, 1199, 1200 and 1440 px, the fonts and network check.
 - Done: DoD plus the DL section 11 checklist run on the shell.
 
@@ -364,6 +366,7 @@ Conventions for every ticket:
 - Description: Sign in with Apple, Google and email code screens (when `AUTH_MODE=dev` the sign-in screen shows a persona picker: Free, Plus, admin); a short intro; "Create your first trip" wizard (destination, dates, who is going). The "Coming from TripIt, Tripsy or Wanderlog?" question arrives in WF-095 and guest mode in WF-062. Spec: [05-ui-ux-spec.md](05-ui-ux-spec.md).
 - Accept: new user reaches a created trip in under 2 minutes on staging; sign-out clears state; copy follows the rules.
 - Touches: `apps/web/src/routes/auth/`, `apps/web/src/routes/onboarding/`.
+- Kit: 05 6.1, 6.3, 6.4, 6.6; screens/01-welcome.html
 - Tests: component tests, Playwright sign-in with a test identity.
 - Done: DoD.
 
@@ -372,6 +375,7 @@ Conventions for every ticket:
 - Description: trips CRUD, destinations, dates and currency, archive, duplicate, trip switcher. Limits (2 active trips on Free) are enforced by the resolver in WF-023.
 - Accept: create, edit, archive and duplicate work for the owner and are refused for viewers; a signed-in user creates a trip on staging.
 - Touches: `apps/api/hermi/modules/trips/`, `apps/web/src/routes/trips/`.
+- Kit: 05 6.5, 6.7, 4.4; screens/02-trips-home.html and screens/03-trip-overview.html
 - Tests: CRUD, archive and duplicate tests; tenancy cases.
 - Done: DoD plus Month 1 gate review recorded.
 
@@ -414,6 +418,7 @@ Conventions for every ticket:
 - Description: `people` with `owner_user_id` and `linked_user_id`, `trip_people`, "Which traveler are you?" linking. Children are a first name and a color only. Households are not built in Phase 1.
 - Accept: a person can be linked to a user and unlinked; removal keeps history; no birthdate or email fields exist for travelers.
 - Touches: `apps/api/hermi/modules/trips/` (people), `apps/web/src/routes/trips/`.
+- Kit: 05 6.21; none, follow DL section 11
 - Tests: link, unlink and removal tests.
 - Done: DoD.
 
@@ -422,6 +427,7 @@ Conventions for every ticket:
 - Description: invite by link (`trip_invites`), accept, roles (owner, editor, viewer), leave, transfer ownership, and read-only `trip_share_links` with revoke, available on every tier (a Free owner's share page carries the "Made with Hermi" footer); invitees join free and get the trip's capabilities on that trip. Tokens are 128-bit random, stored as SHA-256 hashes.
 - Accept: expired and used invites fail; owner cannot be removed without transfer; revoked link stops working immediately; a Free owner can create a share link; the collaborator limit hooks into the resolver (enforced in WF-026).
 - Touches: `apps/api/hermi/modules/collaboration/`, `apps/web/src/routes/invite/`.
+- Kit: 05 6.8; none, follow DL section 11
 - Tests: invite lifecycle tests, role change tests, link revoke test.
 - Done: DoD.
 
@@ -430,6 +436,7 @@ Conventions for every ticket:
 - Description: enforce the Phase 1 collaborator rule: a Free owner can have 1 collaborator (accepted or pending, editor or viewer) per trip, so couples plan free; Plus and Trip Pass owners up to 6; joining someone else's trip is always free. A second Free invite returns 402 with the `invite` paywall hint (reason `sharing`); the Invite sheet shows "1 of 1 on Free" and keeps the free path visible. If an owner's Plus or pass lapses, collaborators beyond the limit become viewers and nothing is deleted.
 - Accept: a Free owner invites one person and sees the paywall on the second; pending invites count; lapse handling demotes extras and sets a banner flag; the invitee never needs a plan to join.
 - Touches: `apps/api/hermi/modules/collaboration/service.py`, `apps/api/hermi/modules/billing/` (resolver hook), `apps/web/src/routes/invite/`.
+- Kit: 05 6.8; none, follow DL section 11
 - Tests: Free, Plus, pass and lapse tests; invitee-on-Free test; paywall body test.
 - Done: DoD.
 
@@ -438,6 +445,7 @@ Conventions for every ticket:
 - Description: `activity_log` writes for trip changes (who added, moved or removed what) with actor attribution, and a feed endpoint and screen. Notes marked private never appear.
 - Accept: an edit by one member appears in the other's feed within 30 seconds; private notes excluded; deleted users show as "Deleted user".
 - Touches: `apps/api/hermi/modules/collaboration/` (activity), `apps/web/src/routes/activity/`.
+- Kit: 05 6.24; none, follow DL section 11
 - Tests: write-on-change tests, privacy test.
 - Done: DoD.
 
@@ -454,6 +462,7 @@ Conventions for every ticket:
 - Description: a daily Frankfurter job into `fx_rates`; money display in original and converted currency; integer minor units everywhere.
 - Accept: conversion rounds consistently; stale rates show a notice.
 - Touches: `apps/worker/hermi_worker/jobs/refresh_fx_rates.py`, `apps/web/src/lib/money.ts`.
+- Kit: 05 7.3; none, follow DL section 11
 - Tests: conversion tests, stale-rate test.
 - Done: DoD.
 
@@ -462,6 +471,7 @@ Conventions for every ticket:
 - Description: flight routes and Travelpayouts cached fares as the free baseline, fare observations and links to trips, chosen flight (with "Mark as booked" and the price paid, used by WF-075).
 - Accept: Free gets 1 cached-fare route per trip; cached reads never spend credits; observations dedupe; every fare shows its age.
 - Touches: `apps/api/hermi/modules/flights/`, `apps/api/hermi/providers/travelpayouts.py`, `apps/web/src/routes/flights/`.
+- Kit: 05 6.9, 6.10, 4.5, 4.6; screens/05-fare-detail.html
 - Tests: provider mocked tests, limit tests, dedupe tests.
 - Done: DoD.
 
@@ -470,6 +480,7 @@ Conventions for every ticket:
 - Description: `price_alerts` rules on cached fares (1 on Free, more with live routes), drop detection as a pure function over `fare_observations`, alert list and create screens. The scheduled check arrives with WF-051 and delivery with WF-047.
 - Accept: the detection function triggers once per drop; duplicate triggers blocked by a unique key; limit per tier enforced by the resolver.
 - Touches: `apps/api/hermi/modules/flights/`, `apps/web/src/routes/flights/`.
+- Kit: 05 6.9, 4.5; screens/05-fare-detail.html
 - Tests: threshold tests, idempotent trigger test.
 - Done: DoD.
 
@@ -478,6 +489,7 @@ Conventions for every ticket:
 - Description: itinerary days and items, drag and drop, calendar view with a phone-friendly list mode and a "Move to..." sheet, conflict hints, ICS file export.
 - Accept: day reorder works on web and phone; ICS file imports into Apple Calendar; edits by viewers rejected; two editors changing one item get a 409 with the latest row.
 - Touches: `apps/api/hermi/modules/itinerary/`, `apps/web/src/routes/itinerary/`.
+- Kit: 05 6.12, 6.13; screens/04-plan-day.html
 - Tests: CRUD and role tests, ICS golden file, component tests, conflict test.
 - Done: DoD.
 
@@ -486,6 +498,7 @@ Conventions for every ticket:
 - Description: Geoapify search with `places_cache`, saved places, ideas list, MapLibre map with clustering, "Open in Apple Maps" handoff, attributions (OpenStreetMap, Wikimedia), Wikipedia summaries.
 - Accept: repeated searches hit the cache; places search rate limited at 30 a minute; map remains smooth with 200 markers.
 - Touches: `apps/api/hermi/modules/places/`, `apps/web/src/routes/places/`.
+- Kit: 05 6.14; none, follow DL section 11
 - Tests: cache tests, rate limit test, marker clustering test.
 - Done: DoD.
 
@@ -494,6 +507,7 @@ Conventions for every ticket:
 - Description: lodging options, pasted links, hearts (`lodging_votes`), compare view for 2 to 4 stays. Pasted links stay exactly as pasted; the server never fetches Airbnb, Vrbo or Booking.com pages; a separate labeled "Book via partner" button is built from the URL text only (wired in WF-068). Builds the shared SSRF guard `security/ssrf.py` and `providers/link_preview.py` that WF-072 reuses, with the hostile URL table of 10 section 2.5.
 - Accept: no outbound request to those domains in tests (network blocked in test); hearts counted once per member; sort order is stated and never by commission; hostile URLs are refused.
 - Touches: `apps/api/hermi/modules/lodging/`, `apps/api/hermi/security/ssrf.py`, `apps/api/hermi/providers/link_preview.py`, `apps/web/src/routes/lodging/`.
+- Kit: 05 6.11, 4.10; screens/06-stays-vote.html
 - Tests: network-blocked test, heart tests, link preservation test, SSRF table test.
 - Done: DoD.
 
@@ -502,6 +516,7 @@ Conventions for every ticket:
 - Description: trip, day, item and stay notes with optional `source_url`, `source_site`, `checked_at` and a private flag; a shared source chip component. AI-found notes must carry a source (enforced in WF-049 and WF-055).
 - Accept: notes save with sources; private notes are visible only to their author; chips open the source.
 - Touches: `apps/api/hermi/modules/trips/` (notes), `apps/web/src/components/`.
+- Kit: 05 6.18; none, follow DL section 11
 - Tests: CRUD and privacy tests.
 - Done: DoD.
 
@@ -510,6 +525,7 @@ Conventions for every ticket:
 - Description: bottom tab bar under 768 px (Trips, Itinerary, Flights, Lodging, More), safe areas, 44 pt targets, 16 px inputs, bottom sheets for dialogs, empty states with one action, error states (offline, 401, out of credits, 429, maintenance, forced update).
 - Accept: every main route works at 390 px wide; no horizontal scroll; Playwright mobile project (iPhone 15 profile) passes.
 - Touches: `apps/web/src/app/` (layout), `apps/web/src/routes/errors.tsx`, `apps/web/playwright.config.ts`.
+- Kit: 05 5.3, 10, 4.15 to 4.18; none, follow DL section 11
 - Tests: mobile viewport smoke test, axe checks in light and dark, and the contrast unit test over the Hermi palette token pairs in [05-ui-ux-spec.md](05-ui-ux-spec.md) section 2.3, including `--tp-edge` (control borders), `--tp-warning-ink` (small warning text) and `--tp-sky-ink` on `--tp-sky`.
 - Done: DoD.
 
@@ -550,6 +566,7 @@ Conventions for every ticket:
 - Description: the sync indicator in every trip header (05 section 4.21): "Synced 12 s ago" from the last successful conditional sync response (200 or 304) or accepted queued edit, refreshed every 5 seconds, with the states Syncing, "Offline, N edits waiting" (wired to the offline queue when WF-089 lands) and "Could not sync, retrying" after three failed polls; tap runs a sync now. Text plus icon, state changes announced politely, never the ticking seconds.
 - Accept: after a successful poll the header reads "Synced 0 s ago" and counts up; with the network off it reads the offline state within 5 seconds; a failed server poll never resets the timer; VoiceOver hears state changes only.
 - Touches: `apps/web/src/components/sync-indicator/`, `apps/web/src/lib/sync.ts`.
+- Kit: 05 6.41, 4.21; none, follow DL section 11
 - Tests: fake-timer component tests for every state, an aria-live test, a Playwright test that cuts the network.
 - Done: DoD.
 
@@ -558,6 +575,7 @@ Conventions for every ticket:
 - Description: `hermi seed --demo`, run by `npm run setup`, adds the demo trip "Lisbon in March" to the Plus persona: a route with fake fares, a chosen flight, 3 stays with hearts, 4 itinerary days, a checklist and an evidence-labelled agent note (inserted by SQL against the tables that exist since P04, so later tickets only add models). The Free, Plus and admin personas are not created here: WF-013 builds `GET /v1/dev/personas` and `POST /v1/dev/session` and creates the personas on the first dev session, and the seed uses that same path. The seed also adds the sample trips (`sample_trips` rows with `tags` and `suits`, each backed by an ordinary trip owned by a content account). This ticket builds the three 04 section 5.28 sample routes (`GET /public/sample-trips`, `GET /public/sample-trips/{slug}` and `POST /public/sample-trips/{slug}/copy`); WF-107 reuses them. The Discover tab (05 section 6.23) shows the sample trips as a gallery: open one read-only, then "Use this plan" copies it into the user's trips. Later prompts extend the seed for their features.
 - Accept: after `npm run setup` the Plus persona signs in and finds the demo trip, and any persona finds the gallery; a sample opens read-only; "Use this plan" calls `POST /public/sample-trips/{slug}/copy`, creates an editable copy (days, items and saved places, never flights or prices) and respects the active-trip limit (402 `limit_reached` and the `third_trip` paywall on Free); a guest builds a local copy with no server write; the seed is idempotent and creates no second persona.
 - Touches: `apps/api/hermi/seed/demo.py`, `apps/api/hermi/api/public.py` (the 5.28 sample routes), `apps/api/hermi/modules/trips/` (copy from a sample), `apps/api/hermi/cli.py`, `apps/web/src/routes/discover/`, `apps/web/e2e/discover/`.
+- Kit: 05 6.23, 6.35; screens/02-trips-home.html (card pattern)
 - Tests: seed idempotency, sample read-only and copy route tests, and a Playwright flow that opens a sample and taps "Use this plan".
 - Done: DoD plus the demo trip shown in the PR.
 
@@ -672,6 +690,7 @@ Conventions for every ticket:
 - Description: start, stream events (server-sent events), cancel and list runs; one at a time per account; credit preview before start; results saved as notes and fares with source links; the one-time lifetime taster ("Try a fare hunt, free") and the post-taster card. Cancel kills the CLI process tree; the watchdog stops a run at 8 minutes.
 - Accept: a second start while one runs returns a clear error; cancel stops at the next checkpoint and settles pro rata; events show sources; the taster works once and then shows the credit price.
 - Touches: `apps/api/hermi/modules/ai/router.py`, `apps/web/src/routes/agents/`.
+- Kit: 05 6.16, 6.17; screens/09-agent-run.html
 - Tests: API tests, SSE test, cancel test, taster test.
 - Done: DoD.
 
@@ -680,6 +699,7 @@ Conventions for every ticket:
 - Description: first-use consent ("Your trip details and questions are sent to Anthropic to generate suggestions") stored in `consents` with timestamp, an AI off toggle, "AI suggestion, check details before booking" labels, thumbs up or down that doubles as a content report.
 - Accept: no AI call without consent; toggle off blocks AI; reports create moderation items (queue screen in WF-106).
 - Touches: `apps/web/src/components/ai/`, `apps/api/hermi/modules/auth/` (consents).
+- Kit: 05 6.15, 4.21; none, follow DL section 11
 - Tests: consent gating test, report creation test.
 - Done: DoD.
 
@@ -688,6 +708,7 @@ Conventions for every ticket:
 - Description: a shared component that shows "Found on [site], checked [date]" on every AI-found fact (fares, notes, research items, imported confirmations show "From your pasted text" instead), opens the source, shows age for fares, and offers "Price was different" on agent-found fares (feeds the eval set). The server rejects any AI-saved fact without `source_url` and `checked_at` (the `checked_at` column on notes and items is added here; the 14-day freshness flag and the recheck are WF-120).
 - Accept: no AI-found fact renders without a label; a fact without a source is rejected at ingest; labels are readable (body-size text, contrast tokens) and work with VoiceOver.
 - Touches: `apps/web/src/components/evidence/`, `apps/api/hermi/modules/ai/ingest.py`, `apps/api/hermi/modules/trips/` (notes).
+- Kit: 05 6.18, 4.21; none, follow DL section 11
 - Tests: component snapshot tests, ingest rejection test, a test that scans AI-saved rows for missing sources.
 - Done: DoD.
 
@@ -712,6 +733,7 @@ Conventions for every ticket:
 - Description: `admin.hermi.world` route group (excluded from the iOS build), `/v1/admin` router, Cloudflare Access JWT check (`ADMIN_AUTH_MODE=cf_access|dev`, `CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`, a fake-Access signer for local and ci, the first admin through `hermi admin-grant <email>`; 08 is the authority), `admin_users`, WebAuthn and TOTP 2FA with step-up, roles (`support`, `ops`, `finance`, `owner`) and the permission table, admin DB role, rate limits, strict CSP. Spec: [08-admin-control-center.md](08-admin-control-center.md) sections 2, 3 and 9.
 - Accept: customer tokens rejected on admin and the reverse; unknown identities get 403; permission matrix test passes; disabled admin loses access in 60 seconds.
 - Touches: `apps/api/hermi/modules/admin/`, `apps/web/src/routes/admin/`, `infra/cloudflare/` (access policy or docs).
+- Kit: 08 section 5 and the 08 6.1 shell (sign-in in 08 section 2.2); none, follow DL section 11
 - Tests: role by route matrix test, step-up tests, session expiry tests.
 - Done: DoD plus Cloudflare Access configured and documented.
 
@@ -720,6 +742,7 @@ Conventions for every ticket:
 - Description: `audit_log` writer used in the same transaction as every admin write, redaction, `denied` rows, nightly hash chain to R2 object lock, and the audit viewer.
 - Accept: each admin write yields one row with before and after and reason; update and delete rejected; viewer filters work.
 - Touches: `apps/api/hermi/modules/admin/audit.py`, `apps/web/src/routes/admin/audit/`.
+- Kit: 08 section 5 and 08 section 4 (the audit viewer has no 6.x screen); none, follow DL section 11
 - Tests: atomicity test, redaction test.
 - Done: DoD.
 
@@ -728,6 +751,7 @@ Conventions for every ticket:
 - Description: the switches screen with state, expiry and effect counts, confirmation dialog with typed key and step-up, mandatory expiry, auto-expiry notification, breaker history.
 - Accept: every manual off has an expiry; `ai.all` off blocks AI within 5 seconds; expiry writes a `system` audit row; drill recorded.
 - Touches: `apps/api/hermi/modules/admin/killswitches.py`, `apps/web/src/routes/admin/killswitches/`.
+- Kit: 08 section 5 and 08 6.5; none, follow DL section 11
 - Tests: expiry and fail-closed tests, UI confirmation tests.
 - Done: DoD plus a timed drill (under 30 seconds to stop AI).
 
@@ -736,6 +760,7 @@ Conventions for every ticket:
 - Description: spend by feature, tier and model, top spenders, ceiling hits, runaway detection, live runs, cancel a run, reconciliation gap, cache hit rates.
 - Accept: a seeded runaway appears in the list; cancel settles pro rata; numbers match `ai_usage`.
 - Touches: `apps/api/hermi/modules/admin/ai_spend.py`, `apps/web/src/routes/admin/ai-spend/`.
+- Kit: 08 section 5 and 08 6.4; none, follow DL section 11
 - Tests: detection rule tests, cancel test.
 - Done: DoD plus the Month 3 gate review recorded.
 
@@ -744,6 +769,7 @@ Conventions for every ticket:
 - Description: a guest can create and edit a local trip on the device without an account (`guest_trip_created`); the "Save your trip" sheet appears when the guest tries to invite, sync, use AI, export or buy; on sign-up the local trips are claimed into the new account exactly once (`guest_claimed`). Guest data is local-only: `POST /me/claim` carries the trip JSON and a client-generated claim id, and there is no `is_guest` flag. The guest attestation endpoints and the `guest_allowances` table (F-ACC-2) back the one guest AI route. Guests cannot invite.
 - Accept: guest creates a trip with no network account; claim moves trips to the new user once and is idempotent; guest requests never reach tenant tables without a claim; nothing is stored server side for an unclaimed guest; a repeated claim with the same claim id returns the first result; `POST /guest/ai/draft-day` works only with a valid App Attest assertion and draws from `guest_allowances`.
 - Touches: `apps/web/src/features/guest/`, `apps/api/hermi/modules/auth/` (claim), `apps/api/hermi/modules/trips/`.
+- Kit: 05 6.2; none, follow DL section 11
 - Tests: claim idempotency test, guest draft-day assertion and allowance test, guest restriction tests, Playwright guest flow.
 - Done: DoD.
 
@@ -752,6 +778,7 @@ Conventions for every ticket:
 - Description: adds the "May be out of date" flag and the recheck. The evidence label (WF-055) shows an amber chip when `checked_at` is more than 14 days old (computed at read time, `stale` and `stale_after_days` on `Evidence` and `Note`, 04 section 5.14), nothing hidden or removed. `POST /notes/{id}/recheck` and `POST /items/{id}/recheck` run the `recheck` feature (06 section 5.12): Haiku 4.5, one fetch of the stored source URL through the SSRF-safe fetcher (not CLI web tools), strict JSON result (`confirmed`, `changed`, `not_shown`, `unreachable`), code-grounded `current_value`, 1 credit in the `explain` price class (run kind `recheck`, kill switch `ai.recheck`, flag `evidence_recheck`), refunded when unreachable. `confirmed` moves `checked_at` to today; `changed` and `not_shown` change nothing and offer "Save as a note". Editors and owners see the button at any age, viewers the chip only. Fares are not rechecked.
 - Accept: a 15-day-old finding shows the chip and a 13-day-old one does not; a recheck of an unchanged page moves the date and charges 1 credit; an unreachable page refunds; a changed page leaves the old text and shows the new value with its source; a blocked host is never fetched; no search is ever run.
 - Touches: `apps/api/hermi/modules/ai/features/recheck.py`, `apps/api/hermi/modules/trips/` (notes evidence), `apps/web/src/components/evidence/`.
+- Kit: 05 6.39, 6.18; none, follow DL section 11
 - Tests: freshness boundary test (14 days), grounding test for `current_value`, refund test, role test, injection fixture on a fetched page, blocked-host test, component test for the chip and result sheet.
 - Done: DoD plus the recheck eval set (60 page pairs, 06 section 10) committed in `docs/evals/`.
 
@@ -760,6 +787,7 @@ Conventions for every ticket:
 - Description: the AI sheet (05 section 6.15, mockup 08): entry from fares, places, plan items and the trip header; Explain, Draft day and Draft trip (a preview, then "Accept all" or pick items), Research and the packing list, each with its credit chip showing which pool pays (your credits or the trip's Trip Pass pool); the consent gate of WF-054; the credits balance and history (05 section 6.26) and the out-of-credits paywall moments of 07 section 6.2. It carries the acceptance criteria of F-AI-1, F-AI-2, F-AI-3 and F-AI-9: a repeat of the same question within 6 hours is free, every drafted place is grounded in place data, and at 0 credits day one of a draft is shown blurred behind the paywall.
 - Accept: each action works end to end on `fake` with its states (loading, empty, error, offline, limit); credit chips show the right price and pool; the free repeat within 6 hours charges nothing; a draft at 0 credits shows the blurred day one and the `out_of_credits_draft` paywall; the balance and history match the ledger.
 - Touches: `apps/web/src/routes/ai/`, `apps/web/src/components/ai/`, `apps/web/e2e/ai/`.
+- Kit: 05 6.15, 6.26, 4.11; screens/08-ai-actions.html
 - Tests: component tests for every state; one Playwright test per action (explain, draft day, draft trip, research, packing list, credits history); the free-repeat and blurred-day tests.
 - Done: DoD plus the DL section 11 checklist run.
 
@@ -786,6 +814,7 @@ Conventions for every ticket:
 - Description: `trip_pass` non-renewing subscription handling, buy then pick a trip, transaction recorded in `store_transactions` (`kind = 'pass'`) and, once a trip is known, in `trip_passes`, 90 days from binding, an unapplied pass waiting in Settings (`GET /v1/me/passes`), `POST /v1/me/passes/{pass_id}/bind` and `POST /v1/me/passes/{pass_id}/move` (once); limits (2 live routes, 60 live checks, 40 credits, up to 6 collaborators); job `expire_trip_passes`. Binding verifies the buyer owns the trip; a paid second pass that cannot bind grants its credits, opens a support ticket and sends the refund to support.
 - Accept: a pass binds to exactly one trip and only for the trip's owner; a paid second pass that cannot bind grants 40 credits, opens a support ticket and returns `bound: false`; expiry handled on the server; pass shown in trip settings; a second apply attempt is refused.
 - Touches: `apps/api/hermi/modules/billing/passes.py`, `apps/web/src/routes/trip-settings/`.
+- Kit: 05 6.26, 6.27; none, follow DL section 11
 - Tests: bind, expire, move-once tests.
 - Done: DoD.
 
@@ -794,6 +823,7 @@ Conventions for every ticket:
 - Description: server-decided paywall moments (Trip Pass first when a trip is within 120 days, annual Plus first with 2 or more active trips, credit packs when credits run out, `invite` when a Free owner invites a second person, `track_live` for live routes), `GET /paywall`, purchase screens with price, period and trial terms, Terms and Privacy links, Restore, and a visible free path. Purchases happen only in the iOS app; on the web the same sheet returns `purchasable: false` and shows what the upgrade gives, the free path and "Upgrade in the iOS app" with an App Store link, and no price, purchase button or checkout (there are no web purchases in Phase 1). The paywall legal row links to "How billing works" (WF-124). Adds the trigger `out_of_credits_verify` for plan checks and rechecks. Paywall reason codes follow 04 section 2.2 and 07 section 6.2 (`third_trip` is `trip_limit`; `second_route`, `track_live` and `alert_limit` are `live_routes`; `invite` is `sharing`; the four `out_of_credits_*` triggers are `credits`). Anti-patterns avoided: no fake urgency.
 - Accept: the reason code returned by the server (the 402 `paywall` hint or `GET /paywall`) drives the screen and matches the 07 section 6.2 mapping; Plus annual is shown first with the trial only on annual; the close control is always visible; web shows "Upgrade in the iOS app" and no price or purchase control.
 - Touches: `apps/web/src/routes/paywall/`, `apps/api/hermi/modules/billing/router.py`.
+- Kit: 05 4.14, 6.27, 8; screens/07-paywall.html
 - Tests: decision table tests, component tests.
 - Done: DoD.
 
@@ -810,6 +840,7 @@ Conventions for every ticket:
 - Description: link template builders for Travelpayouts, Viator and Stay22; a shared `PartnerButton` component that always renders "We earn a commission if you book here.", an "Ad" label on UK and EU storefronts, sort explanations on lists, a "Hide booking links" setting; placements on lodging, flights, things to do, cars and eSIM cards; Airbnb listings get plain links only. Public pages carry no partner buttons in Phase 1.
 - Accept: a component test fails if a partner button renders without disclosure; no list sorts by commission (a test checks ordering code); all placements go through `/go`.
 - Touches: `apps/web/src/components/partner-button.tsx`, `apps/api/hermi/modules/affiliate/`.
+- Kit: 05 4.13; none, follow DL section 11
 - Tests: disclosure snapshot tests, ordering test, country label test.
 - Done: DoD plus placement map in `docs/affiliate-placements.md`.
 
@@ -826,6 +857,7 @@ Conventions for every ticket:
 - Description: `checklist_items` by destination: official visa and entry links first, then labeled partner items (eSIM, insurance referral, transfers, bookings). At least half of the items are unmonetized; insurance uses insurer-approved copy only; the AI gives no insurance, visa or legal advice. The after-trip flight compensation prompt is Phase 2.
 - Accept: checklist templates generated by destination; at least half of the items have no partner link; copy reviewed against [08-affiliate-revenue.md](../context/business-plan/08-affiliate-revenue.md) rules.
 - Touches: `apps/api/hermi/modules/trips/` (checklist), `apps/web/src/routes/checklist/`.
+- Kit: 05 6.20; none, follow DL section 11
 - Tests: template tests (ratio of monetized items), copy lint for forbidden advice phrases.
 - Done: DoD.
 
@@ -834,6 +866,7 @@ Conventions for every ticket:
 - Description: import a trip from a calendar file (TripIt, Tripsy or Google Calendar export; the optional `origin` records which entry was used). `POST /imports/ics-file` accepts one `.ics` file under the single limits table of 04 section 5.26 (2 MB, 500 events, 20 previews a day), status `applied` after confirm, and the raw file is never stored; a strict parser in a resource-limited sandbox set by `IMPORT_SANDBOX=strict|timeout_only` (CPU 5 seconds, memory 256 MB; on win32 a timeout plus a `psutil` memory kill) reads `VEVENT`s, handles `VTIMEZONE`, floating times and all-day events, caps events at the table limit, ignores `ATTACH` and never fetches any URL it finds; events map to itinerary items, flights and stays with an `import` source; a preview screen ("We found 12 items") lets the user deselect before saving; duplicates are skipped by `UID`. Kill switch `import.all`.
 - Accept: golden files from TripIt, Google Calendar and Apple Calendar import correctly; re-importing the same file adds nothing; malformed, oversized and hostile files fail with a clear message and never crash the worker; no network access during parsing.
 - Touches: `apps/api/hermi/modules/trips/import_ics.py`, `apps/api/hermi/modules/itinerary/`, `apps/web/src/routes/import/`.
+- Kit: 05 6.30; none, follow DL section 11
 - Tests: golden files, dedupe test, property-based fuzzing of the parser (Hypothesis in CI, corpus committed), limits tests (size, event count, recurrence explosion), no-network test, a sandbox-mode test for `strict` and `timeout_only`.
 - Done: DoD plus the fuzz corpus and regression files committed.
 
@@ -842,6 +875,7 @@ Conventions for every ticket:
 - Description: import from a calendar feed URL (TripIt iCal feed, Google Calendar secret address). The user pastes the URL (`webcal://` is rewritten to `https://`); a `fetch_ics_feed` job in the `api` lane fetches it once through the shared SSRF guard (public addresses only, pinned IP, at most 3 manual redirects, 3 second connect and 5 second total timeout, 2 MB cap counted after decompression, `text/calendar` only) and hands the body to the WF-071 parser and preview. The feed URL is a secret: it is never logged or sent to analytics, it is held (encrypted) only until the preview is confirmed or discarded, and it is kept after that only when the person turns on "Keep checking this calendar" (WF-123); otherwise the user repastes it to refresh. Airbnb, Vrbo and Booking.com hosts are refused. Kill switches `import.all` and, for polling, `import.polling`.
 - Accept: the hostile URL table (loopback, link-local, private and mapped addresses, decimal and hex IPs, rebinding, redirect to private, loops, `file:` and `gopher:`, userinfo, non-standard ports, oversized and compressed bodies) is refused; the URL never appears in logs, Sentry, `provider_calls` or events; limit of 5 feed registrations a day (04 section 5.26); status `applied` after confirm and the raw body is never stored.
 - Touches: `apps/api/hermi/providers/ics_feed.py`, `apps/api/hermi/security/ssrf.py`, `apps/worker/hermi_worker/jobs/fetch_ics_feed.py`, `apps/web/src/routes/import/`.
+- Kit: 05 6.30; none, follow DL section 11
 - Tests: SSRF table test with a fake resolver, redirect tests, gzip bomb test, log and Sentry scrub test, rate limit test, `IMPORT_SANDBOX` mode test.
 - Done: DoD plus the threat model updated with the feed import.
 
@@ -850,6 +884,7 @@ Conventions for every ticket:
 - Description: the `booking_import` action. The user pastes booking confirmation text (up to 12,000 characters, the single limits table of 04 section 5.26; the raw text is never stored, status `applied` after confirm); the server redacts personal data before any model call (names become "Traveler 1", emails, phone numbers, booking and confirmation codes, card-like and passport-like numbers, home addresses are removed; booking codes are re-attached locally from the original text, never taken from the model), Haiku extracts flights, stays and reservations as schema-validated items, each shown in a preview as "From your pasted text" (evidence label) before saving. 1 credit in the `explain` price class, refunded on an empty or failed extraction, AI consent required. Links inside pasted text are never fetched. Kill switch `ai.import`.
 - Accept: the outbound model request contains none of the test PII; output that fails validation is discarded; instructions hidden in pasted text do not change behavior; a pasted Airbnb or Vrbo confirmation works without any fetch; the user confirms every item before it is saved.
 - Touches: `apps/api/hermi/modules/ai/features/booking_import.py`, `apps/api/hermi/modules/trips/import_paste.py`, `apps/web/src/routes/import/`.
+- Kit: 05 6.30; none, follow DL section 11
 - Tests: a redaction corpus of 40 real-shaped confirmations asserting zero PII in the recorded request, extraction eval set (10 section 1.5), injection fixtures, refund test, consent test.
 - Done: DoD plus the redaction corpus and eval results saved in `docs/evals/`.
 
@@ -858,6 +893,7 @@ Conventions for every ticket:
 - Description: the first qualifying import on a trip (calendar file, calendar feed or pasted confirmations) earns a free Trip Pass for that trip, once per account, with the same limits as a paid Trip Pass (WF-065) and 90 days from grant, recorded as a `trip_passes` row with `source = 'import_reward'` (no store transaction) and an idempotent 40-credit grant. Conditions (settled): at least 3 items saved from the import including a flight or a stay, a verified email, no active pass on that trip and no active Plus; `grant_import_reward()` in 03 section 5.9 enforces them. Google Maps and pasted-places imports and calendar change confirmations never qualify. Plus owners are thanked but get no reward. Nothing is granted for empty or duplicate imports, and an import that does not qualify does not consume the reward. The reward is applied on confirm, when the import reaches status `applied` (04 section 5.26).
 - Accept: the reward is granted once per account and never twice for the same file or trip; junk imports under 3 items, imports with no flight or stay, unverified emails and Plus owners grant nothing and keep the reward available; the pass appears in trip settings as free; expiry works like a paid pass; admin can revoke it.
 - Touches: `apps/api/hermi/modules/billing/passes.py`, `apps/api/hermi/modules/trips/` (import hook), `apps/web/src/routes/import/`.
+- Kit: 05 6.30; none, follow DL section 11
 - Tests: once-per-account test, idempotency test under concurrent imports, minimum item test, flight-or-stay test, verified-email test, Plus owner test, places-only import test, revoke test.
 - Done: DoD.
 
@@ -866,6 +902,7 @@ Conventions for every ticket:
 - Description: on a chosen flight the user can add what they paid ("Mark as booked" plus price, stored as `chosen_flights.paid_minor` with `paid_currency`); the daily check reads the `booked_fare_drops` view, which matches airline, flight number and party size as well as route and dates, and applies the `setting_booked_fare_drop` thresholds times 100 (minor units); it compares current fares for the same route and dates and alerts when one is lower: "You paid $X, it is now $Y. Check the airline's change and credit rules." The copy never promises a refund or rebooking. The columns and the view exist since P04. Free accounts use cached fares (their one alert can be a booked-fare watch); Plus and Trip Pass follow live route limits. Settled thresholds: the fare must be at least 5 percent and at least $10 (converted) below what was paid, at most one alert per flight every 7 days, never a partner link; email now and push after WF-086. A booked fare with no check for 48 hours pauses the watch (stale pause) and says so. The "What did you pay?" prompt opens after "Yes, mark as booked" and after an imported flight is accepted, and the "Your booked fare" card shows on the chosen-flight and route cards (05 sections 6.10 and 6.32).
 - Accept: a lower fare that clears both thresholds triggers exactly one alert and a second within 7 days triggers none; a drop under 5 percent or under $10, and an equal or higher fare, trigger none; the alert shows the fare's source and age; copy passes the no-advice lint; a flight marked as departed stops watching; a booked fare with no matching observation in 48 hours pauses with a stale message; the "What did you pay?" prompt and the "Your booked fare" card show, including for an imported flight.
 - Touches: `apps/api/hermi/modules/flights/`, `apps/worker/hermi_worker/jobs/evaluate_price_alerts.py`, `apps/web/src/routes/flights/`.
+- Kit: 05 6.32; none, follow DL section 11
 - Tests: view matching test (airline, flight number, party), 48 hour stale pause test, prompt and card component tests, threshold tests (5 percent and $10 edges, times 100), 7-day repeat test, currency test, no-partner-link test, copy lint test.
 - Done: DoD.
 
@@ -874,6 +911,7 @@ Conventions for every ticket:
 - Description: a throwaway iOS test app (StoreKit configuration plus the RevenueCat SDK, `app_user_id` set to `users.id`) used to prove every product end to end before the Capacitor shell exists: Plus monthly, Plus annual (trial), Trip Pass, credit packs, cancel, refund, restore. It is deleted after WF-084 ships the real purchase flow. Needs a Mac or Xcode Cloud; App Store Connect products and the sandbox tester must exist.
 - Accept: each product purchased in the sandbox unlocks the right entitlement within seconds against staging; replaying the webhook grants nothing twice; results written to `docs/qa/purchase-harness.md`.
 - Touches: `apps/ios/harness/` (temporary), `docs/qa/`.
+- Kit: 05 8; none, follow DL section 11
 - Tests: the scenario list itself.
 - Done: DoD plus product metadata entered in App Store Connect.
 
@@ -882,6 +920,7 @@ Conventions for every ticket:
 - Description: search by email hash, id and other keys, masked list, profile tabs, per-record reveal with reason and rate limit.
 - Accept: no raw email or name in any list response; reveal audited; search never returns partial PII matches.
 - Touches: `apps/api/hermi/modules/admin/users.py`, `apps/web/src/routes/admin/users/`.
+- Kit: 08 section 5 and 08 6.2; none, follow DL section 11
 - Tests: serializer masking scan test, reveal limit test.
 - Done: DoD.
 
@@ -890,6 +929,7 @@ Conventions for every ticket:
 - Description: the subscriptions and store transactions screens, RevenueCat sync status, failed webhook list, dry-run replay, reconcile button, refund reversal visibility. Spec: [08](08-admin-control-center.md) section 6.3.
 - Accept: a failed event can be replayed without double grants; mismatches listed.
 - Touches: `apps/api/hermi/modules/admin/billing.py`, `apps/web/src/routes/admin/subscriptions/`.
+- Kit: 08 section 5 and 08 6.3; none, follow DL section 11
 - Tests: replay idempotency test, permission tests.
 - Done: DoD.
 
@@ -898,6 +938,7 @@ Conventions for every ticket:
 - Description: rollup jobs every 5 minutes and the overview (MAU, DAU, signups, trials, conversions, MRR, revenue by stream, AI spend versus budget, affiliate clicks and EPC, import and referral counts, alerts, kill rule card), with stale-data indicators. Spec: [08](08-admin-control-center.md) section 6.1.
 - Accept: each tile matches a hand query on seeded data; stale rollups warn; the kill rule numbers are correct; affiliate clicks and conversions appear (Month 4 exit).
 - Touches: `apps/api/hermi/modules/admin/overview.py`, `apps/worker/hermi_worker/jobs/rollups.py`, `apps/web/src/routes/admin/overview/`.
+- Kit: 08 section 5 and 08 6.1; none, follow DL section 11
 - Tests: rollup tests with fixtures, tile rendering tests.
 - Done: DoD plus the Month 4 gate review recorded.
 
@@ -906,6 +947,7 @@ Conventions for every ticket:
 - Description: the import screen lists entries named for TripIt, Tripsy, Wanderlog, Google Calendar and Google Maps (plain text, no logos), each opening the matching method with two or three steps for getting the data out of that app (05 section 6.30); `trip_imports.origin` records the entry (03 section 5.9) and the `origin` event property carries it. Adds the `places_text` source: `POST /imports/places` takes pasted place names (one per line, up to 20,000 characters and 200 places), matches each by place search (Geoapify, no AI, no credits) and returns candidates of kind `place` that import as ideas with no day; a single Google Maps list link returns `422 list_link_not_readable` (never opened) and the screen offers to keep the link as a note. The rival instructions are checked against each app's current help pages before merge and again before launch (2 non-ticket hours); where an app has no export the entry says so.
 - Accept: each entry opens the right method; pasting Wanderlog or Maps place names gives a preview with matched places and "Not the right place"; a pasted Maps list link is never requested (no network call, asserted); a places-only import never triggers the first-import reward; the entry is stored and no other parsing changes; no third-party logos.
 - Touches: `apps/api/hermi/modules/trips/import_places.py`, `apps/api/hermi/modules/places/`, `apps/web/src/routes/import/`.
+- Kit: 05 6.30; none, follow DL section 11
 - Tests: place-matching golden set (30 lists), no-network test for list links, reward exclusion test, origin analytics test, copy lint.
 - Done: DoD plus the rival help-page check dated in `docs/import-sources.md`.
 
@@ -932,6 +974,7 @@ Conventions for every ticket:
 - Description: `apps/ios` Capacitor project (bundled, no `server.url`), bundle id `world.hermi.ios` with Push, Associated Domains, Sign in with Apple, In-App Purchase and App Attest, icon and splash from the brand files, signing, Xcode Cloud or Fastlane build, build flag that excludes admin routes.
 - Accept: the app launches on a device against staging; the release build contains no admin code; CI produces a signed build.
 - Touches: `apps/ios/`, `apps/ios/fastlane/`, `apps/web/vite.config.ts`.
+- Kit: 05 5.2, 6.1; screens/01-welcome.html
 - Tests: native launch smoke test; bundle inspection script.
 - Done: DoD plus Apple Developer and Paid Applications Agreement status noted.
 
@@ -940,6 +983,7 @@ Conventions for every ticket:
 - Description: push plugin wiring, share, haptics, status bar, keyboard resize, secure storage (Keychain), in-app review (at most 3 a year, never after an error, never tied to a reward), app URL open, and `SFSafariViewController` through the Capacitor Browser plugin for affiliate links; a document picker for `.ics` import.
 - Accept: each plugin has a web fallback; partner links open in `SFSafariViewController`; the ICS file picker hands a file to WF-071; attribution loss measured against Safari and recorded.
 - Touches: `apps/web/src/lib/native/`, `apps/ios/plugins/`.
+- Kit: 05 5.2, 9.3, 11; none, follow DL section 11
 - Tests: plugin mock tests, device checklist.
 - Done: DoD.
 
@@ -964,6 +1008,7 @@ Conventions for every ticket:
 - Description: `@revenuecat/purchases-capacitor`, `logIn` and `logOut` tied to sign-in, products in App Store Connect (`hermi_plus_monthly`, `hermi_plus_annual` with 7-day trial on annual only, `hermi_trip_pass`, credit packs; ids as in [03-database-schema.md](03-database-schema.md) section 11.2), paywall purchase flow with price and period first, trial length and after-trial price, Terms and Privacy links, Restore on the paywall and in Settings, sync call after purchase. Replaces the WF-076 harness.
 - Accept: every sandbox purchase unlocks within seconds; Restore works on a second device; paywall text meets Guideline 3.1.2.
 - Touches: `apps/web/src/lib/native/purchases.ts`, `apps/web/src/routes/paywall/`.
+- Kit: 05 4.14, 6.27, 8; screens/07-paywall.html
 - Tests: mocked purchase flow tests; sandbox checklist in WF-102.
 - Done: DoD plus product metadata and review screenshots uploaded.
 
@@ -988,6 +1033,7 @@ Conventions for every ticket:
 - Description: preference center by type, quiet hours, per-trip mute.
 - Accept: preferences respected by the service; no marketing push without opt-in.
 - Touches: `apps/web/src/routes/settings/notifications.tsx`.
+- Kit: 05 6.29; none, follow DL section 11
 - Tests: component tests, service preference tests.
 - Done: DoD.
 
@@ -996,6 +1042,7 @@ Conventions for every ticket:
 - Description: trips are readable offline on every tier. A persisted TanStack Query cache for trip-scoped queries (30 day `gcTime`, `offlineFirst`), SQLite for critical data on iOS, "Download for offline" with automatic download within 7 days of departure, an offline banner, cached evidence labels and map tiles for the trip area where provider terms allow.
 - Accept: a full trip is browsable in airplane mode on a device on Free and Plus; the cache is cleared on sign-out and on account deletion; stale data is labeled.
 - Touches: `apps/web/src/lib/offline/`, `apps/web/src/app/providers.tsx`.
+- Kit: 05 6.33; none, follow DL section 11
 - Tests: persister tests, sign-out purge test, device test in airplane mode.
 - Done: DoD.
 
@@ -1004,6 +1051,7 @@ Conventions for every ticket:
 - Description: offline edits for notes, checkmarks and itinerary moves queue locally and sync on reconnect (last write wins per field, 409 conflicts shown with the latest row).
 - Accept: queued edits sync on reconnect; rejected edits show a toast; no edit is lost on app restart.
 - Touches: `apps/web/src/lib/offline/queue.ts`.
+- Kit: 05 6.33; none, follow DL section 11
 - Tests: mutation replay tests, conflict test, restart test.
 - Done: DoD.
 
@@ -1012,6 +1060,7 @@ Conventions for every ticket:
 - Description: a live subscribable feed `GET /trips/{trip_id}/calendar.ics?token=` authenticated by a per-trip secret token (stored as `calendar_token_hash`, rotated by `POST /trips/{id}/calendar-token`), with itinerary items and booked flights and stays as events with stable UIDs and correct time zones, an "Add to calendar" button (`webcal://`), `Cache-Control: private, max-age=300`. Private notes and exact prices are excluded.
 - Accept: a calendar app shows edits within its refresh interval; rotating the token kills the old URL immediately; the token never appears in logs; 60 requests a minute per token.
 - Touches: `apps/api/hermi/modules/itinerary/` (calendar feed), `apps/web/src/routes/trip-settings/`.
+- Kit: 05 6.31; none, follow DL section 11
 - Tests: golden file, token rotation test, privacy test, rate limit test, log scrub test.
 - Done: DoD.
 
@@ -1020,6 +1069,7 @@ Conventions for every ticket:
 - Description: full-screen presentation with a swipe story view in portrait and wake lock; a shareable read-only link view from `trip_share_links` (noindex by default, redacted address, prices and notes); PDF export from present mode (Free adds a small footer); the PDF uses a wheels-only PDF library (for example `reportlab` or `fpdf2`, not WeasyPrint).
 - Accept: share view shows no private notes or email; present mode works offline once cached; PDF matches the presentation; the Free footer is small and only on Free.
 - Touches: `apps/web/src/routes/present/`, `apps/api/hermi/modules/collaboration/` (share links), `apps/api/hermi/modules/itinerary/` (presentation data, PDF).
+- Kit: 05 6.19; none, follow DL section 11
 - Tests: privacy test on share payload, Playwright present-mode test, PDF golden test.
 - Done: DoD.
 
@@ -1028,6 +1078,7 @@ Conventions for every ticket:
 - Description: in-app deletion request with re-authentication, 30 day grace, hard delete of trip data and files (including import previews, referral links and calendar tokens), transfer or delete shared trips, delete the Supabase Auth user, revoke the Sign in with Apple token, warning that an Apple subscription is not cancelled. Adds `DELETE /me/ai-history`, writes the identity hash on deletion (so a re-created account does not get the taster or first-import pass again) and owns the `retention_sweep` job (WF-046 does not register it).
 - Accept: `DELETE /me/ai-history` removes the user's AI history; deletion writes the identity hash; the `retention_sweep` job runs here; after the sweep no row in any table references the user; shared trips transfer or delete as chosen; the confirmation email is sent; backups purge on their cycle (documented).
 - Touches: `apps/api/hermi/modules/auth/` (deletion), `apps/worker/hermi_worker/jobs/delete_account.py`.
+- Kit: 05 6.25, 6.28; none, follow DL section 11
 - Tests: end-to-end deletion test over all tables, grace cancel test.
 - Done: DoD.
 
@@ -1036,6 +1087,7 @@ Conventions for every ticket:
 - Description: "Export my data" as JSON plus ICS (and a PDF with a wheels-only library such as `reportlab` or `fpdf2`, not WeasyPrint) through a job, stored in R2, emailed link with expiry, available on every tier.
 - Accept: export includes all user-owned data (checked against a list generated from the schema); link expires; another user cannot fetch it.
 - Touches: `apps/api/hermi/modules/auth/` (export), `apps/worker/hermi_worker/jobs/export_user_data.py`.
+- Kit: 05 6.25, 6.28; none, follow DL section 11
 - Tests: completeness test, expiry test, authorization test.
 - Done: DoD.
 
@@ -1044,6 +1096,7 @@ Conventions for every ticket:
 - Description: profile and settings screens (AI toggle, analytics opt-out, hide booking links, notifications, export, delete), privacy policy, terms, affiliate disclosure, AI disclaimer, licenses screen (data attributions), consent history.
 - Accept: pages public and linked from Settings and sign-in; policy names Anthropic, affiliate click logging and how imports are processed.
 - Touches: `apps/web/src/routes/legal/`, `apps/web/src/routes/settings/`.
+- Kit: 05 6.25, 6.28; none, follow DL section 11
 - Tests: link presence tests.
 - Done: DoD plus counsel review noted or explicitly deferred.
 
@@ -1052,6 +1105,7 @@ Conventions for every ticket:
 - Description: the onboarding question "Coming from TripIt, Tripsy or Wanderlog?" with answers (TripIt, Tripsy, Wanderlog, another app, starting fresh); the first three lead to the matching entry on the import screen (WF-121) and mention the free Trip Pass for a first import that adds 3 or more items including a flight or a stay, only to accounts without Plus; "starting fresh" continues to the first-trip wizard. Skippable. The answer is stored as an enum for analytics only.
 - Accept: each answer leads to the right screen; skipping loses nothing; the reward is described accurately and only to Free accounts.
 - Touches: `apps/web/src/routes/onboarding/`.
+- Kit: 05 6.1; screens/01-welcome.html
 - Tests: component tests, Playwright switching flow.
 - Done: DoD.
 
@@ -1060,6 +1114,7 @@ Conventions for every ticket:
 - Description: VoiceOver labels and focus order, Dynamic Type, reduce motion, axe in Playwright, the contrast unit test over every Hermi palette token pair (05 section 2.3) including `--tp-edge`, `--tp-warning-ink` and `--tp-sky-ink` on `--tp-sky` with Increase Contrast swapping `--tp-rule` and `--tp-edge` to ink, `react-i18next` extraction of copy, `PrivacyInfo.xcprivacy` with required-reason API declarations, Info.plist purpose strings, privacy label answers matching click logging.
 - Accept: no axe critical issues; the token pairs pass in light, dark and Increase Contrast; all permission strings present; label answers match the policy.
 - Touches: `apps/web/src/lib/i18n/`, `apps/ios/App/PrivacyInfo.xcprivacy`, `packages/tokens/` (contrast test).
+- Kit: 05 2.3, 9; none, follow DL section 11
 - Tests: axe suite, token contrast test, string extraction test.
 - Done: DoD.
 
@@ -1068,6 +1123,7 @@ Conventions for every ticket:
 - Description: profile and fix the cold start (under 2 seconds to interactive on an iPhone 12 with a cached trip), main JS chunk under 500 kB gzip, map and calendar smoothness in the WebView, empty and error states checked on every screen, skeletons, reduced-motion behavior.
 - Accept: budgets met and recorded; no screen lacks an empty state; map stays smooth with 200 markers on a device.
 - Touches: `apps/web/src/` (routes and components), `apps/web/vite.config.ts`.
+- Kit: 05 4.16 to 4.18 and 6 (every screen); none, follow DL section 11
 - Tests: bundle size check in CI, a timed cold start script, Playwright empty-state sweep.
 - Done: DoD.
 
@@ -1084,6 +1140,7 @@ Conventions for every ticket:
 - Description: revenue by network, program and placement, conversion import status, unmatched share, and a disclosure audit that lists every placement and whether it renders the disclosure. Spec: [08](08-admin-control-center.md) section 6.7 (the link checker and two-person template approval are Phase 2). Adds the "Mark a payout received" action and `POST /v1/admin/affiliate/payouts`.
 - Accept: numbers match `affiliate_conversions`; a placement without disclosure shows as a failure; "Mark a payout received" posts to `POST /v1/admin/affiliate/payouts` and the screen shows it.
 - Touches: `apps/api/hermi/modules/admin/affiliate.py`, `apps/web/src/routes/admin/`.
+- Kit: 08 section 5 and 08 6.7; none, follow DL section 11
 - Tests: aggregation tests, disclosure audit test.
 - Done: DoD.
 
@@ -1100,6 +1157,7 @@ Conventions for every ticket:
 - Description: Maestro native smoke flows (sign in, create trip, import an ICS file, open offline, purchase in sandbox), automated TestFlight upload with dSYM and source map upload to Sentry, internal testers from week 19 and external testers (30) from week 21.
 - Accept: a tagged build reaches TestFlight automatically; crash reports symbolicated.
 - Touches: `apps/ios/fastlane/` or Xcode Cloud workflows, `apps/web/e2e/maestro/`.
+- Kit: 05 6.3, 6.6, 6.27, 6.30, 6.33; none, follow DL section 11
 - Tests: the Maestro flows.
 - Done: DoD.
 
@@ -1124,6 +1182,7 @@ Conventions for every ticket:
 - Description: after a feed import is applied the person can switch on "Keep checking this calendar" (off by default, never turned on for them): `PUT /imports/{id}/polling` calls `set_import_polling()` (03 section 5.9), keeps the feed URL encrypted (`feed_url_enc`, `FIELD_ENCRYPTION_KEY`) only while on, at most 3 polled feeds per account. The `poll_import_feeds` scheduler job (every 30 minutes, leader only) enqueues `fetch_import_feed` for due rows; each feed is read every 6 hours through the SSRF guard with a conditional request and a content hash (`last_content_hash`). A change builds a diff against the import's items (by `import_uid`) into `pending_changes`, sends a push and in-app notice, and the "Calendar changed" sheet lists new, changed (before and after) and removed events; `POST /imports/{id}/changes/confirm` applies only the ticked changes; nothing is ever applied automatically and removed events are never deleted for the person. Polling stops after 3 failures in a row (`calendar_poll_stopped`), 7 days after the trip ends, or when switched off (URL and pending changes deleted). Kill switches `import.polling` and `import.all`; flag `calendar_feed_polling`; `setting_calendar_polling`.
 - Accept: an unchanged feed creates no preview; a changed feed creates one preview and one notice; nothing changes in the trip until the person confirms; turning the switch off deletes the stored URL; the third failure stops polling and tells the person; the fourth polled feed is refused; the URL never appears in logs, Sentry, `provider_calls` or events; a polling confirmation never earns the import reward.
 - Touches: `apps/api/hermi/modules/imports/`, `apps/worker/hermi_worker/jobs/poll_import_feeds.py`, `apps/web/src/routes/import/`.
+- Kit: 05 6.30; none, follow DL section 11
 - Tests: poll schedule test (6 hours), content hash test, diff test (added, changed, removed), confirm-only-ticked test, failure and stop tests, encryption and deletion tests, log scrub test, limit test, SSRF table reuse.
 - Done: DoD plus the threat model updated for stored feed addresses.
 
@@ -1132,6 +1191,7 @@ Conventions for every ticket:
 - Description: the four-step flow in 05 section 6.38: paste, choose what to check (price shown first, per-run cap, confirm at 6 credits or more), results with verdict chips and evidence labels, and "Add to trip"; entry points on the Trips home "+" menu, the trip menu, the import screen and the AI sheet; "Plan checks" list with 30-day retention; credit-out paywall `out_of_credits_verify` (web says "Upgrade in the iOS app"); the recheck control from WF-120 on imported items; events in 10 section 4. Words and icons, never color alone.
 - Accept: a Free account cannot tick more than 5 items and sees the price before the check; results show the evidence label for every green and amber row; red rows are unticked for import; the header reads "Checked 7 of 9..." and never says the plan is verified; leaving mid-run and returning shows progress; axe passes on every step.
 - Touches: `apps/web/src/routes/verify/`, `apps/web/src/components/verdict-chip/`, `apps/web/src/routes/trips/`.
+- Kit: 05 6.38; none, follow DL section 11
 - Tests: component tests per state, Playwright end-to-end with a fake Anthropic client, axe checks, a copy lint test for the forbidden words ("verified", "safe to book").
 - Done: DoD.
 
@@ -1140,6 +1200,7 @@ Conventions for every ticket:
 - Description: `GET /public/status` (04 section 5.28) mirrors the five component states of the hosted status page (02 section 8.1) and is cached 30 seconds; the app shows the quiet banner "Fares are delayed right now. Saved trips still work." with a "Service status" link only when a component is degraded, and Settings has "Service status". The banner never appears for one person's failed request.
 - Accept: degrading a component in staging shows the banner within a minute and clearing it removes it; the endpoint answers without auth and without touching the database more than once a minute; offline the app shows the offline banner instead.
 - Touches: `apps/api/hermi/modules/admin/` (status read), `apps/api/hermi/api/public.py`, `apps/web/src/components/status-banner/`.
+- Kit: 05 6.41; none, follow DL section 11
 - Tests: endpoint contract test, banner component tests, caching test.
 - Done: DoD.
 
@@ -1148,6 +1209,7 @@ Conventions for every ticket:
 - Description: `POST /imports/maps-file` reads a Google Takeout saved-list export (CSV, GeoJSON or KML, up to 5 MB and 200 places) locally and matches each title by place search (no AI, no credits); candidates of kind `place` import as ideas; notes and any Google Maps URLs stay as plain text and are never followed; a pasted list link is never opened (WF-121 already guides the export).
 - Accept: golden exports from 3 Takeout variants import with the right matches; a file with no places says so; 201 places import the first 200 and warn; no network request is made for any URL in the file.
 - Touches: `apps/api/hermi/modules/trips/import_maps.py`, `apps/web/src/routes/import/`.
+- Kit: 05 6.30; none, follow DL section 11
 - Tests: golden files (CSV, GeoJSON, KML), no-network test, limits test, reward exclusion test.
 - Done: DoD.
 
@@ -1166,6 +1228,7 @@ Conventions for every ticket:
 - Description: ticket intake (in-app contact with version, device, user id and error id attached; email to support), linking to users, replies via Resend, macros from `admin/macros/*.md` (including import problems and refund rules), SLA timers. Spec: [08](08-admin-control-center.md) section 6.11.
 - Accept: a ticket links to its user automatically; a reply uses a macro; overdue tickets flag; refund replies prompt an audited action.
 - Touches: `apps/api/hermi/modules/admin/support.py`, `apps/web/src/routes/admin/support/`.
+- Kit: 08 section 5 and 08 6.11; none, follow DL section 11
 - Tests: intake tests, macro rendering tests, SLA tests.
 - Done: DoD.
 
@@ -1174,6 +1237,7 @@ Conventions for every ticket:
 - Description: the basic content reports queue for reported shared trips, public sample trips and AI answers; actions (dismiss, hide, disable link, flag a research cache entry, suspend sharing for a user); in-app "Report" and "Block"; 24 hour response alert. Shared and public pages link here.
 - Accept: a report reaches the queue; disabling a link takes effect immediately and removes the page from the sitemap; flagged cache entries are not served; the reporter gets an acknowledgement.
 - Touches: `apps/api/hermi/modules/admin/moderation.py`, `apps/web/src/components/report/`, `apps/web/src/routes/admin/`.
+- Kit: 08 section 5 and 08 6.12; none, follow DL section 11
 - Tests: queue tests, action tests, takedown timing test.
 - Done: DoD.
 
@@ -1182,6 +1246,7 @@ Conventions for every ticket:
 - Description: server-rendered pages (sub-steps pages and sitemap; this ticket builds only the server-rendered pages) that work without JavaScript: sample trips at `/samples/{slug}` (written by Hermi from a system account, always indexable, reusing the WF-133 sample routes of 04 section 5.28, with "Use this plan" into the visitor's account after sign-up) and shared-trip pages at `/s/{shareId}` (owner-chosen; public pages carry `noindex` unless `trip_share_links.indexable`, and an "Let search engines find this trip" toggle that adds a sitemap entry). Both redact addresses, prices, notes and traveler names; carry Open Graph tags, a sitemap, a report link, the evidence labels and a sign-up call to action; no partner buttons in Phase 1. Kill switch `public_pages`.
 - Accept: pages render without JavaScript; private data never appears in the HTML, JSON or meta tags; disabling a link returns 410 and drops it from the sitemap within 5 minutes; robots rules match the owner's choice (`noindex` unless `trip_share_links.indexable`); "Use this plan" on a sample creates an independent trip.
 - Touches: `apps/api/hermi/modules/collaboration/` (public pages), `apps/web/src/routes/public/`, `apps/web/public/` (robots and sitemap), `apps/web/vite.config.ts`.
+- Kit: 05 6.34, 6.35; none, follow DL section 11
 - Tests: privacy scan of rendered pages against sentinel strings, sitemap test, takedown test, no-JavaScript render test, Lighthouse check.
 - Done: DoD.
 
@@ -1190,6 +1255,7 @@ Conventions for every ticket:
 - Description: each user gets a referral link in Settings ("Invite friends"); when a referred person signs up, verifies their email and creates their first trip with dates, both accounts get 20 credits (settled values in the `setting_referral_credits` flag; `credit_grants` kind `promo`, expiring after 12 months; referral credits never raise the provider-spend ceiling). Uses the `referral_codes` and `referral_rewards` tables and the functions in 03 section 5.9. Abuse controls: no self-referral (same device key, IP hash or normalized email), a referrer is paid for at most 5 rewards in a rolling 30 days and 10 in a calendar year (the referred person still gets theirs), unique per referred account, rewards only from attested devices or verified email, reversal on refund or abuse flag, never tied to a rating or review. Kill switch `referrals.grant`.
 - Accept: a valid referral grants 20 credits to both sides once, expiring in 12 months; the sixth reward in 30 days and the eleventh in a calendar year pay the referrer nothing and the referred person in full; self, duplicate and farmed referrals grant nothing and are logged; admin can revoke and the ledger reverses; the referral link carries no user id or email.
 - Touches: `apps/api/hermi/modules/credits/` (grants), `apps/api/hermi/modules/auth/` (referrals), `apps/web/src/routes/settings/`.
+- Kit: 05 6.37; none, follow DL section 11
 - Tests: reward-once test, self-referral tests, velocity and cap tests (5 per 30 days, 10 per year), expiry test, no-ceiling-raise test, reversal test, idempotency under concurrency.
 - Done: DoD.
 
@@ -1198,6 +1264,7 @@ Conventions for every ticket:
 - Description: honest, server-rendered `/vs/tripit` and `/vs/wanderlog` pages (more later) with a fact table where every claim has a public source URL and a "checked on" date in `docs/vs/facts.json`, what the other app does better, how to switch (a link to the import chooser), and a correction email. Facts are checked by hand; nothing is scraped. No competitor names in App Store metadata.
 - Accept: each fact has a source and date under 90 days old (CI warns); pages render without JavaScript; no claim is unsourced; pages link to sign-up and the import flow.
 - Touches: `apps/web/src/routes/vs/`, `apps/web/public/` (sitemap), `docs/vs/facts.json`.
+- Kit: 05 6.36; none, follow DL section 11
 - Tests: facts schema and freshness test, no-JavaScript render test, broken link check.
 - Done: DoD plus the owner's read-through for fairness.
 
@@ -1230,6 +1297,7 @@ Conventions for every ticket:
 - Description: grant credits, extend a pass, revoke an import-reward pass or referral credit, force sign-out, start export, queue or process deletion, hold AI; role limits and confirmation tiers. Comping subscriptions and impersonation are Phase 2.
 - Accept: limits enforced (for example support 50 credits a grant); each action audited with before and after.
 - Touches: `apps/api/hermi/modules/admin/user_actions.py`.
+- Kit: 08 section 5 and 08 6.2; none, follow DL section 11
 - Tests: limit tests per role, audit tests, idempotency tests.
 - Done: DoD.
 
@@ -1238,6 +1306,7 @@ Conventions for every ticket:
 - Description: feature flags screen, provider health (SerpApi, Travelpayouts, Geoapify, Anthropic, Resend, RevenueCat), system health (queues, failures, webhook backlog, deploys), job retry. Spec: [08](08-admin-control-center.md) sections 6.6, 6.13 and 6.14. Experiments are Phase 2.
 - Accept: flags cannot touch disclosure or ranking keys; retry is idempotent; provider status matches probes.
 - Touches: `apps/api/hermi/modules/admin/flags.py`, `providers.py`, `system.py`, `apps/web/src/routes/admin/`.
+- Kit: 08 section 5 and 08 6.6, 6.13 and 6.14; none, follow DL section 11
 - Tests: guardrail tests, retry idempotency test.
 - Done: DoD.
 
@@ -1262,6 +1331,7 @@ Conventions for every ticket:
 - Description: the public pages `/how-we-earn` (from `GET /public/how-we-earn`, built from `affiliate_programs` so every active partner is listed, with the rules, a sample labeled button and live counts) and `/billing` (plain billing text, prices from the same configuration as the paywall), both in the marketing shell and in the app from Account and the paywall legal row; the plan card gets a first-level "Cancel subscription" row that opens the App Store's subscription sheet (`Purchases.showManageSubscriptions()`; on the web "Cancel in the iOS app" with the store page link); `Entitlements.cancel_url`; the trial reminder, receipt and billing problem emails carry the cancel link; `/vs` pages and the App Store listing link to `/how-we-earn`. No affiliate card, paywall or survey on any of these.
 - Accept: adding an active `affiliate_programs` row makes it appear on `/how-we-earn` with no code change; the prices on `/billing` match the paywall (a test compares them); the cancel row is reachable in one tap from the Account screen and opens the subscription sheet in the sandbox build; the trial reminder email contains the link; the pages pass axe and have no em dashes.
 - Touches: `apps/web/src/routes/how-we-earn/`, `apps/web/src/routes/billing/`, `apps/api/hermi/api/public.py`, `apps/api/hermi/modules/affiliate/`, `apps/web/src/routes/account/`.
+- Kit: 05 6.40; none, follow DL section 11
 - Tests: partner-list generation test, price-match test, cancel row test, email template test, copy lint.
 - Done: DoD.
 
@@ -1270,6 +1340,7 @@ Conventions for every ticket:
 - Description: the web app manifest (name, icons, theme color sky `#2AA5FF`, standalone display, start URL), a service worker that keeps opened trips readable offline on the web (reusing WF-088), the public page `/install/android` (three steps with screenshots for Chrome, a note for Samsung Internet, what works and what does not yet, 05 section 6.42), the dismissible "Add Hermi to your home screen" card on Android Chrome after the first trip (once every 30 days at most, the browser's own install prompt), and a "Install on Android" row in Help. Copy never claims a Play Store app or push notifications.
 - Accept: Chrome on Android offers "Install app"; the installed app opens a trip offline; the card never shows before a trip exists, on iOS or when already installed; the guide's screenshots match the current Chrome menus on the day of release.
 - Touches: `apps/web/public/manifest.webmanifest`, `apps/web/src/sw.ts`, `apps/web/src/routes/install/`, `apps/web/src/components/install-card/`.
+- Kit: 05 6.42; none, follow DL section 11
 - Tests: Lighthouse PWA check in CI, component tests for the card rules, Playwright Pixel 7 test for the manifest and offline read.
 - Done: DoD.
 
