@@ -1,0 +1,168 @@
+# Render blueprint for Hermi (WF-009). Staging and production are separate services and databases.
+#
+# Secrets never appear here. Per-service connection strings are `sync: false` (Render asks for them
+# in the dashboard on first sync). Everything else secret (Supabase, Anthropic, Resend, APNs, Sentry,
+# Cloudflare Access and the rest of 02-architecture.md section 7.1 marked Secret) lives in the
+# dashboard env groups `hermi-staging` (staging) and `hermi-prod-shared`, `hermi-prod-api`,
+# `hermi-prod-worker` (production, 02 section 7.2), referenced with `fromGroup`.
+# AI_PROVIDER is pinned to anthropic_api: claude_cli never runs on a server.
+#
+# Deploys are not automatic. The GitHub workflows (WF-009.2) deploy an image digest: staging on merge
+# to main, production only after approval of the `production` GitHub environment.
+# The web app is not here: it ships from Cloudflare Pages (infra/cloudflare/pages.md).
+# Plans are starting sizes; change them here, never in the dashboard.
+
+services:
+  - type: web
+    name: hermi-api-staging
+    runtime: image
+    image:
+      url: ghcr.io/avillalv/hermi
+    region: oregon
+    plan: starter
+    healthCheckPath: /health/ready
+    autoDeploy: false
+    # Runs before new instances take traffic. `hermi migrate` takes pg_advisory_lock(0x4d494752) and uses
+    # MIGRATION_DATABASE_URL (02 section 12); it lands with WF-011. `hermi seed` (idempotent) is a
+    # placeholder: it is not yet in cli.py and no ticket owns it yet.
+    # Check at first deploy: if Render replaces only CMD and keeps the image ENTRYPOINT (`hermi`),
+    # drop the leading `hermi` words here (WF-009.2 or owner check).
+    preDeployCommand: sh -c "hermi migrate && hermi seed"
+    dockerCommand: hermi api --host 0.0.0.0
+    envVars:
+      - fromGroup: hermi-staging
+      - {key: ENVIRONMENT, value: staging}
+      - {key: AI_PROVIDER, value: anthropic_api}
+      - {key: AUTH_MODE, value: supabase}
+      - {key: PUBLIC_API_URL, value: "https://api.staging.hermi.world"}
+      - {key: PUBLIC_WEB_URL, value: "https://app.staging.hermi.world"}
+      - {key: CORS_ALLOWED_ORIGINS, value: "https://app.staging.hermi.world,capacitor://localhost"}
+      - {key: API_DOCS_ENABLED, value: "true"}
+      - {key: SCHEDULER_ENABLED, value: "false"}
+      - {key: ADMIN_AUTH_MODE, value: cf_access}
+      - {key: STORAGE_BACKEND, value: r2}
+      - {key: EMAIL_BACKEND, value: resend}
+      - {key: PROVIDERS_MODE, value: live}
+      - {key: LOG_LEVEL, value: INFO}
+      - {key: DATABASE_URL, sync: false}
+      - {key: DATABASE_URL_SYSTEM, sync: false}
+      - {key: DATABASE_URL_ADMIN, sync: false}
+      - {key: MIGRATION_DATABASE_URL, sync: false}
+
+  - type: worker
+    name: hermi-worker-staging
+    runtime: image
+    image:
+      url: ghcr.io/avillalv/hermi
+    region: oregon
+    plan: starter
+    autoDeploy: false
+    dockerCommand: hermi worker --lanes api,ai,notify,batch
+    envVars:
+      - fromGroup: hermi-staging
+      - {key: ENVIRONMENT, value: staging}
+      - {key: AI_PROVIDER, value: anthropic_api}
+      - {key: PUBLIC_API_URL, value: "https://api.staging.hermi.world"}
+      - {key: PUBLIC_WEB_URL, value: "https://app.staging.hermi.world"}
+      - {key: WORKER_LANES, value: "api,ai,notify,batch"}
+      - {key: WORKER_CONCURRENCY_API, value: "4"}
+      - {key: WORKER_CONCURRENCY_AI, value: "2"}
+      - {key: WORKER_CONCURRENCY_NOTIFY, value: "4"}
+      - {key: WORKER_CONCURRENCY_BATCH, value: "1"}
+      # The scheduler leader runs inside the worker at first (05-infrastructure).
+      - {key: SCHEDULER_ENABLED, value: "true"}
+      - {key: AUTH_MODE, value: supabase}
+      - {key: ADMIN_AUTH_MODE, value: cf_access}
+      - {key: STORAGE_BACKEND, value: r2}
+      - {key: EMAIL_BACKEND, value: resend}
+      - {key: PROVIDERS_MODE, value: live}
+      - {key: LOG_LEVEL, value: INFO}
+      - {key: DATABASE_URL, sync: false}
+      - {key: DATABASE_URL_SYSTEM, sync: false}
+      - {key: DATABASE_URL_ADMIN, sync: false}
+
+  - type: web
+    name: hermi-api-prod
+    runtime: image
+    image:
+      url: ghcr.io/avillalv/hermi
+    region: oregon
+    plan: standard
+    healthCheckPath: /health/ready
+    autoDeploy: false
+    # Runs before new instances take traffic. `hermi migrate` takes pg_advisory_lock(0x4d494752) and uses
+    # MIGRATION_DATABASE_URL (02 section 12); it lands with WF-011. `hermi seed` (idempotent) is a
+    # placeholder: it is not yet in cli.py and no ticket owns it yet.
+    # Check at first deploy: if Render replaces only CMD and keeps the image ENTRYPOINT (`hermi`),
+    # drop the leading `hermi` words here (WF-009.2 or owner check).
+    preDeployCommand: sh -c "hermi migrate && hermi seed"
+    dockerCommand: hermi api --host 0.0.0.0
+    envVars:
+      - fromGroup: hermi-prod-shared
+      - fromGroup: hermi-prod-api
+      - {key: ENVIRONMENT, value: production}
+      - {key: AI_PROVIDER, value: anthropic_api}
+      - {key: AUTH_MODE, value: supabase}
+      - {key: PUBLIC_API_URL, value: "https://api.hermi.world"}
+      - {key: PUBLIC_WEB_URL, value: "https://app.hermi.world"}
+      - {key: CORS_ALLOWED_ORIGINS, value: "https://app.hermi.world,capacitor://localhost"}
+      - {key: API_DOCS_ENABLED, value: "false"}
+      - {key: SCHEDULER_ENABLED, value: "false"}
+      - {key: ADMIN_AUTH_MODE, value: cf_access}
+      - {key: STORAGE_BACKEND, value: r2}
+      - {key: EMAIL_BACKEND, value: resend}
+      - {key: PROVIDERS_MODE, value: live}
+      - {key: LOG_LEVEL, value: INFO}
+      - {key: DATABASE_URL, sync: false}
+      - {key: DATABASE_URL_SYSTEM, sync: false}
+      - {key: DATABASE_URL_ADMIN, sync: false}
+      - {key: MIGRATION_DATABASE_URL, sync: false}
+
+  - type: worker
+    name: hermi-worker-prod
+    runtime: image
+    image:
+      url: ghcr.io/avillalv/hermi
+    region: oregon
+    plan: standard
+    autoDeploy: false
+    dockerCommand: hermi worker --lanes api,ai,notify,batch
+    envVars:
+      - fromGroup: hermi-prod-shared
+      - fromGroup: hermi-prod-worker
+      - {key: ENVIRONMENT, value: production}
+      - {key: AI_PROVIDER, value: anthropic_api}
+      - {key: PUBLIC_API_URL, value: "https://api.hermi.world"}
+      - {key: PUBLIC_WEB_URL, value: "https://app.hermi.world"}
+      - {key: WORKER_LANES, value: "api,ai,notify,batch"}
+      - {key: WORKER_CONCURRENCY_API, value: "30"}
+      - {key: WORKER_CONCURRENCY_AI, value: "6"}
+      - {key: WORKER_CONCURRENCY_NOTIFY, value: "50"}
+      - {key: WORKER_CONCURRENCY_BATCH, value: "2"}
+      # The scheduler leader runs inside the worker at first (05-infrastructure).
+      - {key: SCHEDULER_ENABLED, value: "true"}
+      - {key: AUTH_MODE, value: supabase}
+      - {key: ADMIN_AUTH_MODE, value: cf_access}
+      - {key: STORAGE_BACKEND, value: r2}
+      - {key: EMAIL_BACKEND, value: resend}
+      - {key: PROVIDERS_MODE, value: live}
+      - {key: LOG_LEVEL, value: INFO}
+      - {key: DATABASE_URL, sync: false}
+      - {key: DATABASE_URL_SYSTEM, sync: false}
+      - {key: DATABASE_URL_ADMIN, sync: false}
+
+databases:
+  # Postgres 18. Point-in-time recovery needs a paid plan (basic and up); free plans have none.
+  # Keep PITR on, 7 days at launch (05-infrastructure, backups).
+  - name: hermi-db-staging
+    databaseName: hermi
+    postgresMajorVersion: "18"
+    plan: basic-1gb
+    region: oregon
+    ipAllowList: []
+  - name: hermi-db-prod
+    databaseName: hermi
+    postgresMajorVersion: "18"
+    plan: pro-4gb
+    region: oregon
+    ipAllowList: []
