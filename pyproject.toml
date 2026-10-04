@@ -24,3 +24,9 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["hermi", "hermi_worker"]
+
+[tool.ruff.lint.per-file-ignores]
+# Raw SQL and long assertion strings read better unwrapped.
+"apps/api/hermi/migrations/**" = ["E501"]
+"apps/api/tests/test_migrations.py" = ["E501"]
+"apps/api/hermi/db.py" = ["E501"]

@@ -262,3 +262,15 @@ def refuse_tests_in_production() -> None:
     env = os.environ.get("ENVIRONMENT") or dotenv_values(ROOT_ENV_FILE).get("ENVIRONMENT") or ""
     if env.strip().lower() == "production":
         raise ConfigError("Tests refuse to run when ENVIRONMENT=production")
+
+
+def migration_database_url() -> str:
+    """The migration login URL (hermi_migrate_login). Process env beats .env. Raises ConfigError."""
+    url = os.environ.get("MIGRATION_DATABASE_URL") or dotenv_values(ROOT_ENV_FILE).get(
+        "MIGRATION_DATABASE_URL"
+    )
+    if not url:
+        raise ConfigError(
+            "MIGRATION_DATABASE_URL is not set. Run npm run setup, then npm run db:init."
+        )
+    return url
