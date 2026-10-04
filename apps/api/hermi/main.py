@@ -1,11 +1,29 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from hermi import health
-from hermi.config import Settings, load_settings
+from hermi import api_v1, db, errors, health
+from hermi.config import LOCAL_ENVIRONMENTS, Settings, load_settings
 from hermi.logging_setup import setup_logging
+from hermi.modules.auth.router import dev_router
 from hermi.modules.notifications import waitlist
+from hermi.security.idempotency import IdempotencyMiddleware
+from hermi.security.jwt import TokenVerifier
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    # The app engine refuses an unsafe login here, so a misconfigured API never serves a request.
+    s: Settings = app.state.settings
+    app.state.engine = db.open_app_engine(s) if s.database_url else None
+    try:
+        yield
+    finally:
+        if app.state.engine is not None:
+            app.state.engine.dispose()
+        db.dispose_system_engines()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -13,8 +31,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # An ASGI start does not know its bind host; assume non-loopback so claude_cli is refused.
     settings = settings or load_settings(bind_host="0.0.0.0")
     setup_logging(settings.log_level)
-    app = FastAPI(title="Hermi API")
+    app = FastAPI(title="Hermi API", lifespan=_lifespan)
     app.state.settings = settings
+    app.state.verifier = TokenVerifier(settings)
+    errors.register(app)
 
     @app.get("/health/live")
     def live() -> dict[str, str]:
@@ -29,13 +49,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # The landing page on Cloudflare Pages posts here cross-origin.
     # List its origin in CORS_ALLOWED_ORIGINS.
     origins = [o.strip() for o in settings.cors_allowed_origins.split(",") if o.strip()]
+    # Innermost, so CORS and the request id wrap its errors.
+    app.add_middleware(IdempotencyMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
-        allow_methods=["POST"],
-        allow_headers=["Content-Type"],
+        allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
+        allow_headers=[
+            "Content-Type",
+            "Authorization",
+            "Idempotency-Key",
+            "If-Match",
+            "If-None-Match",
+        ],
+        expose_headers=["ETag", "Retry-After", "Idempotent-Replay", "X-Request-Id", "Location"],
     )
+    app.add_middleware(errors.RequestIdMiddleware)  # last added = outermost, wraps CORS
     waitlist.register(app)
+    app.include_router(api_v1.router)
+    if settings.auth_mode == "dev" and settings.environment in LOCAL_ENVIRONMENTS:
+        app.include_router(dev_router, prefix="/v1")  # absent from every other OpenAPI
     return app
 
 

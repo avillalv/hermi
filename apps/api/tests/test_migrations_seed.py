@@ -48,13 +48,13 @@ def _counts(c):
 # --- chain (no database needed) ----------------------------------------------------------------------
 
 
-def test_chain_is_one_linear_head_0001_to_0015():
+def test_chain_is_one_linear_head_0001_to_0016():
     s = ScriptDirectory.from_config(_alembic_cfg())
-    assert s.get_heads() == ["0015_seed"]
+    assert s.get_heads() == ["0016_bootstrap_subject"]
     revs = list(s.walk_revisions())  # head first
-    assert len(revs) == 15
+    assert len(revs) == 16
     ids = [r.revision for r in reversed(revs)]
-    assert [i[:4] for i in ids] == [f"{n:04d}" for n in range(1, 16)]
+    assert [i[:4] for i in ids] == [f"{n:04d}" for n in range(1, 17)]
     assert all(r.down_revision == (ids[i - 1] if i else None) for i, r in enumerate(reversed(revs)))
 
 

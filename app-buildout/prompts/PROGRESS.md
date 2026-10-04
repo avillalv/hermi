@@ -4,31 +4,7 @@ The build's memory. Every autopilot session updates this file in its pull reques
 
 ## Current prompt
 
-04, database foundation and schemas (branch `phase1/p04-database-foundation`). Lands 03 section 10 `0001` to `0015` as one linear Alembic chain, one revision group per step, in the prompt's ticket order (which is also the revision order). Eleven steps, one session each:
-
-1. WF-011 Migration framework and roles: add SQLAlchemy 2, Alembic and Procrastinate (all in the README stack) to `apps/api/pyproject.toml`; `apps/api/alembic.ini`, `apps/api/hermi/migrations/` (`env.py` logging in as `hermi_migrate_login` via `MIGRATION_DATABASE_URL`, `lock_timeout` and `statement_timeout`, `pg_advisory_lock` around `upgrade head`, `NAMING_CONVENTION` of 03 section 2), `0001_setup` (03 section 3 plus the role check that stops with "run `npm run db:init`"), `apps/api/hermi/db.py` (engines, the startup check that the app login is no superuser, `BYPASSRLS`, owner or owner member), a Python UUIDv7 helper, `hermi migrate` in `cli.py` (replaces the placeholder), pytest database fixtures (`TEST_DATABASE_URL` app login, `TEST_DATABASE_URL_SYSTEM`, `TEST_MIGRATION_DATABASE_URL`), `bootstrap.sql` idempotency check, the expand and contract policy in `.claude/rules/database-migrations.md`. Tests: migration from empty, head count, role privileges (`hermi_app` cannot run DDL), role missing.
-2. WF-012.1 `0002_identity` and `0003_reference_catalog` (03 sections 5.1 to 5.3) with models in `modules/auth/models.py` and the reference and catalog models.
-3. WF-012.2 `0004_trips_people` (5.4, 5.5: owner-member trigger, `redeem_trip_invite`, `transfer_trip_owner`) with `modules/{trips,collaboration}/models.py`, Pydantic schemas, and the reusable schema-vs-DDL comparison test. Constraint tests (unique member per trip, valid roles).
-4. WF-022.1 `0005_ai` (5.6, the section 9 partition functions and first partitions, Procrastinate's schema from the installed library's SQL, the `job_heartbeats` view).
-5. WF-022.2 `0006_billing_credits` (5.7, 5.8: append-only `credit_ledger` trigger, credit functions) with `modules/billing/models.py`. Tests: uniqueness of store transaction id and webhook event id, one active pass per trip, ledger rejects `UPDATE` and `DELETE`.
-6. WF-022.3 `0007_imports_referrals` and `0008_affiliate` (5.9, 5.10, materialized views) with `modules/affiliate/models.py`.
-7. WF-021.1 `0009_flights` (5.11, 5.12).
-8. WF-021.2 `0010_itinerary_lodging` and `0011_checklist_notes` (5.13 to 5.15). Foreign key and cascade tests.
-9. WF-020.1 `0012_admin_privacy` and `0013_notifications_samples` (5.16 to 5.20, append-only `audit_log` trigger) with `modules/{admin,notifications}/models.py`. Trigger test.
-10. WF-020.2 `0014_rls` (all of section 6, the section 8 retention and purge functions, the section 9 maintenance functions, `trip_member_profiles`, the `SECURITY DEFINER` ownership loop, `SELECT` on `alembic_version` for the app login so `/health/ready` reads it). The 03 section 6.5 grants-and-RLS test as `hermi_api_login`.
-11. WF-020.3 `0015_seed` (section 11, `ON CONFLICT DO NOTHING`), `apps/api/hermi/seed/` and `hermi seed` (setup runs `hermi seed --demo` once the folder exists, so `--demo` must exist and do nothing harmful until WF-133), the two test users and a shared trip as pytest fixtures, seed idempotency test, and the whole-chain test (one head, no 03 table, type or function missing, round trip `downgrade base` then `upgrade head`).
-
-Tests each step: `npm run lint`, `npm run test:api`, `npm run test:web` against native PostgreSQL 18; no user flow changes, so no e2e smoke. CI already runs `db:init`, the single-head check and the round trip once `apps/api/alembic.ini` exists.
-
-Risks:
-- Grants and policies: 03 section 10 puts every grant and policy in `0014`, while `.claude/rules/database-migrations.md` says they land with the table. 03 wins for `0001` to `0014`; tables added after `0014` carry their own (03 line 3833). Until step 10, tests read the catalog as `hermi_migrate_login`, not through the app login. WF-011 clarifies the rules file.
-- 03 open items the steps must settle with a `DECISIONS.md` row and a 03 edit in the same commit: `bootstrap_user` takes a sixth parameter `p_provider_subject` (S1.4 note); `credit_grants_select` lets trip members see `trip_pass` grants; seven `SECURITY DEFINER` functions have grants but no body in 03 (`request_account_deletion`, `cancel_account_deletion`, `advance_trip_import`, `link_my_traveler`, `file_content_report`, `clear_run_content`, `clear_my_ai_history`), written in `0014`, with `clear_my_ai_history` matching 04 (deletes runs, run events and AI notes); `link_clicks.redirect_status` is the HTTP status sent.
-- The hashed legacy claim token (WF-040, prompt 11) has no table in 03; not invented here, left for prompt 11.
-- Procrastinate's schema SQL is vendored from the pinned library version; a later upgrade of the library needs its own migration.
-- `0014` is about 800 lines of SQL in one revision; if review stalls, the step splits by policy group into sub-steps of the same revision file.
-- Dependencies: WF-008 is merged (#8); prompts 01 to 03 are Done.
-
-Owner-pending items: none for this prompt.
+05 shipped (PR #17). Next: 06, web app platform, sign-in and trips.
 
 ## Setup prompts
 
@@ -50,7 +26,7 @@ Same status values as above.
 | 02 | [Port reusable code from the old Trip Planner](02-port-reusable-modules.md) | WF-005 | Done (#12) |
 | 03 | [Staging and production environments](03-deploy-environments.md) | WF-009 | Done (#13) |
 | 04 | [Database foundation and schemas](04-database-foundation.md) | WF-011, WF-012, WF-022, WF-021, WF-020 | Done (#15) |
-| 05 | [Sign-in, tenancy and row-level security](05-auth-and-tenancy.md) | WF-013, WF-014, WF-015, WF-016 | Not started |
+| 05 | [Sign-in, tenancy and row-level security](05-auth-and-tenancy.md) | WF-013, WF-014, WF-015, WF-016 | Done (#17) |
 | 06 | [Web app platform, sign-in and trips](06-web-app-and-trips.md) | WF-017, WF-130, WF-018, WF-019 | Not started |
 | 07 | [Entitlements, travelers, invites and roles](07-entitlements-and-collaboration.md) | WF-023, WF-024, WF-025, WF-026, WF-027, WF-028 | Not started |
 | 08 | [Currency, cached fares and price alerts](08-fares-and-alerts.md) | WF-029, WF-030, WF-031 | Not started |
@@ -79,6 +55,8 @@ Same status values as above.
 
 Things a later prompt must know (a helper that exists, a pattern to reuse, a known limitation).
 
+- P05 for later routes: every new route must be classified in `apps/api/tests/route_policy.py` or the tenancy suite in `apps/api/tests/tenancy/` fails; trip routes take `require_trip`; routers never import trip models or call `session.get(` (AST test). `npm run gen:api` is still a stub, so no generated types yet.
+- WF-013.2 deferred: `POST /v1/me/bootstrap` does not yet emit `user_signed_up` (analytics ticket in prompt 10), has no 30 per IP per 10 minutes rate limit (04 section 1.8; the rate-limit ticket must add it), and ignores the body fields `device`, `claim` and `referral_code` (WF-040 and the referral ticket). The `email_in_use` case for a pending legacy row is WF-040. `Me.flags` and `min_client_version` are placeholders marked `shortcut:`. Routes that must accept a pending_deletion user use `DbSessionOrPendingDeletion` in `deps.py`.
 - S3 ship review follow-ups: (1) prompt 14 line 38 gives the live evals command in Bash form; the owner uses PowerShell, so point at `HUMAN_TASKS.md` row 21 instead. (2) Prompt 10 Owner-only steps name `VITE_SENTRY_DSN` and `VITE_POSTHOG_KEY`, `HUMAN_TASKS.md` row 13 lists other variables; make them equal. (3) Prompts 18, 22, 24, 25 and 27 have an "Owner verification pending" note (WF-121, WF-088 and 089, WF-100 to 102, WF-127 and 128, WF-112) that their Owner-only steps section does not list; add a bullet each.
 - S2.1.1 follow-up for S2.2: the kit still calls the section strip a `tablist` (`design/DESIGN-LANGUAGE.md` near lines 179 and 236, `design/components.html` near 919 and 932, `h-strip` in `design/screens/` 03, 04, 06, 07, 08); 05 now says `nav` with `aria-current="page"`. Align the kit markup and wording.
 - S1.5 follow-ups: 03 needs a place for the hashed legacy claim token (`POST /me/legacy-claim`, WF-040): a small table or columns on the pre-created legacy `users` row; 04 section 5.1 carries a note to remove once 03 has it. 03 `clear_my_ai_history` (line near 2906) only nulls run content, while 04 `DELETE /me/ai-history` deletes `runs`, `run_events` and AI notes; align 03. 01, 02 and 10 must mirror the 04 5.26 imports limits table. 03 gives `link_clicks.redirect_status` no value set; 04 defines it as the HTTP status sent (add a DECISIONS row if kept).

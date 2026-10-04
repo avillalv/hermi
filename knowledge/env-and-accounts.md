@@ -68,7 +68,7 @@ the URLs with generated passwords. You never type a database password. The super
 | Variable | Purpose | Local need | Fallback when missing | Where to get it |
 |---|---|---|---|---|
 | `AUTH_MODE` | `supabase` or `dev`. `dev` mints local tokens for seeded personas (Free, Plus, admin) | Required | Startup fails | `dev` locally, `supabase` in staging and production. Refused outside `local` and `ci` |
-| `SUPABASE_URL` | Supabase project URL | Optional | `AUTH_MODE=dev` signs in the personas | supabase.com, free plan: Project settings, API |
+| `SUPABASE_URL` | Supabase project base URL (`https://<ref>.supabase.co`). The three values below are built from it: `SUPABASE_JWKS_URL`, `SUPABASE_JWT_ISSUER` and the Auth hook address. The API reads only those three, so set them with it | Optional | `AUTH_MODE=dev` signs in the personas (`GET /v1/dev/personas`, `POST /v1/dev/session`) | supabase.com, free plan: Project settings, API |
 | `SUPABASE_JWKS_URL` | Signing keys for JWT verification (use asymmetric JWT keys) | Optional | Same | `<project url>/auth/v1/.well-known/jwks.json` |
 | `SUPABASE_JWT_ISSUER`, `SUPABASE_JWT_AUDIENCE` | Expected `iss` and `aud` | Optional | Same | `<project url>/auth/v1` and `authenticated` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Deletes users on account deletion, admin lookups | Optional | Those calls log and skip | Supabase dashboard, API keys |

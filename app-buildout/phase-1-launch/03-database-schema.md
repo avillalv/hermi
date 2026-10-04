@@ -3137,8 +3137,10 @@ CREATE POLICY users_update ON users FOR UPDATE USING (id = (SELECT app_user_id()
 -- and no RLS policy can admit the insert. The app role has no INSERT on users or auth_identities;
 -- instead it calls this definer-owned function, which creates exactly one account for one verified
 -- (provider, subject) pair and is idempotent. The API passes values only from the verified JWT.
+-- p_provider_subject is the upstream Apple or Google subject (null for email); the API passes it from the JWT and
+-- it feeds identity_hashes (5.8). It defaults to null so a five argument call still works (migration 0016).
 CREATE FUNCTION bootstrap_user(p_provider text, p_subject text, p_email citext, p_email_is_relay boolean,
-                               p_display_name text)
+                               p_display_name text, p_provider_subject text DEFAULT NULL)
 RETURNS TABLE (user_id uuid, created boolean)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -3147,7 +3149,8 @@ BEGIN
   SELECT ai.user_id INTO v_user FROM auth_identities ai
    WHERE ai.provider = p_provider AND ai.subject = p_subject;
   IF v_user IS NOT NULL THEN
-    UPDATE auth_identities SET last_login_at = now()
+    UPDATE auth_identities SET last_login_at = now(),
+        provider_subject = coalesce(provider_subject, p_provider_subject)
      WHERE provider = p_provider AND subject = p_subject;
     RETURN QUERY SELECT v_user, false;
     RETURN;
@@ -3156,8 +3159,8 @@ BEGIN
   VALUES (p_email, coalesce(p_email_is_relay, false), CASE WHEN p_email IS NOT NULL THEN now() END,   -- the API calls this only with an address the provider verified
           left(coalesce(p_display_name, ''), 80))
   RETURNING id INTO v_user;
-  INSERT INTO auth_identities (user_id, provider, subject, email, email_is_relay, last_login_at)
-  VALUES (v_user, p_provider, p_subject, p_email, coalesce(p_email_is_relay, false), now());
+  INSERT INTO auth_identities (user_id, provider, subject, provider_subject, email, email_is_relay, last_login_at)
+  VALUES (v_user, p_provider, p_subject, p_provider_subject, p_email, coalesce(p_email_is_relay, false), now());
   INSERT INTO people (owner_user_id, linked_user_id, name, is_self)
   VALUES (v_user, v_user, coalesce(nullif(left(p_display_name, 60), ''), 'Me'), true);
   INSERT INTO entitlements (user_id) VALUES (v_user);
@@ -3174,9 +3177,20 @@ EXCEPTION WHEN unique_violation THEN
   RETURN QUERY SELECT v_user, false;
 END;
 $$;
-ALTER FUNCTION bootstrap_user(text, text, citext, boolean, text) OWNER TO hermi_definer;   -- BYPASSRLS, so FORCE on users does not block the insert
-REVOKE ALL ON FUNCTION bootstrap_user(text, text, citext, boolean, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION bootstrap_user(text, text, citext, boolean, text) TO hermi_app;
+ALTER FUNCTION bootstrap_user(text, text, citext, boolean, text, text) OWNER TO hermi_definer;   -- BYPASSRLS, so FORCE on users does not block the insert
+REVOKE ALL ON FUNCTION bootstrap_user(text, text, citext, boolean, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION bootstrap_user(text, text, citext, boolean, text, text) TO hermi_app;
+
+-- Sign-in lookup: row-level security hides auth_identities until app.user_id is set, and the id comes from here.
+CREATE FUNCTION resolve_identity(p_provider text, p_subject text)
+RETURNS TABLE (user_id uuid, status text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT u.id, u.status::text FROM auth_identities ai JOIN users u ON u.id = ai.user_id
+   WHERE ai.provider = p_provider AND ai.subject = p_subject
+$$;
+ALTER FUNCTION resolve_identity(text, text) OWNER TO hermi_definer;
+REVOKE ALL ON FUNCTION resolve_identity(text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION resolve_identity(text, text) TO hermi_app;
 -- Inserts and status changes (deletion flow) run in the worker role.
 
 ALTER TABLE people ENABLE ROW LEVEL SECURITY;
@@ -3300,6 +3314,7 @@ The public token reads and synchronous writes that use a SystemSession, by purpo
 | `import_preview` | `POST /imports/ics-file`, `maps-file`, `places` | Writes the preview the worker sandbox returned |
 | `verify_extract` | `POST /trips/{id}/verify-plan` | Inserts `plan_verification_items` |
 | `places_cache` | Place search | Fills `places_cache` |
+| `dev_session` | `POST /dev/session` (`AUTH_MODE=dev`, `local` and `ci` only) | Creates the dev personas and their sessions |
 
 Every route is tested under the real roles: the route tests in 6.5 call the API as `hermi_api_login` (and the SystemSession purposes as `hermi_worker_login`), never as the owner, so a missing grant, policy or definer function shows up as a failing route test and not in production.
 
