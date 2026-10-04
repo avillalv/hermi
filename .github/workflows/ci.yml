@@ -20,7 +20,7 @@ jobs:
   ci:
     name: ci
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,3 +30,5 @@ jobs:
           node-version: 22
       - name: Spec lint
         run: node scripts/spec-lint.mjs
+      - name: Autopilot tests
+        run: node --test "scripts/autopilot/**/*.test.mjs"

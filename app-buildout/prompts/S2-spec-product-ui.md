@@ -1,0 +1,118 @@
+# Prompt S2: Spec fixes, product and UI (01, 05, 07, 10, design kit, brand)
+
+Setup, step 2 of 3. Follow `app-buildout/prompts/AUTOPILOT.md` (the session contract) and `app-buildout/prompts/00-orchestrator.md` (the rulebook) for how to run this prompt (branch, models, checks, PR, merge, progress).
+
+## Goal
+
+Make the product, UI, monetization and quality specs say what the build needs, using the settled values S1 wrote into `phase-1-launch/README.md`: the design kit becomes the source of truth for how components look, the fonts and tokens are complete and testable, Discover is a sample trips gallery, guest data is local-only, and the launch gates split into what a session can check and what only the owner can. This prompt edits documents only. No other prompt edits the files in its table.
+
+## Tickets, in this order
+
+Each ticket is the edit of one file group. Its numbered list under "Fixes per ticket" is the whole job and the definition of done.
+
+| Ticket | Title |
+|---|---|
+| S2.1 | UI and UX spec (`05-ui-ux-spec.md`) |
+| S2.2 | Design kit and brand (`design/tokens.css`, `design/components.html`, `DESIGN-LANGUAGE.md`, `design/README.md`, `brand/BRAND.md`) |
+| S2.3 | Product spec (`01-product-spec.md`) |
+| S2.4 | Monetization spec (`07-monetization-spec.md`) |
+| S2.5 | Quality, security and launch (`10-quality-security-launch.md`) |
+
+## Read before starting
+
+- `app-buildout/phase-1-launch/README.md`, "Settled values" (as S1.1 left it) and `app-buildout/README.md`
+- `app-buildout/prompts/00-orchestrator.md` (the precedence order)
+- `.claude/rules/design-token-sync.md` (05 section 2 and `tokens.css` change together)
+- `app-buildout/phase-1-launch/design/README.md`, `DESIGN-LANGUAGE.md`, `tokens.css` and `hermi.css`
+- The file a ticket edits and every section it cites. Line numbers below are hints from the audit; find the text, because lines move as you edit.
+
+## Fixes per ticket
+
+### S2.1 UI and UX spec (`05-ui-ux-spec.md`)
+
+1. Section 2.4 (typography): add the three CSS font stacks and make each begin with the bundled variable family name: `'Fredoka Variable'` then the existing fallbacks for display, `'Atkinson Hyperlegible Next Variable'` for body, `'Atkinson Hyperlegible Mono Variable'` for mono. The fonts are the `@fontsource-variable` packages (OFL, bundled, subset to Latin). The app makes no request to Google Fonts (`googleapis` or `gstatic`).
+2. Sections 2.1 to 2.3: keep every table machine-readable (one token per row, the token name in backticks in the first column, each color value in backticks), because WF-005 adds a test that parses them and compares them with `tokens.css`.
+3. Section 2.1: add `--tp-ticket` with the value of `--tp-paper` in light and dark (a named alias for the ticket surface).
+4. Section 2.2: define the heat text tokens. Light: `--heat-ink-1`, `--heat-ink-2` and `--heat-ink-3` are `#17324A`, `--heat-ink-4` is `#0B1A2A`, `--heat-ink-5` is `#FFFFFF`. Dark: `--heat-ink-1` to `--heat-ink-3` are `#E6F2FF`, `--heat-ink-4` and `--heat-ink-5` are `#0B1A2A`. Define `--viz-band` as `--tp-brand-soft` (the typical-price band on the chart). Section 2.3: add a contrast row for each heat-ink token on its heat step (`--heat-1` to `--heat-5`) in light and dark, recomputed with the WCAG formula; every row must be at least 4.5 to 1.
+5. Focus: wherever 05 or its shadcn mapping implies a focus ring at partial opacity (for example `ring/50`), replace it with a 3 px solid ring in `--ring` with a 2 px offset (`outline: 3px solid var(--ring); outline-offset: 2px`, as in `hermi.css`). State that the 50 percent ring failed the 3 to 1 rule of section 9.1.
+6. Section 4.1 (Button): the Secondary row maps to the shadcn `outline` variant and matches `.h-btn--secondary` in `hermi.css` (the kit wins for looks); the shadcn `secondary` variant is not used for buttons.
+7. Precedence line. At the start of section 6 (near line 459) and in one sentence at the start of section 4 add: "For how a component looks, `design/hermi.css` and the mockups in `design/screens/` win over the prose of sections 4 and 6; the token values in section 2 still win over both." Add that a component block the kit lacks is added to `hermi.css` and `components.html` by the ticket that needs it, in the same pull request.
+8. Section 10 (near line 1680): the full 248 px sidebar starts at 1200 px. Tablet becomes 768 to 1199 px (icon rail, 72 px) and Laptop 1200 to 1439 px (full sidebar), matching section 5.3. Remove the 1024 px sidebar start everywhere.
+9. Discover (owner choice): rewrite 6.23 as a sample trips gallery. Purpose: real example trips to start from. Layout: large title "Discover", a grid of sample trip cards (cover, destination, length in days, who it suits; the data is `GET /public/sample-trips`, 04 section 5.28, from the `sample_trips` table: `suits` is the who-it-suits line and `tags` feed the filters), the chip row (Beach, City, Mountains, Food) as filters (`?tag=`). Interactions: tap opens the sample read-only (the layout of 6.35); a sticky bottom button "Use this plan" (the one label on the gallery and on the public sample page) calls `POST /public/sample-trips/{slug}/copy` (04 section 5.28: days, items and saved places, never flights or prices; the body's `start_date` is optional) and opens the new trip; the active-trip limit applies (402 `limit_reached`, which shows the `third_trip` paywall on Free). A guest has no account: the app builds the local guest trip on the device from `GET /public/sample-trips/{slug}` and makes no server write. States: loading card skeletons; empty "No examples yet" with a retry; error "We could not load examples. Pull down to try again."; offline: samples already opened; limit: via the copy action. Events: `discover_viewed`, `sample_trip_opened {slug}`, `sample_trip_copied {slug, was_guest}` (the event 6.35 already uses). Remove the cheap-fares, destinations and saved-places sections and the `destination_opened` and `trip_started_from_discover` events. Update the sitemap line near 386, the guest wording near line 500 and 6.35 so they all describe the gallery; in 6.35 the sticky "Copy this trip" button and its Interactions line become "Use this plan" with the same route.
+10. Section 6.7 (Trip overview): "Today" is a state of the Overview, not a screen. During the trip dates the Overview opens on a "Happening now" card (local time, the next item, the map, the stay address and confirmation numbers; the optional partner card keeps the no-urgency rule of F-TRV-1). Add loading, empty and error states for it. Remove any separate "Today" screen or tab. The after-trip wrap-up is not in Phase 1 (Phase 2 after-trip pack).
+11. Section 6 intro (the template paragraph): every state listed for a screen is built and has a component test; the offline and error states also have a Playwright test.
+12. Section 9.2: the section strip is a `nav` element with `aria-current="page"` on the current section, not a `tablist`; keep `aria-selected` only for true tab widgets such as segmented controls (9.3). Change the same wording at 05 line 606 (the trip Overview accessibility line, "the section strip is a `tablist`") and at line 1653 (9.2, "Section strips are `tablist`"); the day chip strip at line 715 may stay a `tablist` only if it is a real tab widget with `aria-selected`. Section 9.3 Dynamic Type: ticket stubs and other fixed-height shapes use `min-height` and grow with text; Playwright runs the main screens at 310 percent text zoom.
+13. Section 10 rules (near line 1683): the iOS app is locked to portrait on phones in version 1 (set in the Capacitor config); landscape applies to the web and to iPad later. Remove "landscape phone hides the tab bar labels".
+14. Section 7.4 (commission disclosure): the disclosure text in force when a PDF or an email is created is snapshotted into it, so an exported copy keeps the wording it carried.
+15. Sections 6.15 and 6.26: the credit chip and the balance show which pool pays (your credits, or the trip's Trip Pass pool) and 6.26 shows the pool as "Trip Pass credits, <trip name>". Pass credits are a trip pool.
+16. Section 6.28 (Export and delete account): add a "Delete my AI history" row (confirm sheet, success toast) backed by `DELETE /me/ai-history`.
+17. Section 6.2 (guest mode) and 6.3: guest data stays on the device until sign-in; "Save your trip" sends the trip JSON with a claim id; guest AI needs device attestation and draws from a small device allowance.
+18. Section 6.30 (Import a trip): say the file is read and discarded and never stored; the status after confirm is "applied". Section 6.31 (Calendar feed): the URL is `https://api.hermi.world/v1/calendar/<token>.ics` with the token in the path (04 section 5.29).
+19. Wherever a screen's limit state says a plan limit returns 403, change it to 402 (the paywall hint), as in the settled values.
+
+### S2.2 Design kit and brand (`design/` and `brand/BRAND.md`)
+
+The design-token-sync rule applies: every token value you change in `tokens.css` must equal 05 section 2 after S2.1.
+
+1. `design/tokens.css`: in the three places that define light, dark and the `prefers-color-scheme` dark block, add `--tp-ticket` (alias of `--tp-paper`), `--heat-ink-1` to `--heat-ink-5` and `--viz-band` with the values of S2.1 items 3 and 4. Put `'Fredoka Variable'`, `'Atkinson Hyperlegible Next Variable'` and `'Atkinson Hyperlegible Mono Variable'` first in `--tp-font-display`, `--tp-font-body` and `--tp-font-mono`, keeping the existing fallbacks after them. Replace the header comment (near lines 14 to 15) that says the heat-ink and viz tokens are not defined.
+2. `DESIGN-LANGUAGE.md` section 3: add a subsection "From artboard to app". The mockups are static 390 by 844 artboards; the app is a scrolling document: the section strip sticks to the top, the sheet scrolls under it (`--h-sheet-top` stays), the tab bar floats above the safe-area inset, tablet (768 to 1199 px) shows an icon rail, and from 1200 px a 248 px sidebar with content capped at 1120 px. Heights in the kit are artboard values; the app uses `min-height` for stubs and other text-bearing shapes.
+3. `DESIGN-LANGUAGE.md` section 12 "Known gaps": delete the gap about undefined heat-ink and viz-band tokens; rewrite the breakpoint gap as settled (sidebar at 1200 px); rewrite "Fixed ticket stubs" as the `min-height` rule of item 2; keep the remaining gaps. Section 11 (checklist): add "Fonts come from the bundled variable files, with no request to googleapis or gstatic" and "Focus is a 3 px solid ring".
+4. `DESIGN-LANGUAGE.md` section 2 (type roles): name the Variable families as in item 1.
+5. `design/README.md` "How to use it", step 1: port `tokens.css` into `packages/tokens` and import `hermi.css` verbatim; React wrappers emit the `h-` classes. Add that a component block the kit lacks is added to `hermi.css` and `components.html` by the ticket that needs it. Add one sentence that the mockups load Google Fonts for convenience and the app bundles the variable fonts.
+6. `design/README.md` "What wins when two sources disagree": add the precedence line of S2.1 item 7 (for component looks, `hermi.css` and the mockups win over 05 sections 4 and 6 prose; 05 section 2 token values still win).
+7. `brand/BRAND.md`: in the type section list the three Variable family names and say the app bundles them through `@fontsource-variable`. In the logo files section document that `generate_logo.py` emits transparent lockups (light and dark), a light wordmark and the web icon set (favicon, touch icon, PWA sizes), and where the app copies them from (WF-130).
+8. `design/components.html` (captions near lines 368 and 378): the caption at 368 ends "--viz-band is not defined in 05 yet." and the caption at 378 ends "--heat-ink-1 to --heat-ink-5 are not defined in 05 yet."; change them to "--viz-band is defined in 05 section 2.2." and "--heat-ink-1 to --heat-ink-5 are defined in 05 section 2.2.", so nothing in `design/` says the tokens are undefined (grep `not defined` and `undefined` in `design/` when done, covering the `tokens.css` header of item 1 and the `DESIGN-LANGUAGE.md` gap of item 3).
+
+### S2.3 Product spec (`01-product-spec.md`)
+
+1. F-ACC-2 (Guest mode): guest data is stored on the device only. No `users` row exists until sign-in (delete the `is_guest=true` wording). Guest AI needs device attestation and draws from a small per-device allowance (`guest_allowances`), counted against the Free monthly allowance when the guest claims. F-ACC-3 (Save your trip): the claim is one request that carries the trip JSON and a claim id, so a double submit creates no duplicates.
+2. F-TRV-1: replace "Today view" with the Overview "Happening now" state: during the trip dates the trip Overview opens on it with local time, next item, map, stay address and confirmation numbers; the optional partner card rule stays. Near line 1310 the "Today" card becomes the "Happening now" card. In the journeys, 01 line 253 (3.10 item 1, "A "Today" view shows the current day's plan...") becomes the same Happening now state.
+3. F-AFT-2 (Wrap-up): move out of Phase 1. Delete it from the Phase 1 features and the tier matrix row near line 1954, and list it under the Phase 2 after-trip pack (the "Later" line near line 2106). In the journeys, 3.11 item 1 (01 lines 259 and 260, the "How was the trip?" card and the archive offer, tagged F-AFT-2) is removed from Phase 1 with it; 3.11 item 2 (export, archive, duplicate) stays.
+4. Trip Pass credits are a trip pool (section 1.4 and the tier matrix): every member who may start AI on the trip spends from it. The global AI daily cap is $150 and the taster stop is $0.80 wherever 01 states them.
+5. Tier matrix and limits: every limit key that 03's plan seed or 07 section 2.2 uses must appear in 01 with its Free, Plus and Trip Pass values (the audit found keys missing; build the list by diffing). Add the places-per-day cap and the `verify_items_per_run` cap if absent.
+6. Wherever 01 says a plan limit returns 403, change it to 402 with the paywall hint.
+7. Imports (F-IMP features, section 4.x): the raw file is never stored; one limits table is mirrored from 04 section 5.26; status after confirm is `applied`.
+8. Calendar feed (F-CAL): the URL token is in the path as in 04 section 5.29; remove any query-string token.
+9. Where 01 lists the app's tabs or describes Discover, make Discover the sample trips gallery (open a sample read-only, then "Use this plan" copies it through `POST /public/sample-trips/{slug}/copy`, 04 section 5.28).
+10. Direct affiliate programs are Phase 2 wherever 01 lists programs; Phase 1 uses Travelpayouts, the Viator partner API and Stay22.
+
+### S2.4 Monetization spec (`07-monetization-spec.md`)
+
+1. Section 4.3 (near line 206): limit errors return HTTP 402 with `code = 'limit_reached'` (or `entitlement_required` when the capability is missing) and a `paywall` body, not 403. Change every statement of the same rule.
+2. Sections 5.1 and 5.4: Trip Pass credits are a trip pool (one pool per pass, spendable by every member who may start AI on that trip, keyed by `trip_id`); the taster draws its own grant and never debits another; the pass is the payer for the pass ceiling. State the spend order once and consistently with 03 (S1.4 item 5).
+3. Sections 5.1 and 5.5 (pools, ceilings): the global AI daily cap is $150 and the taster stop is $0.80. The monthly ceilings use the calendar month in UTC.
+4. Section 2.2 (tier limits): add every limit key that the plan seed in 03 uses and 07 lacks, with Free, Plus and Trip Pass values from the README tier table (build the list by diffing; also the places-per-day cap and `verify_items_per_run`). Keep it equal to 03 section 11.1 (S1.4 item 14).
+5. Section 6.2 (triggers) and 6.5 (frequency caps and mute rules): confirm `second_route`, `alert_limit`, `ninth_stay`, `export_footer` and `lifecycle_14d` each have a frequency cap and a mute rule in 6.5; add the rows that are missing.
+6. Section 7.7 (Trip Pass binding): binding checks that the buyer is the trip's owner. When a paid second pass cannot bind because the trip already has an active pass: grant the pass's credits to the buyer, open a support ticket for the refund, and tell the buyer that support sends the refund request.
+7. Sections 9.3 and 10 (referral and import reward abuse): add the 12-month identity-hash rule and the import `uid_set_hash` rule, so a deleted and re-created account does not earn the taster or the first-import Trip Pass again.
+8. Section 8.1: direct affiliate programs (Expedia Group for Vrbo, Booking.com, Skyscanner, Airalo, GetYourGuide) are Phase 2. Section 8.5 (disclosure): the disclosure text is snapshotted into PDF exports and emails. Section 8.3: `/go` reason codes agree with 04 section 5.21 and 6.2 trigger codes.
+9. Section 5.8 (verify_plan): keep `verify_plan` at 1 credit per checked item and say so in the same words as the READMEs.
+
+### S2.5 Quality, security and launch (`10-quality-security-launch.md`)
+
+1. Section 1.2 (integration test rules): add the `posix_only` pytest marker (those tests always run in Linux CI and are skipped on Windows); tests and the API refuse to run as a superuser, a `BYPASSRLS` role or the table owner; fixtures write through the system connection; tests force `AI_PROVIDER=fake`, set `PROVIDERS_MODE=fake` and never read `.env` (process environment overrides it). Add committed multi-connection concurrency tests for credit reserve and settle, and a parallel admission test for spend ceilings (several simultaneous reservations near the ceiling admit at most the headroom).
+2. Section 1.5 (AI evals): live evals run only with `EVALS_LIVE=1` and `--max-usd`; there is one path, `npm run evals`, with `--provider`; the gates in this section are certified only on `anthropic_api` (CLI `WebFetch` returns summaries), and `claude_cli` numbers are provisional.
+3. Section 1.6 (Playwright smoke flows): each smoke flow is listed in its owning ticket's Tests line in `09-build-roadmap.md`. Smoke flow 1 (10 line 132, "Sign in with an email code (test inbox through Mailpit)") becomes a dev-persona sign-in: pick the Free persona on the sign-in screen (`AUTH_MODE=dev`, `POST /v1/dev/session`) and land on an empty Trips screen; the real email code path is an owner check on a Supabase project. Map the 18 flows against the journeys of 01 section 3 and add a flow for each journey no flow covers. The journeys with none today are 01 section 3.4 (add a route, cached fares, Choose a fare, set an alert), 3.5 (paste a stay link, heart, compare two to four stays, mark one Booked), 3.6 (drag and drop onto days, Add activity with place search and the map), 3.7 (draft a day or a trip, research, and an agent run with its live log in the UI), 3.9 (the before-you-go checklist) and 3.10 (the Overview "Happening now" state, reading the trip offline, subscribing to the calendar feed and rotating its token). The audit counted four (3.4 to 3.7); 3.9 and 3.10 also have no flow. Add that WF-101 checks the flow manifest. Add the Discover gallery flow (open a sample, then "Use this plan").
+4. Section 2 (security): add a short "claude_cli is development only" control: loopback bind, the allowed-user rule, the stripped environment, web tools off except with the blocklist, and never enabled in staging or production. Section 2.1 V3: delete the web cookie wording (bearer only). Section 2.11: the webhook list equals 04 section 6 (`revenuecat`, `travelpayouts`, `viator`, `stay22`, `resend`, `supabase`; no `apple`). Section 2.12: delete the CSRF line (bearer tokens are immune; the calendar feed and public pages are read-only GETs) and the CSP must not allow `googleapis` or `gstatic`. Section 2.13 (10 lines 366 and 371): admin sign-in is Cloudflare Access plus 2FA as in 08; remove OIDC, `ADMIN_ALLOWED_DOMAIN` and `ADMIN_IP_ALLOWLIST` (the sign-in domain and the IP or device policy are Cloudflare Access rules, 08 sections 2 and 9).
+5. Section 2.5: add the never-fetch test: one code constant holding the brands `airbnb`, `vrbo` and `booking`, matched on the registrable-domain label with any ending and any subdomain; no setting or admin screen can change it; a test proves `airbnb.co.kr`, `www.airbnb.co.uk`, `vrbo.com` and `secure.booking.com` are refused. Reword the blocked-domain list at 10 line 379 the same way.
+6. Sections 2.4 and 2.8: the guest attestation endpoints and allowance table; the 12-month identity hash and the import `uid_set_hash` abuse controls. Section 3 (privacy): the raw import file is never stored; `DELETE /me/ai-history` is part of deletion and export; sign out everywhere and preferences exist.
+7. Section 4 (analytics catalogue): keep `discover_viewed` (10 line 607), add `sample_trip_opened {slug}`, give the existing `sample_trip_copied` (10 line 633) the properties `slug` and `was_guest` and the trigger "Use this plan"; remove `destination_opened` (10 line 608; `trip_started_from_discover` is only in 05).
+8. Sections 5.3 and 5.4 (alerts): add an alert for rows in a default partition (`maintain_partitions`), and an alert if `claude_cli` is reported outside `local`. The global daily spend value is $150 (keep `AI_GLOBAL_DAILY_CAP_USD` and say the setting `setting_ai_global_daily_usd` defaults to it). Section 2.6 and 2.7: mirror the single import limits table of 04 section 5.26.
+9. Section 7 (launch checklist): tag every item in 7.1 to 7.5 with `[agent]` (a session checks it with a command and a pass condition, on CI or a local run) or `[owner]` (needs a device, an account, a store, real money or a human decision), and give every `[agent]` item its command or test in one phrase. Keep the (Month 1) and (Month 2) suffixes in 7.1 so the gates after prompts 06 and 11 find their items. Add a line that the gate for month N runs in the ship session of the prompt after the one that ends the month (prompts 07, 12, 16, 21 and 25) and writes `docs/gates/month-N.md`.
+10. Calendar feed (section 2.2 log redaction near line 228, and every other place 10 mentions the feed): the token is in the path, not a query parameter, and request logs record only the route template.
+11. Replace the word "routines" (the Phase 1 scheduler scans `flight_routes`; scheduled agent runs are Phase 2): 10 line 53 ("500 due routines fire exactly once" becomes "500 due flight route checks fire exactly once", through `scan_due_routes`), line 163 ("20,000 routines" becomes "20,000 flight routes"), line 172 ("5,000 due routines" becomes "5,000 due flight route checks") and line 678 ("due routines" becomes "due routes", and `next_run_at` becomes `next_check_at`).
+
+## Notes
+
+- This prompt changes no code and does not touch `09-build-roadmap.md` or prompts 01 to 28; S3 does that. It does not touch the files S1 edited.
+- S2.1 changes 05 section 2 first. S2.2 then mirrors every token change in `tokens.css`. The reviewer for S2.2 diffs 05 section 2 against `tokens.css` and fails the ticket on any difference.
+- If a fix needs a name the list does not give (an event, a route), choose it once, use it in every file of this prompt, and add a row to `DECISIONS.md`.
+
+## Done when
+
+- Every listed fix is applied. The reviewer checks each item by its number.
+- 05 section 2 and `tokens.css` agree (the design-token-sync rule), including the new tokens and font stacks.
+- `node scripts/spec-lint.mjs` passes and `grep -rIl -e $'\xe2\x80\x94' -e $'\xe2\x80\x93' app-buildout` prints nothing.
+- `opus-reviewer` returned `VERDICT: APPROVE <step id>` for every ticket.
+- The `PROGRESS.md` row for S2 says `Done (#<pr>)`.
+- The pull request `Setup / S2: Spec fixes, product and UI (01, 05, 07, 10, design kit, brand)` is ready with the `e2e` label; the driver merges it after `ci` passes.

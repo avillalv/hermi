@@ -10,7 +10,7 @@ allowed-tools:
 
 1. Run `node scripts/autopilot/status.mjs`. It prints the state without loading the logs.
 2. Answer in five lines, no more:
-   1. **Now:** the current unit and phase (plan, ticket, ship, ci-fix or final), and the step if there is one.
+   1. **Now:** the current unit and the phase `state.json` records (`plan`, `ticket`, `ship`, `ci`, `merged` or `stopped`; the final session also shows as `ship`, and a ci-fix session as `ci`), and the step if there is one.
    2. **PR:** the link and its state (draft, ready or merged).
    3. **Progress:** units done of the total, as the script prints them.
    4. **Last activity:** when, and what, in one line.
