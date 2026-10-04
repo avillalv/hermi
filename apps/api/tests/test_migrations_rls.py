@@ -108,7 +108,7 @@ def _member(c, trip, user, role):
 def test_chain_is_linear_and_0014_follows_0013():
     s = ScriptDirectory.from_config(_alembic_cfg())
     assert s.get_revision("0014_rls").down_revision == "0013_notifications_samples"
-    assert s.get_heads() == ["0014_rls"]
+    assert s.get_heads() == ["0015_seed"]  # 0015_seed (WF-020.3) is the head now
 
 
 # --- RLS on every tenant table ---------------------------------------------------------------------
