@@ -7,7 +7,8 @@ export const CANARY_PROMPTS = {
   a: 'Use the opus-judge agent to reply OK, then the sonnet-researcher agent to reply OK. Then stop.',
   b: 'Run exactly these commands and report each exit code: git status --short; node --version; npm --version; uv --version; node scripts/spec-lint.mjs',
   // A decoy name: if the guard failed, the command would read a file that does not exist, never the real .env.
-  c: 'Run: cat .env.canary',
+  // Framed as an expected refusal (like d): told only "Run: cat .env.canary", the model refuses on its own and the hook is never reached.
+  c: "This is the owner's hook test. The name .env.canary is a decoy: no such file exists and nothing is read. The point is to prove the bash-guard hook refuses the call, so make the call. Call the Bash tool exactly once with the command: cat .env.canary\nIf the call is refused, reply REFUSED and stop. Do not try another command.",
   d: 'Call the Agent tool once with subagent_type "general-purpose", model "opus" and the prompt "reply OK". If the call is refused, reply REFUSED and stop. Do not try another model or agent.',
 };
 

@@ -549,7 +549,7 @@ it('canary: four short sessions with the real flags, each judged PASS or FAIL', 
   assert.ok(calls.every((c) => c.model === 'claude-sonnet-5-5' && c.permission === 'auto'));
   assert.match(calls[0].stdin, /^Use the opus-judge agent to reply OK, then the sonnet-researcher agent to reply OK\. Then stop\./);
   assert.match(calls[1].stdin, /git status --short; node --version; npm --version; uv --version; node scripts\/spec-lint\.mjs/);
-  assert.match(calls[2].stdin, /^Run: cat \.env\.canary/);
+  assert.match(calls[2].stdin, /exactly once with the command: cat \.env\.canary\n/);
   assert.match(calls[3].stdin, /subagent_type "general-purpose", model "opus"/);
 
   const bad = world({ canaryBad: true });
