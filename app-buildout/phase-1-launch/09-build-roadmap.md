@@ -217,55 +217,55 @@ Conventions for every ticket:
 
 #### WF-001 Name, domain and email [M1, S]
 - Depends on: none.
-- Description: confirm the name Hermi: run the trademark search (classes 9, 39, 42, with an attorney opinion on the Hermio and Hermès risks in [brand/BRAND.md](../brand/BRAND.md)), reserve the App Store name "Hermi: Group Trip Planner", buy `hermi.world` (and `heyhermi.com` as a redirect), set up `support@`, `no-reply@` and the Resend sending domain with SPF, DKIM and DMARC. If the search or the opinion blocks the name, the fallback names are in the same brand file. Start the Apple Developer enrollment the same day. Spec: [02-architecture.md](02-architecture.md).
-- Accept: domain resolves through Cloudflare and `heyhermi.com` redirects to it; a test email from `no-reply@hermi.world` passes SPF, DKIM and DMARC; the trademark search results, the attorney opinion and the name availability notes are saved in `docs/adr/0001-name.md`; the App Store name is reserved; enrollment submitted.
+- Description: produce the documents and scripts to confirm the name Hermi: the trademark search checklist (classes 9, 39, 42, for the attorney opinion on the Hermio and Hermès risks in [brand/BRAND.md](../brand/BRAND.md)), the DNS and mail record list for `hermi.world` (and `heyhermi.com` as a redirect), `support@`, `no-reply@` and the Resend sending domain with SPF, DKIM and DMARC, and the `check-mail-auth` script. The trademark opinion, the domain purchase, the Apple Developer enrollment and the App Store name "Hermi: Group Trip Planner" are owner tasks in `HUMAN_TASKS.md`. If the search or the opinion blocks the name, the fallback names are in the same brand file. Spec: [02-architecture.md](02-architecture.md).
+- Accept: `docs/adr/0001-name.md` holds the search checklist and a provisional name decision, and `infra/scripts/check-mail-auth` exists and takes a domain.
 - Touches: `docs/adr/`, `infra/cloudflare/` (record list in `rules.md`), `infra/scripts/`.
 - Tests: a script `infra/scripts/check-mail-auth` that queries the DNS records and exits non-zero if any is missing.
-- Done: DoD plus the decision recorded and the script run against the live domain.
+- Done: "Done (docs)" and a provisional "go" row in `DECISIONS.md`.
 
 #### WF-002 Landing page and waitlist [M1, M]
-- Depends on: WF-001.
-- Description: a static page on Cloudflare Pages with the positioning line "Plan together. Know the fare.", the logo, a waitlist form (email plus "who do you plan trips with" and "which app do you use today"), and a privacy note. Waitlist entries land in a table or Resend audience.
-- Accept: form submit stores one entry per email (duplicates ignored); confirmation email sent; page scores 90 or more on Lighthouse mobile; no ad or tracking SDKs; privacy text links to a policy page.
+- Depends on: WF-001, WF-004, WF-006.
+- Description: a static page on Cloudflare Pages with the positioning line "Plan together. Know the fare.", the logo, a waitlist form (email plus "who do you plan trips with" and "which app do you use today"), and a privacy note. Waitlist entries are logged (structured log, deduplicated in memory) and added to the Resend audience when `RESEND_API_KEY` is set; there is no waitlist table in Phase 1.
+- Accept: form submit logs one entry per email (duplicates ignored in memory) and adds it to the Resend audience when `RESEND_API_KEY` is set; confirmation email sent; page scores 90 or more on Lighthouse mobile; no ad or tracking SDKs; privacy text links to a policy page.
 - Touches: `apps/web/public/` (static landing page deployed to Cloudflare Pages), a small `POST /v1/waitlist` route in `apps/api/hermi/modules/notifications/`.
 - Tests: route accepts valid email, rejects invalid, dedupes, rate limits; Playwright submit flow.
-- Done: DoD plus page live on the production domain.
+- Done: DoD. "Page live on the production domain" is owner-pending (it needs the domain and the Cloudflare Pages account, `HUMAN_TASKS.md`); the rest is checked locally and in CI.
 
 #### WF-003 Interview kit, price test and terms checklist [M1, S]
-- Depends on: WF-002.
+- Depends on: WF-001.
 - Description: write the interview script, the written "yes" signal, the paywall and price test cards (Trip Pass $9.99; Plus $5.99 a month or $39.99 a year), a question on switching from TripIt, Tripsy or Wanderlog (would a free Trip Pass for importing a trip change your mind?), and the provider terms checklist (SerpApi terms and the Google lawsuit, Geoapify caching terms, Travelpayouts rates and app eligibility).
-- Accept: 10 interviews logged with outcome by the end of week 3; each terms question has an answer or an owner and a date; a go or no-go decision record exists.
+- Accept: the interview script, the written "yes" signal, the price test cards, the switching question and the terms checklist are in `docs/validation/` and a provisional "go" is in `DECISIONS.md`. The interviews, the price test and the signed decision are owner tasks.
 - Touches: `docs/validation/`.
 - Tests: none (documentation); checklist reviewed by the owner.
-- Done: DoD plus a signed decision record. A "no-go" stops the backlog here.
+- Done: "Done (docs)". The owner can still record a no-go by stopping the driver and writing it in `DECISIONS.md`.
 
 #### WF-004 Scaffold the repository [M1, M]
 - Depends on: WF-003.
-- Description: create the Hermi monorepo with the tree in [02-architecture.md](02-architecture.md) section 2: `apps/api` (Python 3.13, uv, FastAPI), `apps/worker`, `apps/web` (Vite, React 19, TanStack Query, Tailwind 4), `packages/shared`, `packages/tokens`, `packages/eslint-config`, `infra/`, `.github/` (workflows and Dependabot), `docs/` (`apps/ios` arrives in WF-080), a uv workspace and npm workspaces, root `package.json` scripts (`setup`, `start`, `dev`, `test`, `lint`, `format`, `gen:api`), `.env.example`, a project `CLAUDE.md` and `.claude/rules/` stubs (database migrations, frontend).
-- Accept: `npm run setup && npm test && npm run lint` pass on a clean clone on Linux and Windows; `GET /health/live` returns 200.
+- Description: create the Hermi monorepo with the tree in [02-architecture.md](02-architecture.md) section 2: `apps/api` (Python 3.13, uv, FastAPI), `apps/worker`, `apps/web` (Vite, React 19, TanStack Query, Tailwind 4), `packages/shared`, `packages/tokens`, `packages/eslint-config`, `infra/`, `.github/` (workflows and Dependabot), `docs/` (`apps/ios` arrives in WF-080), a uv workspace and npm workspaces, root `package.json` scripts (`setup`, `start`, `dev`, `test`, `lint`, `format`, `gen:api`, `gen:shared`, `test:api`, `test:web`, `test:e2e`, `test:e2e:smoke`, `test:kit`, `evals`, `db:init`, `doctor` and `smoke:live`), `.env.example`. The scripts are node scripts (or use `cross-env`), so they run on Windows and Linux; dev scripts use `uv run --no-sync`. `db:init` runs `infra/db/bootstrap.sql` as `postgres` through `pgpass.conf` and finds the PostgreSQL 18 `bin` directory; `setup` runs `db:init`, generates local secrets into `.env` if absent (never overwriting), migrates when migrations exist and seeds `--demo` when WF-133 exists; `doctor` reports what is set and what is optional and never prints a value (ported from the Trip Planner `scripts/setup.mjs` and `setup_db.py`). `dev` serves the API on 8100 and Vite on 5173 (`envDir: '../..'`). Register the `posix_only` pytest marker; `cli.py` sets the Selector event loop on win32. The context layout already exists (CLAUDE.md, .claude/rules/, .claude/skills/, .claude/agents/, knowledge/): WF-004 does not create CLAUDE.md or rule stubs. It adds only the Commands section to CLAUDE.md after the commands run, extends an existing rule when a new path needs it, and creates the `run-hermi-locally` skill.
+- Accept: `npm run setup && npm test && npm run lint` pass on a clean clone on Windows and Linux with no Docker; `GET /health/live` returns 200.
 - Touches: repo root (`package.json`, `pyproject.toml`), `apps/api/pyproject.toml`, `apps/web/package.json`, `packages/`, `infra/`, `.github/`, `.claude/`.
 - Tests: one pytest for the health route, one vitest smoke render.
 - Done: DoD plus the README explains setup in under 10 lines.
 
 #### WF-005 Port reusable modules [M1, L]
 - Depends on: WF-004.
-- Description: copy and adapt from the Trip Planner repo the modules that carry over: flight route and fare logic, itinerary and lodging logic, presentation mode, Hermi design tokens ([05-ui-ux-spec.md](05-ui-ux-spec.md) section 2; the values replace the old repo's, only the plumbing and neutral names are ported; into `packages/tokens`, including every token that section marks new, such as `--tp-edge`, `--tp-warning-ink` and `--tp-sky`), Travelpayouts, Geoapify, Wikipedia and Frankfurter providers, evidence rules in `services/agent_ingest.py`, and agent prompts. Leave behind passcode auth, the Claude CLI runner, the MCP bridge, APScheduler, Windows scripts and Tailscale sharing. Follow the module map in [02-architecture.md](02-architecture.md). Port the flight and provider modules first; the rest may land as each feature ticket needs it.
+- Description: copy and adapt from the Trip Planner repo the modules that carry over: flight route and fare logic, itinerary and lodging logic, presentation mode, Hermi design tokens ([05-ui-ux-spec.md](05-ui-ux-spec.md) section 2; the values replace the old repo's, only the plumbing and neutral names are ported; into `packages/tokens`, including every token that section marks new, such as `--tp-edge`, `--tp-warning-ink` and `--tp-sky`), Travelpayouts, Geoapify, Wikipedia and Frankfurter providers, evidence rules in `services/agent_ingest.py`, and agent prompts. Leave behind passcode auth, the Claude CLI runner and the MCP bridge (WF-131 adapts the CLI runner as the dev-only provider), APScheduler, Windows scripts and Tailscale sharing. The Airbnb, Vrbo and Booking.com never-fetch list is one constant `BLOCKED_HOSTS` in `apps/api/hermi/modules/ai/policy.py` (06 section 2.4) holding the brands `airbnb`, `vrbo` and `booking`, matched on the registrable-domain label with any ending and any subdomain (so `airbnb.co.kr`, `www.airbnb.co.uk`, `vrbo.com` and `secure.booking.com` are refused), with no setting, flag or admin screen that can change it, imported by `security/ssrf.py` and the ingest checks. The API list and the CLI `--disallowedTools` rules are generated from it (the CLI rules add `WebFetch(domain:<brand>.*.*)` and `WebFetch(domain:*.<brand>.*.*)` to the `<brand>.*` and `*.<brand>.*` forms) and the stream check stays as a backstop. Follow the module map in [02-architecture.md](02-architecture.md). Port the flight and provider modules first; the rest may land as each feature ticket needs it.
 - Accept: ported modules import cleanly and keep their original unit tests passing; a `docs/porting-map.md` lists each source file and its new home; no Windows-only code in `apps/` or `packages/`.
-- Touches: `apps/api/hermi/providers/`, `apps/api/hermi/modules/*/service.py` (ported logic), `packages/tokens/`, `apps/web/src/lib/`.
-- Tests: the original tests for each ported module, adapted; a test that greps for forbidden imports (`subprocess` Claude CLI, `apscheduler`).
+- Touches: `apps/api/hermi/providers/`, `apps/api/hermi/modules/ai/policy.py`, `apps/api/hermi/security/ssrf.py`, `apps/api/hermi/modules/*/service.py` (ported logic), `packages/tokens/`, `apps/web/src/lib/`.
+- Tests: the original tests for each ported module, adapted; a test that greps for forbidden imports (`subprocess` is allowed only in `apps/api/hermi/providers/ai/claude_cli.py`; `apscheduler` is forbidden); one test covers the four hosts `airbnb.co.kr`, `www.airbnb.co.uk`, `vrbo.com` and `secure.booking.com`.
 - Done: DoD plus the porting map reviewed.
 
 #### WF-006 Typed configuration and environments [M1, M]
 - Depends on: WF-004.
-- Description: a settings module (`config.py`, the only place environment variables are read) with `ENVIRONMENT` (`local`, `ci`, `preview`, `staging`, `production`) as in 02 section 7. The app refuses to start without the required secrets for its environment, keeps scheduled agents off (scheduled agent runs are not part of Phase 1), and tests refuse to run when `ENVIRONMENT=production`. There is no personal or single-household mode.
-- Accept: settings load from env with typed validation; missing required secrets fail fast with a clear message listing names only; `.env.example` lists every variable.
+- Description: a settings module (`config.py`, the only place environment variables are read) with `ENVIRONMENT` (`local`, `ci`, `preview`, `staging`, `production`) as in 02 section 7. It covers `AUTH_MODE`, `ADMIN_AUTH_MODE`, `AI_PROVIDER`, `PROVIDERS_MODE`, `EMAIL_BACKEND` (`console`, `file`, `resend`), `STORAGE_BACKEND`, `IMPORT_SANDBOX`, the Local column of 02 section 7.1, and process environment overrides `.env`. Keyless: a provider with no key raises `NotConfigured`. `.env.example` is local-ready with `AI_PROVIDER=claude_cli`. Config refuses these outside `local` and `ci`: `AUTH_MODE=dev`, `ADMIN_AUTH_MODE=dev`, `STORAGE_BACKEND=local`, `EMAIL_BACKEND` other than `resend`, `PROVIDERS_MODE=fake`. Config allows `AI_PROVIDER=claude_cli` only when `ENVIRONMENT=local`, the server is bound to loopback (`127.0.0.1`, `::1`, `localhost`) and `AUTH_MODE=dev` or the user is in `AI_CLI_ALLOWED_EMAILS`; the provider factory re-checks the user part on every call. Staging and production need `ANTHROPIC_API_KEY` and `AI_PROVIDER=anthropic_api` (`render.yaml` pins it). The app refuses to start without the required secrets for its environment, keeps scheduled agents off (scheduled agent runs are not part of Phase 1), and tests refuse to run when `ENVIRONMENT=production`. There is no personal or single-household mode.
+- Accept: settings load from env with typed validation; missing required secrets fail fast with a clear message listing names only; `.env.example` lists every variable; the refusal matrix holds (each rule above is refused as described, one test per rule).
 - Touches: `apps/api/hermi/config.py`, `.env.example`, `apps/api/tests/test_config.py`.
-- Tests: settings matrix (each environment), refusal when production, required-secret errors.
+- Tests: settings matrix (each environment), refusal when production, required-secret errors, and the refusal matrix: one test per rule above (the dev modes, `STORAGE_BACKEND=local`, an `EMAIL_BACKEND` other than `resend` and `PROVIDERS_MODE=fake` refused outside `local` and `ci`; `claude_cli` refused unless `ENVIRONMENT=local`, loopback and the auth or allowlist rule all hold; staging and production refused without `ANTHROPIC_API_KEY` and `AI_PROVIDER=anthropic_api`).
 - Done: DoD plus `.env.example` checked against `config.py` in CI.
 
 #### WF-007 CI pipeline [M1, M]
 - Depends on: WF-004.
-- Description: GitHub Actions `ci.yml` in `.github/workflows/`: lint, tests with a `postgres:18` service, OpenAPI drift check, migration test from empty and from the previous release, image build; `e2e.yml` for the Playwright smoke test.
+- Description: GitHub Actions `ci.yml` in `.github/workflows/`: lint, tests with a `postgres:18` service, OpenAPI drift check, migration test from empty and from the previous release, image build; `e2e.yml` for the Playwright smoke test. One aggregator job `ci` needs every other job and always runs (red if any needed job failed or was cancelled); it is the required check. WF-007 replaces the placeholder `.github/workflows/ci.yml` that already exists on `main`, and the rewrite keeps two things from it: the always-running job named exactly `ci` (branch protection requires that check name, and the driver merges only after the check named `ci` passes) and its "Autopilot tests" step (`node --test "scripts/autopilot/**/*.test.mjs"`, the driver's own tests). Deploy and live-eval jobs are gated on repository variables so `main` stays green without secrets. Dependency audits are non-blocking. The `e2e` workflow runs on pull requests with the `e2e` label and on `main`. Add a nightly `windows-latest` job.
 - Accept: a PR with a failing test, lint error, API drift or two Alembic heads turns CI red; a clean PR is green in under 10 minutes.
 - Touches: `.github/workflows/ci.yml`, `.github/workflows/e2e.yml`.
 - Tests: a deliberately broken branch for each check (recorded in the PR).
@@ -273,15 +273,15 @@ Conventions for every ticket:
 
 #### WF-008 Docker image, compose and health endpoints [M1, M]
 - Depends on: WF-007.
-- Description: multi-stage Dockerfile (`node:22` builds the web, `python:3.13-slim` with `uv sync --frozen --no-dev`, non-root), commands `api`, `worker`, `scheduler`, `migrate`; `infra/docker/compose.yml` (Postgres 18, Mailpit, MinIO); `/health/live` and `/health/ready` (database reachable, migrations at head).
-- Accept: `docker compose up` serves the API; image runs as non-root; ready fails when migrations are behind; image scanned with Trivy in CI.
+- Description: multi-stage Dockerfile (`node:22` builds the web, `python:3.13-slim` with `uv sync --frozen --no-dev`, non-root), commands `api`, `worker`, `scheduler`, `migrate`; `infra/docker/compose.yml` (Postgres 18, Mailpit, MinIO), optional for local development (native PostgreSQL 18 is the default path); `/health/live` and `/health/ready` (database reachable, migrations at head; it also reports `ai_provider`).
+- Accept: `docker compose up` serves the API (checked in a CI job on a Linux runner with Docker, not on the owner's PC, which has no Docker); image runs as non-root; ready fails when migrations are behind; image scanned with Trivy in CI.
 - Touches: `infra/docker/Dockerfile`, `infra/docker/compose.yml`, `apps/api/hermi/main.py` (health routes).
-- Tests: readiness test with a stale migration; container smoke test in CI.
+- Tests: readiness test with a stale migration; container smoke test in a CI job (a Linux runner with Docker).
 - Done: DoD plus image size noted in the PR.
 
 #### WF-009 Render and Cloudflare environments and deploy workflows [M1, L]
 - Depends on: WF-008.
-- Description: `infra/render/render.yaml` for API, worker and Postgres 18 (PITR) for staging and production; pre-deploy migration command with an advisory lock; Cloudflare DNS, TLS and WAF, Pages for the web build; `deploy-staging.yml` (on merge) and `deploy-prod.yml` (manual approval, promote the same image digest, rollback on failed health check). Spec: [02-architecture.md](02-architecture.md).
+- Description: `infra/render/render.yaml` for API, worker and Postgres 18 (PITR) for staging and production, pinning `AI_PROVIDER=anthropic_api`; pre-deploy migration command with an advisory lock; Cloudflare DNS, TLS and WAF, Pages for the web build; `deploy-staging.yml` (on merge) and `deploy-prod.yml` (manual approval, promote the same image digest, rollback on failed health check). Deploy jobs skip cleanly without secrets; the account steps are owner-pending. Spec: [02-architecture.md](02-architecture.md).
 - Accept: a merge to `main` reaches staging with migrations applied in under 10 minutes; production deploy needs approval; secrets live only in platform env groups.
 - Touches: `infra/render/render.yaml`, `.github/workflows/deploy-staging.yml`, `.github/workflows/deploy-prod.yml`, `infra/cloudflare/`.
 - Tests: post-deploy smoke test script; a forced failing health check triggers rollback (recorded).
@@ -289,7 +289,7 @@ Conventions for every ticket:
 
 #### WF-010 Security scanning workflows [M1, S]
 - Depends on: WF-007.
-- Description: `security.yml` (pip-audit, npm audit, gitleaks, CodeQL, Trivy), Dependabot grouped weekly, GitHub secret scanning and push protection.
+- Description: `security.yml` (pip-audit, npm audit, gitleaks, CodeQL, Trivy), Dependabot grouped weekly, GitHub secret scanning and push protection. The audits report and do not block.
 - Accept: a planted fake secret is caught by gitleaks in a test branch; workflows run weekly and on PR.
 - Touches: `.github/workflows/security.yml`, `.github/dependabot.yml`.
 - Tests: the planted-secret branch (not merged).
@@ -297,31 +297,31 @@ Conventions for every ticket:
 
 #### WF-011 Migration framework and database roles [M1, M]
 - Depends on: WF-008.
-- Description: Alembic on Postgres 18 with `lock_timeout` and `statement_timeout`, an advisory lock around `upgrade head`, a check for multiple heads, UUIDv7 helper, and the roles from [03-database-schema.md](03-database-schema.md) section 6.1: `hermi_owner` (owns objects, runs migrations), `hermi_app` (the API, subject to RLS), `hermi_worker` (jobs, bypasses RLS) and `hermi_admin` for the admin API (see [08-admin-control-center.md](08-admin-control-center.md)). Write the expand and contract policy into `.claude/rules/database-migrations.md`.
-- Accept: migrations run from empty and from the previous revision; two heads fail CI; `hermi_app` cannot run DDL; the rules file documents the policy.
-- Touches: `apps/api/hermi/migrations/`, `apps/api/hermi/db.py`, `.claude/rules/database-migrations.md`.
-- Tests: migration-from-empty test, head-count test, role privilege tests.
+- Description: the first range of the chain (`0001`) and the foundation under every later range. `infra/db/bootstrap.sql` (idempotent, run as `postgres` by `npm run db:init`) creates the roles of [03-database-schema.md](03-database-schema.md) section 6.1 (`hermi_owner`, `hermi_app`, `hermi_worker`, `hermi_admin`, `hermi_definer` and the `hermi_migrate_login`, `hermi_api_login`, `hermi_worker_login` and `hermi_admin_login` logins) and the `hermi` and `hermi_test` databases; migrations never `CREATE ROLE` and log in as `hermi_migrate_login`. Alembic on PostgreSQL 18 with `lock_timeout` and `statement_timeout`, an advisory lock around `upgrade head`, a head check, a UUIDv7 helper, and `0001_setup` (extensions, domains, `set_updated_at`, `bump_version`, helper-trigger functions, `currency_exponent`, `app_user_id`, and the check that the roles exist, which stops with "run `npm run db:init`" when one is missing). Write the expand and contract policy into `.claude/rules/database-migrations.md`. See [08-admin-control-center.md](08-admin-control-center.md) for the admin role.
+- Accept: `npm run db:init` is idempotent; `0001` runs from empty; two heads fail CI; `hermi_app` cannot run DDL; `0001` fails with the clear message when a role is missing; the rules file documents the policy.
+- Touches: `infra/db/bootstrap.sql`, `apps/api/hermi/migrations/` (`0001_setup`), `apps/api/hermi/db.py`, `.claude/rules/database-migrations.md`.
+- Tests: migration-from-empty test, head-count test, role privilege tests, role-missing test.
 - Done: DoD plus the rules file updated.
 
 #### WF-012 Identity and trips schema [M1, M]
 - Depends on: WF-011.
-- Description: migration for `users`, `auth_identities`, `devices`, `trips`, `trip_members`, `trip_invites`, `trip_share_links`, `trip_destinations`, `people` (with `owner_user_id`, `linked_user_id`), `trip_people`, `activity_log`, `support_tickets`, `idempotency_keys` (the 24 hour replay store for `Idempotency-Key`). `trips` carries `version`, `editors_can_invite` and `calendar_token_hash`; `users` carries the `suspended` status and the column-level update grant of 03 section 6.1. No household tables (Phase 2). UUIDv7 public ids, `timestamptz`, money as integer minor units. DDL in [03-database-schema.md](03-database-schema.md).
-- Accept: migration applies cleanly; constraints and indexes match 03; models and Pydantic schemas exist.
-- Touches: `apps/api/hermi/migrations/versions/`, `apps/api/hermi/modules/{auth,trips,collaboration}/models.py`.
+- Description: the range `0002` to `0004` of 03 section 10: `0002_identity` (`users`, `auth_identities`, `device_attestations`, `guest_allowances`, `devices`), `0003_reference_catalog` (`airports`, `fx_rates`, `places_cache`, `fx_convert_minor`, `CREATE TYPE ai_action`, `plans`, `store_products`, `credit_action_prices`) and `0004_trips_people` (`trips` with its owner-member trigger, `trip_members`, `trip_invites`, `trip_share_links`, `trip_destinations`, `activity_log`, `people` with `owner_user_id` and `linked_user_id`, `trip_people`, `redeem_trip_invite`, `transfer_trip_owner`). `trips` carries `version`, `editors_can_invite` and `calendar_token_hash`; `users` carries the `suspended` status and the column-level update grant of 03 section 6.1. No household tables (Phase 2). UUIDv7 public ids, `timestamptz`, money as integer minor units. DDL in [03-database-schema.md](03-database-schema.md).
+- Accept: migrations `0002` to `0004` apply cleanly; constraints and indexes match 03; models and Pydantic schemas exist.
+- Touches: `apps/api/hermi/migrations/versions/` (`0002` to `0004`), `apps/api/hermi/modules/{auth,trips,collaboration}/models.py`.
 - Tests: constraint tests (unique member per trip, valid roles), schema-vs-DDL comparison test.
 - Done: DoD plus seed data for two test users and a shared trip.
 
 #### WF-013 JWT verification and user provisioning [M1, M]
 - Depends on: WF-012.
-- Description: verify Supabase JWTs (signature by JWKS with `kid`, issuer, audience, expiry), map `sub` to `users` and `auth_identities`, create the user on first sign-in (with the "Me" `people` row), and retire the passcode path. Spec: [04-api-spec.md](04-api-spec.md).
-- Accept: expired, wrong-audience and tampered tokens get 401; first request creates exactly one user under concurrency; Apple "Hide My Email" addresses are accepted.
+- Description: `AUTH_MODE=supabase|dev`. In `supabase` mode verify Supabase JWTs (signature by JWKS with `kid`, issuer, audience, expiry); in `dev` mode verify tokens from the local key pair, refused outside `local` and `ci`. Map `sub` to `users` and `auth_identities`, create the user on first sign-in (with the "Me" `people` row), and retire the passcode path. First sign-in checks `identity_hashes` (a deleted and re-created account does not get the taster or first-import pass again). Build the dev routes `GET /v1/dev/personas` and `POST /v1/dev/session` (04 section 1.2); the first dev session creates the Free, Plus and admin personas (WF-133 adds only the demo trip and the sample trips). Spec: [04-api-spec.md](04-api-spec.md).
+- Accept: expired, wrong-audience and tampered tokens get 401; the algorithm allowlist rejects `none` and mismatched algorithms; dev mode is refused outside `local` and `ci`; a deleted and re-created account gets no second taster or first-import pass; first request creates exactly one user under concurrency; Apple "Hide My Email" addresses are accepted.
 - Touches: `apps/api/hermi/security/jwt.py`, `apps/api/hermi/modules/auth/`, `apps/api/hermi/deps.py`.
-- Tests: token matrix with a local JWKS, concurrent first-login test.
+- Tests: token matrix with a local JWKS, the JWT algorithm allowlist test (reject `none` and mismatched algorithms), dev persona and session route tests, identity-hash test, concurrent first-login test.
 - Done: DoD plus `SUPABASE_URL` documented.
 
 #### WF-014 Tenant-scoped data access layer [M1, L]
 - Depends on: WF-013.
-- Description: one data-access layer every route uses: `require_trip_access(user, trip_id, min_role)` from `trip_members`, and query helpers that always filter by tenant. No route queries trip tables directly; an import-linter rule and a test enforce it.
+- Description: one data-access layer every route uses: `require_trip_access(user, trip_id, min_role)` from `trip_members`, and query helpers that always filter by tenant. No route queries trip tables directly; an import-linter rule and a test enforce it. The `SystemSession` allowlist is one constant with one test, and `app_user_id()` is the database side of the user.
 - Accept: all existing routes use the layer; a lint rule or test fails if a route imports a trip model directly; roles `owner`, `editor`, `viewer` enforced.
 - Touches: `apps/api/hermi/deps.py` (`require_trip`), `apps/api/hermi/db.py`, every module's `repo.py` and `router.py`.
 - Tests: permission matrix tests per role and endpoint.
@@ -329,23 +329,23 @@ Conventions for every ticket:
 
 #### WF-015 Row-level security [M1, M]
 - Depends on: WF-014.
-- Description: Postgres RLS as a second lock: policies on trip-scoped tables keyed to a session variable set per request (`app.user_id`), the `hermi_app` role subject to RLS, `hermi_admin` with explicit admin policies.
+- Description: Postgres RLS as a second lock: policies on trip-scoped tables keyed to a session variable set per request (`app.user_id`), the `hermi_app` role subject to RLS, `hermi_admin` with explicit admin policies. The policies themselves landed in `0014_rls` (P04), so there are no new tables: this ticket wires `app.user_id` per transaction, adds the startup refusal (superuser, `BYPASSRLS`, table owner), verifies `FORCE`, and tests the policies as `hermi_api_login`.
 - Accept: a query with no session variable returns zero rows; a forced bug (app check removed) still cannot read another tenant's data.
-- Touches: `apps/api/hermi/migrations/versions/`, `apps/api/hermi/db.py` (set variable per transaction).
-- Tests: policy tests that bypass the app layer and query as `hermi_app`.
+- Touches: `apps/api/hermi/db.py` (set variable per transaction, startup refusal), `apps/api/tests/`.
+- Tests: policy tests that bypass the app layer and query as `hermi_api_login`; `FORCE` verification; the startup refusal test.
 - Done: DoD plus policy list documented.
 
 #### WF-016 Cross-tenant leak tests [M1, M]
 - Depends on: WF-015.
-- Description: an automated suite that creates two accounts and tries to read, write and delete the other's trip, place, credit balance, webhook and export through every route (generated from the OpenAPI schema), with every route classified in `tests/route_policy.py` (see [10-quality-security-launch.md](10-quality-security-launch.md) section 1.3).
+- Description: first add the `Idempotency-Key` middleware (required on every POST that reserves credits or writes money, 24 hour replay from `idempotency_keys`) and `If-Match` handling (`428 precondition_required`); then an automated suite that creates two accounts and tries to read, write and delete the other's trip, place, credit balance, webhook and export through every route (generated from the OpenAPI schema, under the real roles, for every route including the public token routes), with every route classified in `tests/route_policy.py` (see [10-quality-security-launch.md](10-quality-security-launch.md) section 1.3).
 - Accept: every route returns 403 or 404 for the wrong tenant; the suite runs in CI and fails on any new unclassified or unprotected route.
-- Touches: `apps/api/tests/tenancy/`.
+- Touches: `apps/api/tests/tenancy/`, `apps/api/hermi/security/` (idempotency and precondition middleware).
 - Tests: the suite itself, plus a mutation check (remove one guard and see it fail).
 - Done: DoD plus recorded as Month 1 gate evidence.
 
 #### WF-017 Web API client, environment config and bearer auth [M1, M]
 - Depends on: WF-013.
-- Description: `client.ts` with `VITE_API_BASE_URL`, `Authorization` middleware, one refresh attempt on 401, CORS origins for web, staging and Capacitor, and public keys (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_REVENUECAT_KEY_IOS`, `VITE_SENTRY_DSN`, `VITE_POSTHOG_KEY`) documented.
+- Description: `client.ts` with `VITE_API_BASE_URL`, `Authorization` middleware (default API base `http://localhost:8100`, bearer only, no cookies), one refresh attempt on 401, CORS origins for web, staging and Capacitor, and public keys (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_REVENUECAT_KEY_IOS`, `VITE_SENTRY_DSN`, `VITE_POSTHOG_KEY`) documented.
 - Accept: the client works against staging; 401 triggers refresh then sign-out; no cookies used for hosted mode.
 - Touches: `apps/web/src/lib/api/client.ts`, `apps/web/src/lib/env.ts`, `apps/api/hermi/main.py` (CORS).
 - Tests: vitest client tests with a mock server; CORS preflight test.
@@ -361,7 +361,7 @@ Conventions for every ticket:
 
 #### WF-018 Sign-in and first-trip wizard [M1, M]
 - Depends on: WF-017, WF-130.
-- Description: Sign in with Apple, Google and email code screens; a short intro; "Create your first trip" wizard (destination, dates, who is going). The "Coming from TripIt, Tripsy or Wanderlog?" question arrives in WF-095 and guest mode in WF-062. Spec: [05-ui-ux-spec.md](05-ui-ux-spec.md).
+- Description: Sign in with Apple, Google and email code screens (when `AUTH_MODE=dev` the sign-in screen shows a persona picker: Free, Plus, admin); a short intro; "Create your first trip" wizard (destination, dates, who is going). The "Coming from TripIt, Tripsy or Wanderlog?" question arrives in WF-095 and guest mode in WF-062. Spec: [05-ui-ux-spec.md](05-ui-ux-spec.md).
 - Accept: new user reaches a created trip in under 2 minutes on staging; sign-out clears state; copy follows the rules.
 - Touches: `apps/web/src/routes/auth/`, `apps/web/src/routes/onboarding/`.
 - Tests: component tests, Playwright sign-in with a test identity.
@@ -379,26 +379,26 @@ Conventions for every ticket:
 
 #### WF-020 Operations schema and seed data [M2, M]
 - Depends on: WF-012.
-- Description: migration for `admin_users`, `audit_log` (append only, update and delete rejected by trigger; `retention_class` of 03 section 8), `content_reports`, `consents`, `data_exports`, `deletion_requests`, `rate_limit_counters`, `airports`, `fx_rates`; seed airports and the Phase 1 plans (`free`, `plus`, `trip_pass`, credit packs), store products, credit prices, flags and kill switches (03 section 11). Product analytics stay in PostHog, so there is no `analytics_events` table.
-- Accept: `audit_log` rejects `UPDATE` and `DELETE`; seeds are idempotent.
-- Touches: `apps/api/hermi/migrations/versions/`, `apps/api/hermi/modules/{admin,auth,flights}/models.py`, `apps/api/hermi/seed/`.
-- Tests: trigger test, seed idempotency test.
+- Description: the last range `0012` to `0015` of 03 section 10: `0012_admin_privacy` (`admin_users`, `feature_flags`, `kill_switches`, `audit_log` append only with update and delete rejected by trigger and the `retention_class` of 03 section 8, `support_tickets`, `content_reports`, `consents`, `data_exports`, `deletion_requests`, `rate_limit_counters`, and `idempotency_keys`, the 24 hour replay store for `Idempotency-Key`, created here because 03 creates it in `0012`), `0013_notifications_samples` (`notifications`, `sample_trips`, `plan_verifications`, `plan_verification_items`), `0014_rls` (helper functions, `trip_member_profiles`, `purge_trash`, `retention_sweep`, `maintain_partitions`, `drop_old_log_partitions`, `partition_default_rows`, policies with `FORCE` RLS for every table, grants and `SECURITY DEFINER` changes) and `0015_seed` (the Phase 1 plans, store products, credit prices, flags and kill switches, 03 section 11, idempotent; airports and FX rates are not in the seed: they load through `hermi seed-airports` and `hermi refresh-fx`, not a migration, 03 section 10). Product analytics stay in PostHog, so there is no `analytics_events` table.
+- Accept: migrations `0012` to `0015` apply and the whole chain `0001` to `0015` is one linear chain that creates every table, type, function, policy and seed in 03; `audit_log` rejects `UPDATE` and `DELETE`; the 03 section 6.5 grants-and-RLS test passes; seeds are idempotent.
+- Touches: `apps/api/hermi/migrations/versions/` (`0012` to `0015`), `apps/api/hermi/modules/{admin,auth,flights,notifications}/models.py`, `apps/api/hermi/seed/`.
+- Tests: trigger test, seed idempotency test, the grants-and-RLS test, a test that the chain has one head and no table of 03 is missing.
 - Done: DoD.
 
 #### WF-021 Planning schema [M2, M]
 - Depends on: WF-012.
-- Description: migration for `flight_routes`, `fare_observations`, `trip_fare_links`, `chosen_flights`, `price_alerts`, `itinerary_days`, `itinerary_items`, `places_cache`, `saved_places`, `lodging_options`, `lodging_votes`, `checklist_items`, `notes`, `route_price_insights`. No polls, expenses or settlements (Phase 2). Rows that two people edit carry `version` (03 convention 11).
-- Accept: migration applies; every trip-scoped table has `trip_id` for RLS; indexes on common lookups.
-- Touches: `apps/api/hermi/migrations/versions/`, `apps/api/hermi/modules/{flights,itinerary,places,lodging,trips}/models.py`.
+- Description: the range `0009` to `0011` of 03 section 10: `0009_flights` (`flight_routes`, `fare_observations`, `trip_fare_links`, `chosen_flights`, `route_price_insights`, `booked_fare_drops`, `price_alerts`), `0010_itinerary_lodging` (`itinerary_days`, `saved_places`, `itinerary_items` with its foreign key to `trip_imports`, `lodging_options`, `lodging_votes`, `saved_place_votes`) and `0011_checklist_notes` (`checklist_items`, `notes`). No polls, expenses or settlements (Phase 2). Rows that two people edit carry `version` (03 convention 11).
+- Accept: migrations `0009` to `0011` apply; every trip-scoped table has `trip_id` for RLS; indexes on common lookups.
+- Touches: `apps/api/hermi/migrations/versions/` (`0009` to `0011`), `apps/api/hermi/modules/{flights,itinerary,places,lodging,trips}/models.py`.
 - Tests: schema-vs-DDL test; foreign key and cascade tests.
 - Done: DoD.
 
 #### WF-022 Billing and revenue schema [M2, L]
 - Depends on: WF-012.
-- Description: migration for `plans`, `store_products`, `subscriptions`, `entitlements`, `trip_passes` (with a `source` of `purchase` or `import_reward`), `store_transactions`, `webhook_events`, `affiliate_programs`, `affiliate_link_templates`, `link_clicks`, `affiliate_conversions` (unique on program and network transaction id). No Stripe, concierge, partner guide, print or advisor tables.
-- Accept: migration applies; uniqueness on store transaction id and webhook event id; one active pass per trip.
-- Touches: `apps/api/hermi/migrations/versions/`, `apps/api/hermi/modules/{billing,affiliate}/models.py`.
-- Tests: uniqueness and idempotency constraint tests.
+- Description: the range `0005` to `0008` of 03 section 10, in ticket order (it may run as sub-steps, for example `WF-022.1` for `0005` and `0006`, `WF-022.2` for `0007` and `0008`): `0005_ai` (`runs`, `run_events` partitioned, `ai_usage`, `provider_calls` partitioned, `provider_call_rollups`, `shared_research_cache`, `my_provider_spend_micros`, the partition functions and first partitions, and Procrastinate's own schema with the `job_heartbeats` view), `0006_billing_credits` (`store_transactions`, `subscriptions`, `entitlements`, `trip_passes` with a `source` of `purchase` or `import_reward`, `webhook_events`, `credit_grants`, `credit_ledger` with its append-only trigger, `credit_debts`, `credit_balances`, `identity_hashes`, `identity_hashes_for`, `assert_credit_caller`, `reserve_credits`, `settle_credits`, `release_stale_reservations`, `expire_credit_grants`, `record_credit_debt`, `settle_credit_debt`, `ensure_free_monthly_grant`, `ensure_taster_grant`), `0007_imports_referrals` (`trip_imports`, `grant_import_reward`, `set_import_polling`, `referral_codes`, `referral_rewards`, `ensure_referral_code`, `my_referral_code`, `redeem_referral`, `grant_referral_reward`) and `0008_affiliate` (`affiliate_programs`, `affiliate_link_templates`, `link_clicks` partitioned, `affiliate_conversions` unique on program and network transaction id, `affiliate_payouts`, materialized views). No Stripe, concierge, partner guide, print or advisor tables.
+- Accept: migrations `0005` to `0008` apply in order; uniqueness on store transaction id and webhook event id; one active pass per trip; `credit_ledger` rejects `UPDATE` and `DELETE`; the schema-vs-DDL test passes. WF-022 owns the migrations and that test; the models for the ai, credits and referrals tables are owned by WF-041 and WF-108.
+- Touches: `apps/api/hermi/migrations/versions/` (`0005` to `0008`), `apps/api/hermi/modules/{billing,affiliate}/models.py`, `apps/api/tests/` (schema-vs-DDL test).
+- Tests: uniqueness and idempotency constraint tests, append-only trigger test, schema-vs-DDL test.
 - Done: DoD.
 
 #### WF-023 Entitlement resolver and limit enforcement [M2, L]
@@ -565,17 +565,17 @@ Conventions for every ticket:
 
 #### WF-041 AI, credit and run schema [M3, M]
 - Depends on: WF-012.
-- Description: migration for `runs`, `run_events`, `ai_usage`, `credit_ledger`, `credit_grants`, `credit_debts`, `credit_action_prices`, `provider_calls`, `provider_call_rollups`, `shared_research_cache`; the unique partial index `uq_runs_one_active_agent`; `idempotency_key` uniques; the credit functions of 03 section 5.13 (`reserve_credits`, `settle_credits`, `record_credit_debt`, `settle_credit_debt`, `ensure_free_monthly_grant`, `ensure_taster_grant`).
-- Accept: migration applies; a second concurrent agent run for one account is refused at admission (409 `run_already_active`); ledger idempotency key unique; `reserve_credits` refuses an account with a credit debt.
-- Touches: `apps/api/hermi/migrations/versions/`, `apps/api/hermi/modules/ai/models.py`, `modules/credits/models.py`.
+- Description: models, repository and tests for `runs`, `run_events`, `ai_usage`, `credit_ledger`, `credit_grants`, `credit_debts`, `credit_action_prices`, `provider_calls`, `provider_call_rollups`, `shared_research_cache` (the tables exist since P04, migrations `0003` and `0005` to `0006`), including the `provider` columns on `ai_usage` and `runs` that are already created; the unique partial index `uq_runs_one_active_agent`; `idempotency_key` uniques; the repository calls to the credit functions of 03 section 5.13 (`reserve_credits`, `settle_credits`, `record_credit_debt`, `settle_credit_debt`, `ensure_free_monthly_grant`, `ensure_taster_grant`), which exist since P04.
+- Accept: the models match the P04 tables; a second concurrent agent run for one account is refused at admission (409 `run_already_active`); ledger idempotency key unique; `reserve_credits` refuses an account with a credit debt.
+- Touches: `apps/api/hermi/modules/ai/models.py`, `modules/credits/models.py`.
 - Tests: concurrency test for the one-run-per-account admission check; duplicate idempotency key rejected.
 - Done: DoD plus costs stored as micro-dollars.
 
 #### WF-042 Feature flags and kill switches [M3, M]
 - Depends on: WF-020.
-- Description: `feature_flags` and `kill_switches` tables (`key`, `kind`, `enabled`, `rollout_pct`, `rules`, `variants`; switches carry `reason`, `engaged_by`, `expires_at`, `auto_rule`; admin-set switches must carry an expiry) and a runtime that evaluates flags (cached 5 seconds per process, invalidated by `NOTIFY`) and **fails closed** for paid calls if the tables cannot be read. Seed keys are in [03-database-schema.md](03-database-schema.md) section 11.5, plus the Phase 1 switches `import.ics`, `import.feed`, `import.paste`, `referrals` and `public_pages`, added to the seeds and to `packages/shared/src/flags.ts`.
+- Description: models, repository and runtime for `feature_flags` and `kill_switches` (the tables exist since P04, `0012_admin_privacy`; the rows come from `0015_seed`) (`key`, `kind`, `enabled`, `rollout_pct`, `rules`, `variants`; switches carry `reason`, `engaged_by`, `expires_at`, `auto_rule`; admin-set switches must carry an expiry) and a runtime that evaluates flags (cached 5 seconds per process, invalidated by `NOTIFY`) and **fails closed** for paid calls if the tables cannot be read. Seed keys are in [03-database-schema.md](03-database-schema.md) section 11.5, plus the Phase 1 switches `import.ics`, `import.feed`, `import.paste`, `referrals` and `public_pages`, which are present in the `0015_seed` rows (not added by this ticket) and mirrored in `packages/shared/src/flags.ts`.
 - Accept: flipping `ai.all` blocks AI calls within 5 seconds; engaging or clearing a switch writes `audit_log`; unreadable table blocks paid calls; each new switch blocks only its feature.
-- Touches: `apps/api/hermi/modules/admin/flags.py`, `apps/api/hermi/migrations/versions/`, `packages/shared/src/flags.ts`.
+- Touches: `apps/api/hermi/modules/admin/flags.py`, `packages/shared/src/flags.ts`.
 - Tests: evaluation rules (percent, tier, platform), fail-closed test, audit test.
 - Done: DoD plus a practice drill written in `docs/runbooks/kill-switches.md`.
 
@@ -911,11 +911,11 @@ Conventions for every ticket:
 
 #### WF-116 Verify this plan: schema, endpoints and reading a pasted plan [M4, M]
 - Depends on: WF-048, WF-055, WF-073, WF-044.
-- Description: the tables `plan_verifications` and `plan_verification_items` with policies and grants (03 section 5.20 and 6), the run kinds `verify_extract` and `verify_plan`, the `verify_plan` credit action and price row, flag `verify_plan` and kill switch `ai.verify`. `POST /trips/{id}/verify-plan` redacts the pasted text (the WF-073 redactor), calls Haiku once with a strict schema and no tools (06 section 5.11, up to 8,000 characters and 25 items), applies the grounding checks (every name, hours and price must appear in the text), stores only the items (never the text) and returns the price of step 2. Also `GET`, `PUT selection` (cap by `verify_items_per_run`: Free 5, Plus and Trip Pass 12), `DELETE`. 1 credit in the `explain` price class, refunded when nothing is recognized.
+- Description: models, repository and tests for `plan_verifications` and `plan_verification_items` (the tables, policies and grants exist since P04, 03 section 5.20 and 6), the run kinds `verify_extract` and `verify_plan`, the `verify_plan` credit action and price row, flag `verify_plan` and kill switch `ai.verify`. `POST /trips/{id}/verify-plan` redacts the pasted text (the WF-073 redactor), calls Haiku once with a strict schema and no tools (06 section 5.11, up to 8,000 characters and 25 items), applies the grounding checks (every name, hours and price must appear in the text), stores only the items (never the text) and returns the price of step 2. Also `GET`, `PUT selection` (cap by `verify_items_per_run`: Free 5, Plus and Trip Pass 12), `DELETE`. 1 credit in the `explain` price class, refunded when nothing is recognized.
 - Accept: the recorded model request contains none of the test PII; a name not in the text is dropped; over-cap selection is refused; the pasted text is in no table, log or event; a viewer cannot start a check; a member cannot update verdicts or evidence columns (grants test).
-- Touches: `apps/api/hermi/modules/verification/`, `apps/api/hermi/modules/ai/features/verify_extract.py`, migrations and models for 03 section 5.20.
+- Touches: `apps/api/hermi/modules/verification/`, `apps/api/hermi/modules/ai/features/verify_extract.py`, models for 03 section 5.20.
 - Tests: grounding tests, redaction corpus reuse, grants and RLS tests, refund test, idempotency test, consent and kill switch tests.
-- Done: DoD plus 03 section 5.20 migration reviewed.
+- Done: DoD plus the 03 section 5.20 models reviewed against the P04 tables.
 
 #### WF-117 Verify this plan: item checks, verdicts and credit settlement [M4, L]
 - Depends on: WF-116, WF-033, WF-050, WF-049.
