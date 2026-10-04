@@ -1,0 +1,22 @@
+[project]
+name = "hermi-api"
+version = "0.0.0"
+requires-python = ">=3.13"
+dependencies = ["fastapi>=0.115", "uvicorn>=0.32"]
+
+[project.scripts]
+hermi = "hermi.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["hermi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["posix_only: test needs a POSIX system and is skipped on win32"]

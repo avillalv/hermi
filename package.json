@@ -1,0 +1,21 @@
+{
+  "name": "hermi",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "workspaces": ["apps/web", "packages/*"],
+  "scripts": {
+    "lint": "node scripts/lint.mjs",
+    "format": "node scripts/format.mjs",
+    "test": "node scripts/test.mjs",
+    "test:api": "node scripts/test-api.mjs",
+    "test:web": "npm run test --workspace apps/web",
+    "gen:api": "node scripts/stub.mjs gen:api",
+    "gen:shared": "node scripts/stub.mjs gen:shared",
+    "test:kit": "node scripts/stub.mjs test:kit WF-130",
+    "test:e2e": "node scripts/stub.mjs test:e2e",
+    "test:e2e:smoke": "node scripts/stub.mjs test:e2e:smoke",
+    "evals": "node scripts/stub.mjs evals WF-057",
+    "smoke:live": "node scripts/stub.mjs smoke:live"
+  }
+}
