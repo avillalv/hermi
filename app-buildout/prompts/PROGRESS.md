@@ -1,14 +1,24 @@
 # Phase 1 progress
 
-The build's memory. The orchestrator updates this file in every pull request. A new session resumes from here.
+The build's memory. Every autopilot session updates this file in its pull request, and the next session resumes from here (see [AUTOPILOT.md](AUTOPILOT.md)). The driver runs the units in order: S1 to S3, then prompts 01 to 28, then the final check.
 
 ## Current prompt
 
-None yet. Start with prompt 01.
+None yet. The first unit is S1.
+
+## Setup prompts
+
+Status values: `Not started`, `In progress (<branch>)`, `In review (#<pr>)`, `Done (#<pr>)`, `Stopped (<reason>)`.
+
+| # | Prompt | Tickets | Status |
+|---|---|---|---|
+| S1 | [Spec fixes, runtime (README, 02, 03, 04, 06, 08)](S1-spec-runtime.md) | S1.1, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7 | Not started |
+| S2 | [Spec fixes, product and UI (01, 05, 07, 10, design kit, brand)](S2-spec-product-ui.md) | S2.1, S2.2, S2.3, S2.4, S2.5 | Not started |
+| S3 | [Spec fixes, roadmap, prompts and lint](S3-spec-roadmap-prompts.md) | S3.1, S3.2, S3.3, S3.4, S3.5 | Not started |
 
 ## Prompts
 
-Status values: Not started, In progress (branch name), Done (PR number), Stopped (reason).
+Same status values as above.
 
 | # | Prompt | Tickets | Status |
 |---|---|---|---|

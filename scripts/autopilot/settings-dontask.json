@@ -1,0 +1,144 @@
+{
+  "disableClaudeAiConnectors": true,
+  "env": {
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-5-5",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5-5",
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(gh pr create*)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr list*)",
+      "Bash(gh pr checks*)",
+      "Bash(gh pr ready*)",
+      "Bash(gh pr edit*)",
+      "Bash(gh run *)",
+      "Bash(gh label *)",
+      "Bash(npm run *)",
+      "Bash(npm ci)",
+      "Bash(npx playwright *)",
+      "Bash(npx cap *)",
+      "Bash(npx tsc *)",
+      "Bash(npx vitest *)",
+      "Bash(npx eslint *)",
+      "Bash(npx prettier *)",
+      "Bash(npx stylelint *)",
+      "Bash(uv run *)",
+      "Bash(node scripts/*)",
+      "Bash(timeout *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(grep *)",
+      "Bash(find *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(rm *)",
+      "Bash(echo *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(sort *)",
+      "Bash(diff *)",
+      "Bash(sed *)",
+      "Bash(touch *)",
+      "Bash(cd *)",
+      "Bash(pwd)",
+      "Bash(which *)",
+      "Bash(curl http://localhost*)",
+      "Bash(curl http://127.0.0.1*)",
+      "Bash(psql *)",
+      "Bash(createdb *)",
+      "Bash(dropdb *)",
+      "Bash(createuser *)",
+      "Bash(dropuser *)",
+      "Bash(pg_dump *)",
+      "Bash(pg_restore *)",
+      "Bash(\"C:/Program Files/PostgreSQL/18/bin/psql.exe\" *)",
+      "Bash(\"C:/Program Files/PostgreSQL/18/bin/createdb.exe\" *)",
+      "Bash(\"C:/Program Files/PostgreSQL/18/bin/dropdb.exe\" *)",
+      "Bash(\"C:/Program Files/PostgreSQL/18/bin/createuser.exe\" *)",
+      "Bash(\"C:/Program Files/PostgreSQL/18/bin/dropuser.exe\" *)",
+      "Bash(\"C:/Program Files/PostgreSQL/18/bin/pg_dump.exe\" *)",
+      "Bash(\"C:/Program Files/PostgreSQL/18/bin/pg_restore.exe\" *)",
+      "Bash(\"/c/Program Files/PostgreSQL/18/bin/psql.exe\" *)",
+      "Bash(\"/c/Program Files/PostgreSQL/18/bin/createdb.exe\" *)",
+      "Bash(\"/c/Program Files/PostgreSQL/18/bin/dropdb.exe\" *)",
+      "Bash(\"/c/Program Files/PostgreSQL/18/bin/createuser.exe\" *)",
+      "Bash(\"/c/Program Files/PostgreSQL/18/bin/dropuser.exe\" *)",
+      "Bash(\"/c/Program Files/PostgreSQL/18/bin/pg_dump.exe\" *)",
+      "Bash(\"/c/Program Files/PostgreSQL/18/bin/pg_restore.exe\" *)",
+      "Edit",
+      "Write",
+      "Read(./**)",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "Agent",
+      "Skill"
+    ],
+    "deny": [
+      "Bash(gh pr merge*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push origin main*)",
+      "Bash(git push origin HEAD:main*)",
+      "Read(./.env)",
+      "Edit(./.env)",
+      "Write(./.env)",
+      "Read(./**/.env)",
+      "Edit(./**/.env)",
+      "Write(./**/.env)",
+      "Edit(./scripts/autopilot/**)",
+      "Write(./scripts/autopilot/**)",
+      "Edit(./.claude/settings*.json)",
+      "Write(./.claude/settings*.json)",
+      "Edit(./.claude/agents/**)",
+      "Write(./.claude/agents/**)",
+      "Edit(./.mcp.json)",
+      "Write(./.mcp.json)",
+      "WebFetch(domain:airbnb.com)",
+      "WebFetch(domain:www.airbnb.com)",
+      "WebFetch(domain:vrbo.com)",
+      "WebFetch(domain:www.vrbo.com)",
+      "WebFetch(domain:booking.com)",
+      "WebFetch(domain:www.booking.com)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/autopilot/hooks/agent-guard.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/autopilot/hooks/bash-guard.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/autopilot/hooks/file-guard.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -8,6 +8,7 @@ This repo is the specification itself, so its reference material lives in `app-b
 
 | File | Read it when |
 |---|---|
+| `autopilot.md` | You start, watch, stop or resume the unattended build, meet an exit code or a usage-limit pause, or need to know why sessions never merge. |
 | `local-dev-windows.md` | You set up, run or debug Hermi on this Windows machine: the PostgreSQL superuser password, the commands, ports, dev sign-in and the Windows hazards. |
 | `env-and-accounts.md` | You add or change an environment variable, or need to know what an account or key is for, whether you need it locally, and where to get it. |
 | `ai-provider-claude-cli.md` | You touch the `AiProvider` seam, run product AI through the owner's own `claude -p`, or move to the Anthropic API for production. |
@@ -25,6 +26,8 @@ This repo is the specification itself, so its reference material lives in `app-b
 | `app-buildout/phase-1-launch/design/README.md` | You are doing any UI work: tokens, component classes, screen mockups and PNGs. |
 | `app-buildout/brand/BRAND.md` | You touch the logo, colors, type or voice, or need to regenerate the logo files. |
 | `app-buildout/prompts/KICKOFF.md` and `00-orchestrator.md` | You start, resume or run the Phase 1 build: setup, the loop, models, stop conditions. |
+| `app-buildout/prompts/AUTOPILOT.md` | You run or debug the autopilot: the session prompt every unattended session follows (its modes, stop reasons and owner verification pending). Operating it is in `knowledge/autopilot.md`. |
+| `app-buildout/prompts/S1-spec-runtime.md`, `S2-spec-product-ui.md`, `S3-spec-roadmap-prompts.md` | You need the spec fixes the readiness audit found, applied before prompt 01: runtime and data (S1), product and UI (S2), roadmap and prompts (S3). Each spec file is edited by exactly one of them. |
 | `app-buildout/prompts/PROGRESS.md` | You need to know which of the build prompts are done. Status log, so it stays where it is. |
 | `app-buildout/prompts/HUMAN_TASKS.md` and `DECISIONS.md` | You hit an owner-only step (accounts, keys, Mac builds, App Store) or made a judgement call. Both are status logs. |
 | `app-buildout/context/business-plan/README.md` | A spec says "why" about pricing, AI costs, infrastructure, affiliate revenue or the App Store path. |

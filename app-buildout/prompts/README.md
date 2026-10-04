@@ -1,15 +1,39 @@
 # Phase 1 build prompts
 
-These prompts build all of Hermi Phase 1 in 28 steps. One orchestrating Claude Code session runs
-them in order, one pull request each. Start it with the prompt in [KICKOFF.md](KICKOFF.md).
+These prompts build all of Hermi Phase 1 in 28 steps, after three setup prompts (S1 to S3) that fix
+the specification. The autopilot runs them in order, one pull request each. Start it with
+[KICKOFF.md](KICKOFF.md).
 
 | File | Purpose |
 |---|---|
-| [KICKOFF.md](KICKOFF.md) | The one prompt you paste to start (and to resume) the build, plus setup |
-| [00-orchestrator.md](00-orchestrator.md) | How the orchestrator runs each prompt: models, loop, PRs, merging, stop conditions |
+| [KICKOFF.md](KICKOFF.md) | How to start, watch, stop and resume the autopilot, plus your one-time setup |
+| [AUTOPILOT.md](AUTOPILOT.md) | The creation prompt appended to every autopilot session: modes, stop list, owner verification pending |
+| [00-orchestrator.md](00-orchestrator.md) | The rulebook: models, subagents, the driver's unit flow, gates, stop conditions |
+| [S1-spec-runtime.md](S1-spec-runtime.md) | Setup prompt 1, run before 01: fix the runtime spec (README, 02, 03, 04, 06, 08) |
+| [S2-spec-product-ui.md](S2-spec-product-ui.md) | Setup prompt 2, run before 01: fix the product and UI spec (01, 05, 07, 10, design kit, brand) |
+| [S3-spec-roadmap-prompts.md](S3-spec-roadmap-prompts.md) | Setup prompt 3, run before 01: fix the roadmap, the prompts and the lint |
 | [PROGRESS.md](PROGRESS.md) | Status of every prompt; the build's memory between sessions |
-| [HUMAN_TASKS.md](HUMAN_TASKS.md) | Things only you can do (accounts, keys, Mac builds, App Store) |
+| [HUMAN_TASKS.md](HUMAN_TASKS.md) | Things only you can do (accounts, keys, iOS signing, App Store), in order |
 | [DECISIONS.md](DECISIONS.md) | Judgement calls made during the build |
+
+## Autopilot
+
+The autopilot is a Node driver (`scripts/autopilot/run.mjs`) that runs one fresh Claude Code session
+for every plan, ticket and ship step, in this order: S1 to S3, prompts 01 to 28, then a final check.
+Sonnet 5.5 writes the code, Opus 5.5 plans and reviews, and the driver merges each pull request after
+the check named `ci` has passed and every Opus verdict it needs is in (every ticket, plus the final gate
+and any ci-fix or late ship change). Session rules are in
+[AUTOPILOT.md](AUTOPILOT.md) and build rules in [00-orchestrator.md](00-orchestrator.md).
+
+## The 3 setup prompts
+
+They run before prompt 01 and fix the specification, one file group per ticket.
+
+| # | Prompt | Tickets |
+|---|---|---|
+| S1 | [Spec fixes, runtime (README, 02, 03, 04, 06, 08)](S1-spec-runtime.md) | S1.1, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7 |
+| S2 | [Spec fixes, product and UI (01, 05, 07, 10, design kit, brand)](S2-spec-product-ui.md) | S2.1, S2.2, S2.3, S2.4, S2.5 |
+| S3 | [Spec fixes, roadmap, prompts and lint](S3-spec-roadmap-prompts.md) | S3.1, S3.2, S3.3, S3.4, S3.5 |
 
 ## The 28 prompts
 

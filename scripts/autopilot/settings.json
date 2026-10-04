@@ -1,0 +1,103 @@
+{
+  "disableClaudeAiConnectors": true,
+  "env": {
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-5-5",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-5-5",
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"
+  },
+  "autoMode": {
+    "environment": [
+      "$defaults",
+      "**Trusted repo**: C:/Users/matic/code/hermi and its GitHub remote avillalv/hermi (github.com/avillalv/hermi, a public repository). The branches phase1/*, spec/* and fix/* are this build's working branches. main is a protected branch: pull requests into it are merged by the autopilot driver program after CI passes, never by a session.",
+      "**Local database**: a PostgreSQL 18 service on localhost:5432 on this Windows machine. Databases and roles named hermi or hermi_* (for example hermi_test, hermi_owner, hermi_app) are disposable development and test data that the build creates, migrates, seeds and drops. The postgres superuser is reached through the client's pgpass file.",
+      "**Package sources**: the public npm registry and PyPI, used through npm, npx and uv, are the trusted package sources for this build.",
+      "**Unattended autonomous build**: this session belongs to an unattended autonomous build of the Hermi trip-planner app. The owner started it on purpose and wrote the plan it follows (app-buildout/ in this repository).",
+      "**Source control (additional trusted repo)**: C:/Users/matic/code/trip-planner and its remote github.com/avillalv/trip-planner are the owner's earlier PUBLIC project and count as a trusted repo of this build, like the Hermi repo. Its code, docs and assets are the same owner's own work and hold nothing confidential, so porting them into Hermi and pushing the result to avillalv/hermi is the plan and is not out-of-place publication. Its data folder holds personal data and is not part of that trusted work product."
+    ],
+    "allow": [
+      "$defaults",
+      "Hermi Stack Packages: Running `npm install <pkg>`, `npm install -D <pkg>`, `uv add <pkg>` or `uv add --dev <pkg>` for the packages named here, using only a bare registry name or name@version (for npm) or a name with extras and PEP 440 version specifiers (for uv, for example uvicorn[standard], psycopg[binary,pool], pytest>=8): no git URLs, tarball URLs, file: paths, npm: aliases, and no --registry or --index-url override. A later `npm install`, `npm ci` or `uv sync` is covered as long as every package added to the manifest in this session is on this list. Their install scripts may run. The list is authoritative; a package that is not on it is not covered. A name ending in /* means every package of that npm scope; any other name means only that package. npm: react, react-dom, react-router, vite, @vitejs/plugin-react, typescript, tailwindcss, @tailwindcss/vite, @tanstack/react-query, @tanstack/react-router, @tanstack/react-table, @tanstack/react-form, @radix-ui/*, shadcn, class-variance-authority, clsx, tailwind-merge, tw-animate-css, sonner, vaul, lucide-react, recharts, maplibre-gl, @fullcalendar/*, react-day-picker, react-i18next, i18next, dompurify, openapi-typescript, openapi-fetch, @fontsource-variable/fredoka, @fontsource-variable/atkinson-hyperlegible-next, @fontsource-variable/atkinson-hyperlegible-mono, @capacitor/* (the official Capacitor scope), @capacitor-community/sqlite, @revenuecat/purchases-capacitor, vitest, @vitest/*, jsdom, @testing-library/*, @playwright/test, playwright, @axe-core/playwright, lighthouse, pixelmatch, pngjs, eslint, @eslint/js, typescript-eslint, eslint-plugin-react-hooks, eslint-plugin-jsx-a11y, oxlint, prettier, stylelint, stylelint-config-standard, cross-env, and @types/<any package listed here>. Python with uv: fastapi, uvicorn, sqlalchemy, alembic, pydantic, pydantic-settings, psycopg, procrastinate, httpx, anthropic, psutil, pytest, pytest-asyncio, pytest-cov, pytest-timeout, ruff, import-linter, pip-audit, hypothesis and typer.",
+      "Local npx Binaries: Running npx only for binaries that the repository already has in node_modules/.bin because they are listed in its package.json devDependencies: playwright (from @playwright/test), cap (from @capacitor/cli), tsc (from typescript), vitest, eslint, prettier, stylelint and vite. `npx cap` and `npx tsc` are covered only when @capacitor/cli or typescript is already installed there, because the unrelated npm packages named cap and tsc would be downloaded otherwise. This includes `npx playwright install chromium` (a browser download from Playwright's CDN) and `npx shadcn add <component-name>` with an official shadcn registry component name (no namespaced @scope/name registries and no URL). Any other npx package name is not covered.",
+      "Disposable Hermi Databases: On the local PostgreSQL service (localhost:5432), creating, migrating, seeding, resetting and dropping databases and roles named hermi or starting with hermi_, using psql, createdb, dropdb, createuser, dropuser or SQL, including connecting as the postgres superuser through the client's pgpass file. Never touch other databases or roles.",
+      "Hermi Branch Pushes: Running a plain git push (no force, no delete, no tags) of a branch named phase1/*, spec/* or fix/* to origin (github.com/avillalv/hermi), including setting the upstream.",
+      "Hermi Pull Requests: On avillalv/hermi, running gh pr create, gh pr ready, gh pr edit (title, body, and adding the e2e or autopilot:stopped label), gh pr comment, gh label create and gh label list, and read-only gh pr, gh run and gh api queries.",
+      "Local Dev Servers: Starting and stopping the project's own dev servers and test runners bound to loopback (Vite on 5173, the API on 8100, Playwright web servers, vitest, pytest) for smoke and end-to-end checks, including killing processes this session started.",
+      "Project Scripts: Running the repository's own scripts and commands: npm run scripts, uv run, node scripts/*.mjs (except scripts/autopilot/), and the hermi CLI (hermi seed, hermi admin-grant and the like), always with fake or local providers (AI_PROVIDER=fake, STORAGE_BACKEND=local, EMAIL_BACKEND=file). The one carve-out from the fake-provider condition is Hermi AI Smoke below.",
+      "Hermi AI Smoke: Running `hermi ai-smoke` in the final completion check, not in a loop or a background job. Treat `hermi ai-smoke` as this invocation: the claude_cli provider starts the signed-in CLI as `claude -p --permission-mode dontAsk` from an empty scratch directory, with `--tools \"\"` (no tools) or with `--tools \"WebSearch,WebFetch\" --allowedTools WebSearch WebFetch`. The hard and soft blocks, including Rental Site Fetching, still apply to whatever it fetches, and the provider must pass --disallowedTools for WebFetch on airbnb.com, vrbo.com and booking.com because the nested session runs without this classifier.",
+      "Sibling Repo Port: Reading source, docs and assets from C:/Users/matic/code/trip-planner (the additional trusted repo in Environment) and copying or adapting them into this repository, as the port plan requires, except its data folder, .env files and database dumps.",
+      "Build Cleanup: Deleting and recreating build artifacts and caches inside this repository's working directory (node_modules, .venv, dist, coverage, .data, test-results, playwright-report, __pycache__, .pytest_cache)."
+    ],
+    "hard_deny": [
+      "$defaults",
+      "Autopilot Self-Edit: Authoring, editing, overwriting, renaming or deleting content under scripts/autopilot/ in this repository, whether with an editor tool, shell redirection, sed -i, cp, mv or a script, and staging or committing such a change. Branch switches, pulls, rebases, merges and stash pops that only move the working tree to an already-committed version are not this rule. The autopilot driver, its settings and its guard hooks are owner-controlled.",
+      "Rental Site Fetching: Fetching, scraping or browsing pages of airbnb.com, vrbo.com or booking.com, including their subdomains, regional domains (for example airbnb.co.uk) and sister brands (abritel.fr, homeaway.*), by any means (WebFetch, curl, Playwright or a script), and any WebSearch query that names or targets those sites (for example site:airbnb.com). Hermi never fetches those sites. An ordinary search that merely returns such results is not this rule, but its result pages must not be opened.",
+      "Pull Request Merge: Merging a pull request or enabling auto-merge by any means (gh pr merge, gh api, GraphQL or the web). Only the autopilot driver merges, after CI and review.",
+      "Push to Main: Pushing to main on avillalv/hermi by any refspec (HEAD:main, refs/heads/main, a bare git push while main is checked out, --all or --mirror), and force-pushing any branch, including with --force-with-lease. Only the autopilot driver updates main, by merging pull requests. A rebase of an already-pushed branch is therefore not available: use a merge instead.",
+      "Push Outside Autopilot Branches: Pushing to any branch of origin other than phase1/*, spec/* and fix/*, pushing tags, deleting any remote branch or tag (git push --delete, a :branch refspec), or pushing to any remote other than origin.",
+      "Repository Protection Change: changing or deleting branch protection, rulesets or any ref of avillalv/hermi through gh api, GraphQL or the web"
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Bash(gh pr merge*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push origin main*)",
+      "Bash(git push origin HEAD:main*)",
+      "Read(./.env)",
+      "Edit(./.env)",
+      "Write(./.env)",
+      "Read(./**/.env)",
+      "Edit(./**/.env)",
+      "Write(./**/.env)",
+      "Edit(./scripts/autopilot/**)",
+      "Write(./scripts/autopilot/**)",
+      "Edit(./.claude/settings*.json)",
+      "Write(./.claude/settings*.json)",
+      "Edit(./.claude/agents/**)",
+      "Write(./.claude/agents/**)",
+      "Edit(./.mcp.json)",
+      "Write(./.mcp.json)",
+      "WebFetch(domain:airbnb.com)",
+      "WebFetch(domain:www.airbnb.com)",
+      "WebFetch(domain:vrbo.com)",
+      "WebFetch(domain:www.vrbo.com)",
+      "WebFetch(domain:booking.com)",
+      "WebFetch(domain:www.booking.com)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/autopilot/hooks/agent-guard.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/autopilot/hooks/bash-guard.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/autopilot/hooks/file-guard.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
