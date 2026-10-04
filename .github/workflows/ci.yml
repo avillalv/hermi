@@ -1,26 +1,77 @@
-# Placeholder pipeline. Prompt 01 (WF-007) replaces the body of this workflow, but it must keep
-# an always-running aggregator job named `ci`: branch protection requires that check name, and
-# a renamed, filtered or skipped job would block every merge.
+# WF-007. The aggregator job `ci` is the required check on main: it needs every other job, always
+# runs, and is red if any needed job failed or was cancelled. Never rename, filter or skip it.
+# Jobs whose artifact does not exist yet (Alembic WF-011, Dockerfile WF-008, gen:api) skip with a
+# notice, so they turn real as the files land. Actions are pinned to major versions.
 name: ci
 
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 3 * * *" # nightly: runs the windows job only
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CI: "1"
+  ENVIRONMENT: ci
+  AI_PROVIDER: fake
+  PROVIDERS_MODE: fake
+  AUTH_MODE: dev
+  ADMIN_AUTH_MODE: dev
+  EMAIL_BACKEND: console
+  STORAGE_BACKEND: local
+  SCHEDULER_ENABLED: "false"
 
 jobs:
-  ci:
-    name: ci
+  lint:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: npm ci
+      - run: uv sync --all-packages --frozen
+      - name: Lint (eslint with jsx-a11y, tsc, ruff, spec lint)
+        run: npm run lint
+      - name: Copy lint (locales/en.json)
+        run: node scripts/check-copy.mjs locales/en.json
+      - name: Stylelint declaration-strict-value
+        # shortcut: skipped until a stylelint config lands (design kit CSS, WF-130); then add the
+        # stylelint dev dependency and this step runs on its own.
+        run: |
+          if ls stylelint.config.* .stylelintrc* >/dev/null 2>&1; then
+            npx --no-install stylelint "apps/web/src/**/*.css"
+          else
+            echo "::notice::No stylelint config yet, skipping declaration-strict-value"
+          fi
+      - name: Dash check (em and en dashes in tracked files outside findings)
+        run: |
+          em=$(printf '\xe2\x80\x94'); en=$(printf '\xe2\x80\x93')
+          if git ls-files -z ':!findings/' | xargs -0 grep -Il -e "$em" -e "$en"; then
+            echo "::error::em or en dash found"; exit 1
+          fi
+
+  scripts:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,3 +83,275 @@ jobs:
         run: node scripts/spec-lint.mjs
       - name: Autopilot tests
         run: node --test "scripts/autopilot/**/*.test.mjs"
+      - name: Script tests
+        run: node --test scripts/lib/local.test.mjs scripts/check-copy.test.mjs
+
+  api-tests:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://hermi_api_login:ci-throwaway@localhost:5432/hermi
+      DATABASE_URL_SYSTEM: postgresql+psycopg://hermi_worker_login:ci-throwaway@localhost:5432/hermi
+      DATABASE_URL_ADMIN: postgresql+psycopg://hermi_admin_login:ci-throwaway@localhost:5432/hermi
+      MIGRATION_DATABASE_URL: postgresql+psycopg://hermi_migrate_login:ci-throwaway@localhost:5432/hermi
+      TEST_DATABASE_URL: postgresql+psycopg://hermi_api_login:ci-throwaway@localhost:5432/hermi_test
+      TEST_DATABASE_URL_SYSTEM: postgresql+psycopg://hermi_worker_login:ci-throwaway@localhost:5432/hermi_test
+      TEST_MIGRATION_DATABASE_URL: postgresql+psycopg://hermi_migrate_login:ci-throwaway@localhost:5432/hermi_test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install PostgreSQL 18 client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-18
+      - run: npm ci
+      - run: uv sync --all-packages --frozen
+      - name: Create database roles
+        run: PGPASSWORD=postgres npm run db:init
+      - run: node scripts/test-api.mjs
+
+  web-tests:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:web
+      - run: npm run build --workspace apps/web
+
+  openapi-drift:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: npm ci
+      - run: uv sync --all-packages --frozen
+      - name: Regenerate API types
+        run: npm run gen:api # a stub until the OpenAPI ticket lands, then it writes apps/web/src/lib/api
+      - name: Fail on drift
+        run: |
+          if [ -n "$(git status --porcelain -- apps/web/src/lib/api)" ]; then
+            git status --porcelain -- apps/web/src/lib/api
+            git diff -- apps/web/src/lib/api | head -80
+            echo "::error::OpenAPI types are out of date. Run npm run gen:api and commit the result."
+            exit 1
+          fi
+
+  migrations:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://hermi_api_login:ci-throwaway@localhost:5432/hermi
+      DATABASE_URL_SYSTEM: postgresql+psycopg://hermi_worker_login:ci-throwaway@localhost:5432/hermi
+      DATABASE_URL_ADMIN: postgresql+psycopg://hermi_admin_login:ci-throwaway@localhost:5432/hermi
+      MIGRATION_DATABASE_URL: postgresql+psycopg://hermi_migrate_login:ci-throwaway@localhost:5432/hermi
+      TEST_DATABASE_URL: postgresql+psycopg://hermi_api_login:ci-throwaway@localhost:5432/hermi_test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install PostgreSQL 18 client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-18
+      - run: npm ci
+      - name: Create database roles
+        run: PGPASSWORD=postgres npm run db:init
+      - name: Detect Alembic
+        id: detect
+        run: |
+          if [ -f apps/api/alembic.ini ]; then echo "present=true" >> "$GITHUB_OUTPUT"
+          else echo "::notice::apps/api/alembic.ini not found yet (WF-011), skipping migration checks"; fi
+      - if: steps.detect.outputs.present == 'true'
+        run: uv sync --all-packages --frozen
+      - name: Single head
+        if: steps.detect.outputs.present == 'true'
+        working-directory: apps/api
+        run: |
+          heads=$(uv run --no-sync alembic heads | grep -c '(head)' || true)
+          echo "alembic heads: $heads"
+          if [ "$heads" -ne 1 ]; then echo "::error::expected 1 Alembic head, found $heads"; exit 1; fi
+      - name: Upgrade from empty to head
+        if: steps.detect.outputs.present == 'true'
+        working-directory: apps/api
+        run: uv run --no-sync alembic upgrade head
+      - name: Downgrade to base and back
+        if: steps.detect.outputs.present == 'true'
+        working-directory: apps/api
+        run: |
+          uv run --no-sync alembic downgrade base
+          uv run --no-sync alembic upgrade head
+      - name: Previous release to head
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          tag=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          if [ -z "$tag" ] || ! git cat-file -e "$tag:apps/api/alembic.ini" 2>/dev/null; then
+            echo "::notice::No previous release tag with migrations, skipping"; exit 0
+          fi
+          echo "previous release: $tag"
+          export PGPASSWORD=postgres
+          psql -h localhost -U postgres -c 'DROP DATABASE hermi' postgres
+          npm run db:init
+          git worktree add ../prev "$tag"
+          (cd ../prev && uv sync --all-packages --frozen)
+          (cd ../prev/apps/api && uv run --no-sync alembic upgrade head)
+          (cd apps/api && uv run --no-sync alembic upgrade head)
+
+  image:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Detect Dockerfile
+        id: detect
+        run: |
+          if [ -f infra/docker/Dockerfile ]; then echo "present=true" >> "$GITHUB_OUTPUT"
+          else echo "::notice::infra/docker/Dockerfile not found yet (WF-008), skipping image build"; fi
+      - uses: docker/setup-buildx-action@v3
+        if: steps.detect.outputs.present == 'true'
+      - uses: docker/build-push-action@v6
+        if: steps.detect.outputs.present == 'true'
+        with:
+          context: .
+          file: infra/docker/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  audit:
+    # Non-blocking: reports only, and it is not a needed job of `ci`.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: astral-sh/setup-uv@v5
+      - name: npm audit
+        continue-on-error: true
+        run: npm audit --audit-level=high
+      - name: pip-audit
+        continue-on-error: true
+        run: |
+          uv export --frozen --all-packages --no-emit-workspace --no-hashes -o "$RUNNER_TEMP/req.txt"
+          uvx pip-audit==2.10.1 -r "$RUNNER_TEMP/req.txt" --no-deps
+
+  deploy:
+    # Gated on a repository variable so main stays green without secrets.
+    if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: echo "::notice::Deploy hook arrives with WF-009 (Render). Nothing to do yet."
+
+  live-eval:
+    # Gated on a repository variable. Live provider calls never run on pull requests.
+    if: github.event_name != 'pull_request' && vars.LIVE_EVALS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - run: echo "::notice::Live evals arrive with WF-057. Nothing to do yet."
+
+  windows-nightly:
+    # Not a needed job of `ci`: it only runs on the nightly schedule and manual dispatch.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: astral-sh/setup-uv@v5
+      - run: npm ci
+      - run: uv sync --all-packages --frozen
+      - run: npm run lint
+      - run: npm test
+
+  ci:
+    name: ci
+    needs: [lint, scripts, api-tests, web-tests, openapi-drift, migrations, image, deploy, live-eval]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every needed job passed or was skipped on purpose
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -E '"result": "(failure|cancelled)"' >/dev/null; then
+            echo "::error::a needed job failed or was cancelled"; exit 1
+          fi
