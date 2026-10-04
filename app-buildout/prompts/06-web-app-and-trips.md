@@ -13,6 +13,7 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 | Ticket | Title |
 |---|---|
 | WF-017 | Web API client, environment config and bearer auth |
+| WF-130 | Kit port, shell and kit tests |
 | WF-018 | Sign-in and first-trip wizard |
 | WF-019 | Trips module |
 

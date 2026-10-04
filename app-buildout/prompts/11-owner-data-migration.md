@@ -13,6 +13,7 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 | Ticket | Title |
 |---|---|
 | WF-040 | Migrate the owner's existing data |
+| WF-133 | Demo seed, sample trips and Discover |
 
 ## Read before starting
 

@@ -18,6 +18,7 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 | WF-044 | Credit ledger service |
 | WF-045 | Spend ceilings and budget service |
 | WF-046 | Job queue and worker lanes |
+| WF-131 | AI provider seam |
 | WF-047 | Notification service and email |
 
 ## Read before starting

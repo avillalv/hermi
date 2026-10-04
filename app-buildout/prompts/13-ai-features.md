@@ -19,6 +19,7 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 | WF-054 | AI consent, labels and reports |
 | WF-055 | Evidence labels |
 | WF-120 | Evidence freshness and one-tap recheck |
+| WF-132 | AI sheet and action screens |
 | WF-062 | Guest mode and claim |
 
 ## Read before starting
