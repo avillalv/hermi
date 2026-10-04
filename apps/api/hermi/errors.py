@@ -24,9 +24,17 @@ STATUS_CODES = {
 
 
 class ApiError(Exception):
-    def __init__(self, status: int, code: str, detail: str, headers: dict[str, str] | None = None):
+    def __init__(
+        self,
+        status: int,
+        code: str,
+        detail: str,
+        headers: dict[str, str] | None = None,
+        extra: dict | None = None,
+    ):
         super().__init__(code)
         self.status, self.code, self.detail, self.headers = status, code, detail, headers or {}
+        self.extra = extra or {}  # extra problem members, such as `current` on version_conflict
 
 
 class NotFound(ApiError):
@@ -85,7 +93,7 @@ def problem(request: Request, status: int, code: str, detail: str, **extra) -> J
 def register(app: FastAPI) -> None:
     @app.exception_handler(ApiError)
     async def _api(request: Request, exc: ApiError):
-        r = problem(request, exc.status, exc.code, exc.detail)
+        r = problem(request, exc.status, exc.code, exc.detail, **exc.extra)
         r.headers.update(exc.headers)
         return r
 

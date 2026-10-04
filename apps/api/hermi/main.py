@@ -9,6 +9,7 @@ from hermi.config import LOCAL_ENVIRONMENTS, Settings, load_settings
 from hermi.logging_setup import setup_logging
 from hermi.modules.auth.router import dev_router
 from hermi.modules.notifications import waitlist
+from hermi.security.idempotency import IdempotencyMiddleware
 from hermi.security.jwt import TokenVerifier
 
 
@@ -48,11 +49,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # The landing page on Cloudflare Pages posts here cross-origin.
     # List its origin in CORS_ALLOWED_ORIGINS.
     origins = [o.strip() for o in settings.cors_allowed_origins.split(",") if o.strip()]
+    # Innermost, so CORS and the request id wrap its errors.
+    app.add_middleware(IdempotencyMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
-        allow_methods=["POST"],
-        allow_headers=["Content-Type"],
+        allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
+        allow_headers=[
+            "Content-Type",
+            "Authorization",
+            "Idempotency-Key",
+            "If-Match",
+            "If-None-Match",
+        ],
+        expose_headers=["ETag", "Retry-After", "Idempotent-Replay", "X-Request-Id", "Location"],
     )
     app.add_middleware(errors.RequestIdMiddleware)  # last added = outermost, wraps CORS
     waitlist.register(app)
