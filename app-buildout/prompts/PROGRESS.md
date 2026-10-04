@@ -49,7 +49,7 @@ Same status values as above.
 | 01 | [Repository foundation, CI and landing page](01-repo-foundation.md) | WF-001, WF-003, WF-004, WF-006, WF-007, WF-008, WF-010, WF-002 | Done (#8) |
 | 02 | [Port reusable code from the old Trip Planner](02-port-reusable-modules.md) | WF-005 | Done (#12) |
 | 03 | [Staging and production environments](03-deploy-environments.md) | WF-009 | Done (#13) |
-| 04 | [Database foundation and schemas](04-database-foundation.md) | WF-011, WF-012, WF-022, WF-021, WF-020 | In progress (phase1/p04-database-foundation) |
+| 04 | [Database foundation and schemas](04-database-foundation.md) | WF-011, WF-012, WF-022, WF-021, WF-020 | Done (#15) |
 | 05 | [Sign-in, tenancy and row-level security](05-auth-and-tenancy.md) | WF-013, WF-014, WF-015, WF-016 | Not started |
 | 06 | [Web app platform, sign-in and trips](06-web-app-and-trips.md) | WF-017, WF-130, WF-018, WF-019 | Not started |
 | 07 | [Entitlements, travelers, invites and roles](07-entitlements-and-collaboration.md) | WF-023, WF-024, WF-025, WF-026, WF-027, WF-028 | Not started |
@@ -90,3 +90,4 @@ Things a later prompt must know (a helper that exists, a pattern to reuse, a kno
 |---|---|---|
 | Average agent run cost (target at most $0.60) | not measured | |
 | Crash-free sessions in beta (target above 99.5%) | not measured | |
+- P04 follow-ups: the first ticket that opens the app engine must call `hermi.db.assert_app_login_is_safe`; the worker ticket must pin `procrastinate==3.10.0` or newer; models for flights, itinerary, places, lodging, checklist, notes, imports and affiliate belong to their feature tickets (WF-030, 032, 033, 034, 070, 041, 108); the admin console functions of 08 section 6 are left to their ticket; 03 section 6.1.1 should get the final DDL of the seven functions written in 0014.
