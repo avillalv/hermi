@@ -2,7 +2,7 @@
 """WF-022.3: revisions 0007_imports_referrals and 0008_affiliate (03 sections 5.9, 5.10, 10).
 
 Constraints are exercised as the migrate login (the owner), because grants land in 0014_rls.
-feature_flags arrives in 0012_admin_privacy, so the function tests create a stub public.feature_flags (migrate login) and drop it in teardown.
+feature_flags comes from 0012_admin_privacy; the function tests write the two settings they read into it (migrate login).
 The schema-vs-DDL comparison for 5.9 and 5.10 lives in test_migrations_trips_people.py (it spans 0002 to 0008).
 """
 
@@ -33,11 +33,7 @@ def conn():
     command.downgrade(cfg, "base")
     command.upgrade(cfg, "head")
     with psycopg.connect(db.psycopg_url(MIGRATE_URL), autocommit=True) as c:
-        c.execute("DROP TABLE IF EXISTS public.feature_flags")
-        try:
-            yield c
-        finally:
-            c.execute("DROP TABLE IF EXISTS public.feature_flags")
+        yield c
 
 
 @contextmanager
@@ -77,11 +73,11 @@ def _applied(c, user, trip, **kw):
 
 
 def _flags(c):
-    c.execute("CREATE TABLE IF NOT EXISTS public.feature_flags (key text PRIMARY KEY, enabled boolean, rules jsonb)")
     c.execute("DELETE FROM public.feature_flags")
     c.execute(
-        "INSERT INTO public.feature_flags VALUES ('setting_import_reward', true, '{\"min_items_applied\": 3}'), "
-        "('setting_referral_credits', true, '{\"referrer\": 20, \"referee\": 20}')"
+        "INSERT INTO public.feature_flags (key, kind, enabled, rules) VALUES "
+        "('setting_import_reward', 'setting', true, '{\"min_items_applied\": 3}'), "
+        "('setting_referral_credits', 'setting', true, '{\"referrer\": 20, \"referee\": 20}')"
     )
 
 

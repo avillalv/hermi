@@ -2394,7 +2394,7 @@ BEGIN
   IF TG_OP = 'DELETE'
      AND current_user = 'hermi_definer'
      AND current_setting('hermi.audit_purge', true) = 'on'
-     AND OLD.created_at < now() - CASE OLD.retention_class WHEN 'extended' THEN interval '7 years' ELSE interval '13 months' END
+     AND OLD.created_at < now() - (CASE OLD.retention_class WHEN 'extended' THEN interval '7 years' ELSE interval '13 months' END)
   THEN
     RETURN OLD;
   END IF;

@@ -357,13 +357,13 @@ def test_app_login_can_call_definer_functions_and_not_insert_members(conn):
         assert app.execute("SELECT redeem_trip_invite(%s)", (b"tok",)).fetchone() == (tid,)
 
 
-# --- Schema vs DDL: 0002 to 0011 tables against the DDL in 03 sections 5.1 to 5.15 ---------------
+# --- Schema vs DDL: 0002 to 0013 tables against the DDL in 03 sections 5.1 to 5.20 ---------------
 
 
 def _ddl_text():
     lines = SPEC.read_text(encoding="utf-8").split("\n")
     start = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.1 "))
-    end = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.16 "))
+    end = next(i for i, ln in enumerate(lines) if ln.startswith("## 6. Row-level security"))
     out, inside = [], False
     for ln in lines[start:end]:
         if ln.startswith("```sql"):
@@ -378,7 +378,7 @@ def _ddl_text():
 def _ddl_tables(sql):
     """{table: {columns, constraints}} from every CREATE TABLE in the DDL."""
     tables = {}
-    for m in re.finditer(r"CREATE TABLE (\w+) \((.*?)\n\)(?: PARTITION BY RANGE \(\w+\))?;", sql, re.S):
+    for m in re.finditer(r"CREATE (?:UNLOGGED )?TABLE (\w+) \((.*?)\n\)(?: PARTITION BY RANGE \(\w+\))?;", sql, re.S):
         cols, cons = set(), set()
         for ln in m.group(2).split("\n"):
             s = ln.strip()
@@ -396,17 +396,17 @@ def _ddl_tables(sql):
 
 
 def _ddl_indexes(sql):
-    """{name: (table, unique, columns, partial)} from every CREATE [UNIQUE] INDEX."""
+    """{name: (table, unique, columns, partial, method)} from every CREATE [UNIQUE] INDEX."""
     out = {}
     for m in re.finditer(
-        r"CREATE (UNIQUE )?INDEX (\w+)\s+ON (\w+) \(((?:[^()]|\([^()]*\))*)\)(\s+WHERE [^;]*)?;", sql
+        r"CREATE (UNIQUE )?INDEX (\w+)\s+ON (\w+)(?: USING (\w+))? \(((?:[^()]|\([^()]*\))*)\)(\s+WHERE [^;]*)?;", sql
     ):
-        out[m.group(2)] = (m.group(3), bool(m.group(1)), _norm_cols(m.group(4)), bool(m.group(5)))
+        out[m.group(2)] = (m.group(3), bool(m.group(1)), _norm_cols(m.group(5)), bool(m.group(6)), m.group(4) or "btree")
     return out
 
 
 def _norm_cols(s):
-    return re.sub(r"(?<!DESC)NULLSLAST", "", re.sub(r"\s+", "", s)).replace("''::text", "''").replace("DATE'0001-01-01'", "'0001-01-01'::date")  # pg_get_indexdef adds the cast on empty text literals and renders DATE literals as '...'::date
+    return re.sub(r"(?<!DESC)NULLSLAST", "", re.sub(r"[\s\"]+", "", s)).replace("''::text", "''").replace("DATE'0001-01-01'", "'0001-01-01'::date")  # pg_get_indexdef quotes the reserved word position, adds the cast on empty text literals and renders DATE literals as '...'::date
 
 
 def _live_indexes(c):
@@ -419,8 +419,8 @@ def _live_indexes(c):
     ).fetchall()
     out = {}
     for name, table, unique, definition in rows:
-        m = re.search(r"USING btree \((.*?)\)( WHERE .*)?$", definition)
-        out[name] = (table, unique, _norm_cols(m.group(1)), bool(m.group(2)))
+        m = re.search(r"USING (\w+) \((.*?)\)( WHERE .*)?$", definition)
+        out[name] = (table, unique, _norm_cols(m.group(2)), bool(m.group(3)), m.group(1))
     return out
 
 
