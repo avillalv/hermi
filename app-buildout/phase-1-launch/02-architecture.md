@@ -462,130 +462,152 @@ All configuration is environment variables, read once in `config.py` through `py
 
 **Core**
 
-| Name | Purpose | Example | Secret |
-|---|---|---|---|
-| `ENVIRONMENT` | `local`, `ci`, `preview`, `staging`, `production`. Tests refuse to run when `production` | `staging` | No |
-| `RELEASE_SHA` | Git SHA of the image, tagged onto logs, Sentry and metrics | `a1b2c3d` | No |
-| `LOG_LEVEL` | Log verbosity | `INFO` | No |
-| `PORT` | API listen port | `8000` | No |
-| `PUBLIC_API_URL` | Public base URL of the API, used in links and webhooks | `https://api.hermi.world` | No |
-| `PUBLIC_WEB_URL` | Public web app URL, used in emails and invites | `https://app.hermi.world` | No |
-| `CORS_ALLOWED_ORIGINS` | Comma list of allowed origins, including Capacitor | `https://app.hermi.world,capacitor://localhost` | No |
-| `TRUSTED_PROXY_CIDRS` | Networks whose `X-Forwarded-For` is trusted | `173.245.48.0/20,...` | No |
-| `API_DOCS_ENABLED` | Serves `/docs` (off in production) | `false` | No |
-| `SCHEDULER_ENABLED` | Whether this process runs the scheduler loop | `true` | No |
-| `WORKER_LANES` | Lanes this worker serves | `api,ai,notify,batch` | No |
-| `WORKER_CONCURRENCY_API` / `_AI` / `_NOTIFY` / `_BATCH` | Concurrent jobs per lane | `30` / `6` / `50` / `2` | No |
+| Name | Purpose | Example | Secret | Local |
+|---|---|---|---|---|
+| `ENVIRONMENT` | `local`, `ci`, `preview`, `staging`, `production`. Tests refuse to run when `production` | `staging` | No | `local` |
+| `RELEASE_SHA` | Git SHA of the image, tagged onto logs, Sentry and metrics | `a1b2c3d` | No | `dev` |
+| `LOG_LEVEL` | Log verbosity | `INFO` | No | `DEBUG` |
+| `PORT` | API listen port. The API binds `127.0.0.1` locally, never `0.0.0.0` (section 2) | `8100` | No | `8100` |
+| `PUBLIC_API_URL` | Public base URL of the API, used in links and webhooks | `https://api.hermi.world` | No | `http://127.0.0.1:8100` |
+| `PUBLIC_WEB_URL` | Public web app URL, used in emails and invites | `https://app.hermi.world` | No | `http://localhost:5173` |
+| `CORS_ALLOWED_ORIGINS` | Comma list of allowed origins, including Capacitor | `https://app.hermi.world,capacitor://localhost` | No | `http://localhost:5173` |
+| `TRUSTED_PROXY_CIDRS` | Networks whose `X-Forwarded-For` is trusted | `173.245.48.0/20,...` | No | empty |
+| `API_DOCS_ENABLED` | Serves `/docs` (off in production) | `false` | No | `true` |
+| `SCHEDULER_ENABLED` | Whether this process runs the scheduler loop | `true` | No | `false` in local runs, `true` only to test jobs |
+| `WORKER_LANES` | Lanes this worker serves | `api,ai,notify,batch` | No | `api,ai,notify,batch` |
+| `WORKER_CONCURRENCY_API` / `_AI` / `_NOTIFY` / `_BATCH` | Concurrent jobs per lane | `30` / `6` / `50` / `2` | No | `4` / `2` / `4` / `1` |
 
 **Database**
 
-| Name | Purpose | Example | Secret |
-|---|---|---|---|
-| `DATABASE_URL` | App role connection (DML only, no `BYPASSRLS`) | `postgresql+psycopg://hermi_api_login:...@host/hermi` | Yes |
-| `DATABASE_URL_SYSTEM` | System role for jobs that cross tenants | `postgresql+psycopg://hermi_worker_login:...` | Yes |
-| `MIGRATION_DATABASE_URL` | DDL role, used only by `migrate` | `postgresql+psycopg://hermi_owner:...` | Yes |
-| `DATABASE_POOL_SIZE` / `DATABASE_MAX_OVERFLOW` | Pool size per process | `10` / `5` | No |
-| `DATABASE_STATEMENT_TIMEOUT_MS` | Per-statement timeout (the migration role overrides) | `15000` | No |
-| `TEST_DATABASE_URL` | Test database; CI and local only | `postgresql+psycopg://hermi:...@localhost/hermi_test` | Yes |
-| `REDIS_URL` | Empty until Redis is added (about 10k MAU) | empty | Yes |
+| Name | Purpose | Example | Secret | Local |
+|---|---|---|---|---|
+| `DATABASE_URL` | App role connection (`hermi_api_login`, DML only, no `BYPASSRLS`) | `postgresql+psycopg://hermi_api_login:...@host/hermi` | Yes | `hermi_api_login` on `localhost`, database `hermi` |
+| `DATABASE_URL_SYSTEM` | System role for jobs that cross tenants (`hermi_worker_login`) | `postgresql+psycopg://hermi_worker_login:...@host/hermi` | Yes | `hermi_worker_login`, database `hermi` |
+| `DATABASE_URL_ADMIN` | Admin console role (`hermi_admin_login`) | `postgresql+psycopg://hermi_admin_login:...@host/hermi` | Yes | `hermi_admin_login`, database `hermi` |
+| `MIGRATION_DATABASE_URL` | DDL role, used only by `migrate` (`hermi_migrate_login`, which acts as `hermi_owner`; `hermi_owner` itself is NOLOGIN) | `postgresql+psycopg://hermi_migrate_login:...@host/hermi` | Yes | `hermi_migrate_login`, database `hermi` |
+| `DATABASE_POOL_SIZE` / `DATABASE_MAX_OVERFLOW` | Pool size per process | `10` / `5` | No | `5` / `2` |
+| `DATABASE_STATEMENT_TIMEOUT_MS` | Per-statement timeout (the migration role overrides) | `15000` | No | `15000` |
+| `TEST_DATABASE_URL` | Test database as `hermi_api_login`; CI and local only | `postgresql+psycopg://hermi_api_login:...@localhost/hermi_test` | Yes | `hermi_api_login`, database `hermi_test` |
+| `TEST_DATABASE_URL_SYSTEM` | Test database as `hermi_worker_login`; fixtures write through it, never as the owner | `postgresql+psycopg://hermi_worker_login:...@localhost/hermi_test` | Yes | `hermi_worker_login`, database `hermi_test` |
+| `TEST_MIGRATION_DATABASE_URL` | Test database as `hermi_migrate_login`; migration tests and role checks | `postgresql+psycopg://hermi_migrate_login:...@localhost/hermi_test` | Yes | `hermi_migrate_login`, database `hermi_test` |
+| `REDIS_URL` | Empty until Redis is added (about 10k MAU) | empty | Yes | empty |
 
 **Identity and device trust**
 
-| Name | Purpose | Example | Secret |
-|---|---|---|---|
-| `SUPABASE_URL` | Supabase project URL | `https://abc.supabase.co` | No |
-| `SUPABASE_JWKS_URL` | Signing keys for JWT verification | `https://abc.supabase.co/auth/v1/.well-known/jwks.json` | No |
-| `SUPABASE_JWT_ISSUER` / `SUPABASE_JWT_AUDIENCE` | Expected `iss` and `aud` | `https://abc.supabase.co/auth/v1` / `authenticated` | No |
-| `SUPABASE_SERVICE_ROLE_KEY` | Delete users on account deletion, admin lookups | `eyJ...` | Yes |
-| `SUPABASE_AUTH_HOOK_SECRET` | Verifies Supabase Auth hook calls | `whsec_...` | Yes |
-| `APPLE_TEAM_ID` / `APPLE_BUNDLE_ID` | App identity for App Attest and Apple APIs | `ABCDE12345` / `world.hermi.ios` | No |
-| `APPLE_SIGNIN_KEY_ID` / `APPLE_SIGNIN_PRIVATE_KEY` | Sign in with Apple key, used to revoke tokens on deletion | `K1234` / PEM | Key id no, key yes |
-| `APPLE_APP_ATTEST_ENV` | `development` or `production` attestation | `production` | No |
-| `GUEST_TOKEN_SECRET` | Signs guest claim tokens for `POST /me/claim` | random 32 bytes | Yes |
-| `FIELD_ENCRYPTION_KEY` | Encrypts rare sensitive fields (Apple refresh token, calendar feed addresses while polling is on) | base64 32 bytes | Yes |
+| Name | Purpose | Example | Secret | Local |
+|---|---|---|---|---|
+| `AUTH_MODE` | `supabase` (verify Supabase JWTs) or `dev` (tokens signed by a local key pair, served at a local JWKS, minted for seeded personas by 04's dev routes). Config refuses `dev` unless `ENVIRONMENT` is `local` or `ci` | `supabase` | No | `dev` |
+| `SUPABASE_URL` | Supabase project URL | `https://abc.supabase.co` | No | empty |
+| `SUPABASE_JWKS_URL` | Signing keys for JWT verification | `https://abc.supabase.co/auth/v1/.well-known/jwks.json` | No | empty (the local JWKS is used) |
+| `SUPABASE_JWT_ISSUER` / `SUPABASE_JWT_AUDIENCE` | Expected `iss` and `aud` | `https://abc.supabase.co/auth/v1` / `authenticated` | No | empty |
+| `SUPABASE_SERVICE_ROLE_KEY` | Delete users on account deletion, admin lookups | `eyJ...` | Yes | empty (deletion skips the Supabase call) |
+| `SUPABASE_AUTH_HOOK_SECRET` | Verifies Supabase Auth hook calls | `whsec_...` | Yes | empty |
+| `APPLE_TEAM_ID` / `APPLE_BUNDLE_ID` | App identity for App Attest and Apple APIs | `ABCDE12345` / `world.hermi.ios` | No | empty |
+| `APPLE_SIGNIN_KEY_ID` / `APPLE_SIGNIN_PRIVATE_KEY` | Sign in with Apple key, used to revoke tokens on deletion | `K1234` / PEM | Key id no, key yes | empty |
+| `APPLE_APP_ATTEST_ENV` | `development` or `production` attestation | `production` | No | empty |
+| `FIELD_ENCRYPTION_KEY` | Encrypts rare sensitive fields (Apple refresh token, calendar feed addresses while polling is on) | base64 32 bytes | Yes | generated by `npm run setup` |
 
 **AI**
 
-| Name | Purpose | Example | Secret |
-|---|---|---|---|
-| `ANTHROPIC_API_KEY` | One workspace per environment with a spend limit | `sk-ant-...` | Yes |
-| `AI_MODEL_FAST` | Haiku model id (short answers, page summaries, pasted-text import) | `claude-haiku-4-5` | No |
-| `AI_MODEL_MAIN` | Sonnet model id | `claude-sonnet-5-5` | No |
-| `AI_GLOBAL_DAILY_CAP_USD` | Circuit breaker for total daily spend | `150` | No |
-| `AI_ALERT_DAILY_MULTIPLIER` | Alert when daily spend passes this times the 7 day average | `1.5` | No |
-| `PROMPT_VERSION` | Current prompt set, part of shared cache keys | `2026-10-01.1` | No |
+| Name | Purpose | Example | Secret | Local |
+|---|---|---|---|---|
+| `AI_PROVIDER` | Backend for product AI: `anthropic_api`, `claude_cli` or `fake` (guards in section 7.2) | `anthropic_api` | No | `claude_cli` on the owner's machine; `fake` in tests, CI and smoke runs |
+| `ANTHROPIC_API_KEY` | One workspace per environment with a spend limit | `sk-ant-...` | Yes | empty |
+| `ANTHROPIC_ADMIN_API_KEY` | Usage reconcile against Anthropic's usage report (WF-056) | `sk-ant-admin-...` | Yes | empty (the job logs and skips) |
+| `AI_CLI_ALLOWED_EMAILS` | Comma list of users who may use `claude_cli` when `AUTH_MODE` is not `dev` | `me@example.com` | No | empty |
+| `AI_CLI_MAX_CONCURRENCY` | Parallel `claude` processes, 1 or 2 | `1` | No | `1` |
+| `AI_CLI_SCRATCH_DIR` | Empty working folder for each `claude` call | `.data/ai-scratch` | No | `.data/ai-scratch` |
+| `CLAUDE_CLI_PATH` | Dev only, optional path to the native `claude.exe` (renamed from the old `CLAUDE_PATH`) | `C:\Users\me\.local\bin\claude.exe` | No | empty (`find_claude` looks it up) |
+| `AI_MODEL_FAST` | Haiku model id (short answers, page summaries, pasted-text import) | `claude-haiku-4-5` | No | `claude-haiku-4-5` |
+| `AI_MODEL_MAIN` | Sonnet model id | `claude-sonnet-5-5` | No | `claude-sonnet-5-5` |
+| `AI_GLOBAL_DAILY_CAP_USD` | Hard maximum for total daily spend ($150). The flag `setting_ai_global_daily_usd` defaults to 150 and may only lower it | `150` | No | `150` |
+| `AI_ALERT_DAILY_MULTIPLIER` | Alert when daily spend passes this times the 7 day average | `1.5` | No | `1.5` |
+| `PROMPT_VERSION` | Current prompt set, part of shared cache keys | `2026-10-01.1` | No | `dev` |
+| `EVALS_LIVE` | Live evals run only when it is `1` | `0` | No | `0` |
 
 **Payments**
 
-| Name | Purpose | Example | Secret |
-|---|---|---|---|
-| `REVENUECAT_WEBHOOK_SECRET` | Authorizes RevenueCat webhook calls | random | Yes |
-| `REVENUECAT_API_KEY` | REST key for reconcile | `sk_...` | Yes |
-| `VITE_REVENUECAT_KEY_IOS` | Public SDK key for iOS | `appl_...` | No |
+| Name | Purpose | Example | Secret | Local |
+|---|---|---|---|---|
+| `REVENUECAT_WEBHOOK_SECRET` | Authorizes RevenueCat webhook calls | random | Yes | empty (the dev webhook signs with a fixed local value) |
+| `REVENUECAT_API_KEY` | REST key for reconcile | `sk_...` | Yes | empty |
+| `VITE_REVENUECAT_KEY_IOS` | Public SDK key for iOS | `appl_...` | No | empty |
+
+**Modes and backends**
+
+| Name | Purpose | Example | Secret | Local |
+|---|---|---|---|---|
+| `PROVIDERS_MODE` | `fake`: every external data provider returns recorded fixtures (the default in `ci` and `local`). `live`: real calls; a provider with no key raises `NotConfigured`. Required `live` in staging and production | `live` | No | `fake` |
+| `STORAGE_BACKEND` | `local` (files under `.data/storage`) or `r2` | `r2` | No | `local` (objects served by the API through signed, expiring URLs) |
+| `EMAIL_BACKEND` | `console`, `file` or `resend`. SES stays the manual standby in section 8, not a config value | `resend` | No | `file` (`.data/outbox`) |
+| `IMPORT_SANDBOX` | `strict` (POSIX resource limits and a process sandbox) or `timeout_only` (win32 and local: a wall-clock timeout plus a `psutil` memory kill) | `strict` | No | `timeout_only` |
 
 **Data, affiliate and travel providers**
 
-| Name | Purpose | Example | Secret |
-|---|---|---|---|
-| `TRAVELPAYOUTS_TOKEN` | Cached fares API | random | Yes |
-| `TRAVELPAYOUTS_MARKER` | Affiliate marker (appears in partner URLs) | `123456` | No |
-| `VIATOR_API_KEY` | Viator partner API | random | Yes |
-| `STAY22_AID` | Stay22 affiliate id | `hermi` | No |
-| `SERPAPI_API_KEY` | Live fares and rentals, behind flag `serpapi_live_fares` | random | Yes |
-| `SERPAPI_MONTHLY_CAP` | Global search cap | `5000` | No |
-| `GEOAPIFY_API_KEY` | Places and geocoding | random | Yes |
-| `WIKIMEDIA_CONTACT` | Required contact for Wikipedia API | `support@hermi.world` | No |
-| `FRANKFURTER_BASE_URL` | FX rates | `https://api.frankfurter.dev` | No |
+| Name | Purpose | Example | Secret | Local |
+|---|---|---|---|---|
+| `TRAVELPAYOUTS_TOKEN` | Cached fares API | random | Yes | empty (fixtures) |
+| `TRAVELPAYOUTS_MARKER` | Affiliate marker (appears in partner URLs) | `123456` | No | empty |
+| `VIATOR_API_KEY` | Viator partner API | random | Yes | empty (fixtures) |
+| `STAY22_AID` | Stay22 affiliate id | `hermi` | No | `hermi` |
+| `SERPAPI_API_KEY` | Live fares and rentals, behind flag `serpapi_live_fares` | random | Yes | empty |
+| `SERPAPI_MONTHLY_CAP` | Global search cap | `5000` | No | `5000` |
+| `GEOAPIFY_API_KEY` | Places and geocoding | random | Yes | empty (fixtures) |
+| `WIKIMEDIA_CONTACT` | Required contact for Wikipedia API | `support@hermi.world` | No | `dev@localhost` |
+| `FRANKFURTER_BASE_URL` | FX rates | `https://api.frankfurter.dev` | No | same (fixtures while `PROVIDERS_MODE=fake`) |
 
 **Messaging, storage, observability**
 
-| Name | Purpose | Example | Secret |
-|---|---|---|---|
-| `RESEND_API_KEY` / `RESEND_WEBHOOK_SECRET` | Email send and bounce webhooks | `re_...` / `whsec_...` | Yes |
-| `EMAIL_FROM` | From address | `Hermi <hello@hermi.world>` | No |
-| `UNSUBSCRIBE_SECRET` | Signs one-click unsubscribe links | random | Yes |
-| `APNS_KEY_ID` / `APNS_TEAM_ID` / `APNS_PRIVATE_KEY` | Token-based APNs auth | `K5678` / `ABCDE12345` / PEM | Key id and team no, key yes |
-| `APNS_TOPIC` / `APNS_USE_SANDBOX` | Bundle id topic, sandbox switch | `world.hermi.ios` / `false` | No |
-| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | R2 S3 credentials | random | Id no, others yes |
-| `R2_BUCKET_UPLOADS` / `R2_BUCKET_EXPORTS` / `R2_BUCKET_BACKUPS` | Buckets | `hermi-uploads` | No |
-| `SENTRY_DSN` / `VITE_SENTRY_DSN` | Error reporting (DSN is not sensitive but is configured per environment) | `https://...@sentry.io/1` | No |
-| `SENTRY_AUTH_TOKEN` | CI only: upload source maps and dSYMs | `sntrys_...` | Yes |
-| `POSTHOG_KEY` / `VITE_POSTHOG_KEY` / `POSTHOG_HOST` | Product analytics | `phc_...` / `https://us.i.posthog.com` | No |
-| `BETTERSTACK_SOURCE_TOKEN` | Log shipping | random | Yes |
-| `BETTERSTACK_HEARTBEAT_SCHEDULER` / `_QUEUE` | Heartbeat URLs | `https://uptime.betterstack.com/api/v1/heartbeat/...` | Yes (URL is a bearer) |
-| `ALERT_WEBHOOK_URL` | Chat channel for alerts | `https://hooks.slack.com/...` | Yes |
-
+| Name | Purpose | Example | Secret | Local |
+|---|---|---|---|---|
+| `RESEND_API_KEY` / `RESEND_WEBHOOK_SECRET` | Email send and bounce webhooks | `re_...` / `whsec_...` | Yes | empty |
+| `EMAIL_FROM` | From address | `Hermi <hello@hermi.world>` | No | `Hermi <dev@localhost>` |
+| `UNSUBSCRIBE_SECRET` | Signs one-click unsubscribe links | random | Yes | generated by `npm run setup` |
+| `APNS_KEY_ID` / `APNS_TEAM_ID` / `APNS_PRIVATE_KEY` | Token-based APNs auth | `K5678` / `ABCDE12345` / PEM | Key id and team no, key yes | empty (push is logged) |
+| `APNS_TOPIC` / `APNS_USE_SANDBOX` | Bundle id topic, sandbox switch | `world.hermi.ios` / `false` | No | empty / `true` |
+| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | R2 S3 credentials | random | Id no, others yes | empty |
+| `R2_ENDPOINT_URL` | R2 S3 endpoint | `https://<account>.r2.cloudflarestorage.com` | No | empty |
+| `R2_BUCKET_UPLOADS` / `R2_BUCKET_EXPORTS` / `R2_BUCKET_BACKUPS` | Buckets | `hermi-uploads` | No | empty |
+| `SENTRY_DSN` / `VITE_SENTRY_DSN` | Error reporting (DSN is not sensitive but is configured per environment) | `https://...@sentry.io/1` | No | empty |
+| `SENTRY_AUTH_TOKEN` | CI only: upload source maps and dSYMs | `sntrys_...` | Yes | empty |
+| `POSTHOG_KEY` / `VITE_POSTHOG_KEY` / `POSTHOG_HOST` | Product analytics | `phc_...` / `https://us.i.posthog.com` | No | empty |
+| `BETTERSTACK_SOURCE_TOKEN` | Log shipping | random | Yes | empty |
+| `BETTERSTACK_HEARTBEAT_SCHEDULER` / `_QUEUE` | Heartbeat URLs | `https://uptime.betterstack.com/api/v1/heartbeat/...` | Yes (URL is a bearer) | empty (heartbeats skipped) |
+| `ALERT_WEBHOOK_URL` | Chat channel for alerts | `https://hooks.slack.com/...` | Yes | empty (alerts log only) |
 
 **Admin and web client**
 
-| Name | Purpose | Example | Secret |
-|---|---|---|---|
-| `ADMIN_AUTH_MODE` | Admin sign-in mode: `cf_access` (Cloudflare Access plus the app layer and 2FA, 08 section 2) or `dev` (local and ci only) | `cf_access` | No |
-| `CF_ACCESS_TEAM_DOMAIN` / `CF_ACCESS_AUD` | Cloudflare Access team domain and application audience the admin API checks | `hermi.cloudflareaccess.com` / random | No |
-| `ADMIN_ALLOWED_DOMAIN` | Only this email domain may sign in to admin | `hermi.world` | No |
-| `ADMIN_SESSION_SECRET` | Signs admin session cookies | random | Yes |
-| `ADMIN_IP_ALLOWLIST` | Optional CIDR list for `/admin` | empty | No |
-| `VITE_API_BASE_URL` | API origin used by the web and iOS bundles | `https://api.hermi.world` | No |
-| `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Client sign-in | `https://abc.supabase.co` / `eyJ...` | No (anon key is public by design) |
-| `VITE_APP_ENV` | Shown in the settings footer and Sentry | `production` | No |
-| `STATUS_PAGE_URL` / `VITE_STATUS_PAGE_URL` | The hosted public status page, linked from Settings and the `/status` redirect | `https://status.hermi.world` | No |
+| Name | Purpose | Example | Secret | Local |
+|---|---|---|---|---|
+| `ADMIN_AUTH_MODE` | Admin sign-in mode: `cf_access` (Cloudflare Access plus the app layer and 2FA, 08 section 2) or `dev` (local and ci only). The sign-in domain and the IP or device policy are enforced at the Cloudflare Access edge (08 sections 2 and 9), not in the app | `cf_access` | No | `dev` (the fake-Access signer) |
+| `CF_ACCESS_TEAM_DOMAIN` / `CF_ACCESS_AUD` | Cloudflare Access team domain and application audience the admin API checks | `hermi.cloudflareaccess.com` / random | No | empty |
+| `ADMIN_SESSION_SECRET` | Signs admin session cookies (08 section 2) | random | Yes | generated by `npm run setup` |
+| `VITE_API_BASE_URL` | API origin used by the web and iOS bundles | `https://api.hermi.world` | No | `http://127.0.0.1:8100` |
+| `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Client sign-in | `https://abc.supabase.co` / `eyJ...` | No (anon key is public by design) | empty (dev sign-in) |
+| `VITE_APP_ENV` | Shown in the settings footer and Sentry | `production` | No | `local` |
+| `STATUS_PAGE_URL` / `VITE_STATUS_PAGE_URL` | The hosted public status page, linked from Settings and the `/status` redirect | `https://status.hermi.world` | No | empty |
+
+`config.py` enforces the Local column: a variable empty in Local is optional, and a missing optional key makes its provider raise `NotConfigured`. Empty is fine in Local for every `SUPABASE_*`, `ANTHROPIC_API_KEY`, `TRAVELPAYOUTS_*`, `GEOAPIFY_API_KEY`, `SERPAPI_*`, `RESEND_*`, `R2_*`, `SENTRY_*`, `POSTHOG_*`, `APNS_*`, `APPLE_*` and `REVENUECAT_*`.
 
 ### 7.2 Rules
 
 - Separate values per environment. Never reuse a production key in staging, preview or CI.
 - Production secrets live in Render environment groups (`hermi-prod-shared`, `hermi-prod-api`, `hermi-prod-worker`). GitHub holds only deploy credentials through OIDC and the `SENTRY_AUTH_TOKEN`.
 - `config.py` exposes `settings.public_dict()` for the `GET /config` route (minimum app version, enabled feature keys), which never includes a secret field. A unit test asserts every field marked secret is excluded.
+- Process environment overrides `.env`. `.env.example` is local-ready: it runs the app with no keys, with `AI_PROVIDER=claude_cli`.
+- Config refuses these outside `local` and `ci`: `AUTH_MODE=dev`, `ADMIN_AUTH_MODE=dev`, `STORAGE_BACKEND=local`, `EMAIL_BACKEND` other than `resend`, `PROVIDERS_MODE=fake`.
+- Config allows `AI_PROVIDER=claude_cli` only when `ENVIRONMENT=local`, the server is bound to loopback (`127.0.0.1`, `::1`, `localhost`) and `AUTH_MODE=dev` or the user is in `AI_CLI_ALLOWED_EMAILS`; the provider factory re-checks the user part on every call. Staging and production need `ANTHROPIC_API_KEY` and `AI_PROVIDER=anthropic_api` (`render.yaml` pins it). `/health/ready` reports the provider.
 - Redaction: the log filter masks any value whose key matches `key|secret|token|password|authorization|cookie|dsn` and any JWT-shaped string.
 
 ## 8. Third-party services
 
 | Service | Purpose | Failure behavior |
 |---|---|---|
-| Supabase Auth | Sign-in (Apple, Google, email code), JWT issuing | Existing sessions keep working (JWKS cached, tokens verified locally). New sign-ins fail with a friendly screen and a status link. Email code delivery goes through Resend SMTP |
-| Anthropic Claude API | All AI features | Non-urgent `ai` lane pauses on repeated 429 or 5xx; users see "queued, we will finish this when the service recovers" and credits stay reserved up to 30 minutes, then release. Cached data keeps working. Kill switch `ai.all` |
+| Supabase Auth | Sign-in (Apple, Google, email code), JWT issuing | Existing sessions keep working (JWKS cached, tokens verified locally). New sign-ins fail with a friendly screen and a status link. Email code delivery goes through Resend SMTP. Local: dev sign-in (`AUTH_MODE=dev`) |
+| Anthropic Claude API (`anthropic_api`; `claude_cli` is dev only, local replacement below) | All AI features | Non-urgent `ai` lane pauses on repeated 429 or 5xx; users see "queued, we will finish this when the service recovers" and credits stay reserved up to 30 minutes, then release. Cached data keeps working. Kill switch `ai.all`. Local: the owner's `claude` CLI or `fake` |
 | Anthropic Batch API | Cache warming | Missed night means stale research; the next night catches up |
 | Render | Compute and Postgres | Multi-instance API survives one instance loss. Regional outage: status page, restore plan in the runbook |
-| Cloudflare (DNS, WAF, Pages, R2, Access) | Edge, web hosting, storage, admin sign-in (Access plus the app layer and 2FA, 08) | Access outage: the admin console is unreachable, the product is unaffected. Pages outage: the iOS app still works because it is bundled. R2 outage: uploads and exports fail with retry, trips keep working |
+| Cloudflare (DNS, WAF, Pages, R2, Access) | Edge, web hosting, storage, admin sign-in (Access plus the app layer and 2FA, 08) | Access outage: the admin console is unreachable, the product is unaffected. Pages outage: the iOS app still works because it is bundled. R2 outage: uploads and exports fail with retry, trips keep working. Local: `.data/storage` for R2, a fake-Access signer for Access |
 | RevenueCat | Purchases, entitlement events | Webhook backlog delays unlock; `POST /purchases/sync` gives instant unlock for the buyer. Outage: entitlements come from our own table, so nothing locks. Reconcile job catches up |
 | Travelpayouts | Cached fares and affiliate network | Fare cards show last observation with its age; alerts (including booked-fare drop alerts) pause; affiliate links still work |
 | SerpApi | Live fares and rentals, flag `serpapi_live_fares` | Flag off or quota out: live checks fall back to cached fares and say so; credits are not charged for an empty result |
@@ -594,11 +616,11 @@ All configuration is environment variables, read once in `config.py` through `py
 | Frankfurter | FX rates | Use the last stored `fx_rates` row, show its date |
 | Viator, Stay22, other affiliate networks | Affiliate link templates, tours | Card hidden if the program's kill switch is on. Links are templates, so a provider outage only breaks the partner page |
 | APNs | Push | Retry transient errors; 410 deletes the device token; the in-app feed still shows the alert |
-| Resend | Email (invites, receipts, digests, auth codes) | Retry; invites can also be shared as links; if down over 30 minutes switch `EMAIL_PROVIDER` to the standby SES account (manual) |
+| Resend | Email (invites, receipts, digests, auth codes) | Retry; invites can also be shared as links; if down over 30 minutes, move sending to the standby SES account by hand (a manual standby, not a config value). Local: the file outbox (`EMAIL_BACKEND=file`) |
 | Sentry | Errors | Errors log locally; the app is unaffected |
 | PostHog | Product analytics | Events dropped after a short local buffer; nothing user-visible |
 | Better Stack | Logs, uptime, heartbeats, the public status page (section 8.1) | Logs also stay in Render for 7 days; the status page is served by Better Stack, so it stays up when our own services are down |
-| App Store Connect, TestFlight, Xcode Cloud | Release and review | Releases delayed; server stays backward compatible with the last 3 app versions |
+| App Store Connect, TestFlight | Release and review. Builds run on a GitHub-hosted macOS runner (section 10) | Releases delayed; server stays backward compatible with the last 3 app versions |
 | Apple App Attest / DeviceCheck | Free-credit abuse control | If unavailable, fall back to stricter IP and email limits and halve free AI for unattested devices; never block normal use |
 | Calendar feed hosts (TripIt, Google Calendar, other addresses users supply) | Import feed polling | The import shows "We could not reach this calendar"; polling turns off after 3 consecutive failures. File and pasted-text imports are unaffected |
 
@@ -610,34 +632,46 @@ All configuration is environment variables, read once in `config.py` through `py
 
 | Environment | Purpose | Hosting | Data | Third parties |
 |---|---|---|---|---|
-| `local` | Development | `docker compose` (Postgres 18, Mailpit, MinIO) or native Postgres; `npm run dev` | Seed data from `apps/api/hermi/seed` and `infra/scripts/seed-staging.py` | Provider fakes by default (`PROVIDERS_MODE=fake`, including a fake calendar feed host); Anthropic dev key with a $5 limit only when testing AI |
-| `ci` | Tests | GitHub Actions with a `postgres:18` service | Ephemeral | All mocked; contract tests use recorded fixtures |
+| `local` | Development | Native PostgreSQL 18 prepared by `npm run db:init` and `npm run setup`; `npm run dev`. Docker compose is optional | Seed data from `apps/api/hermi/seed` and `infra/scripts/seed-staging.py` | Local modes: `AUTH_MODE=dev`, `ADMIN_AUTH_MODE=dev`, `AI_PROVIDER=claude_cli` (the owner's own CLI; `fake` in tests and smoke runs), `PROVIDERS_MODE=fake` (including a fake calendar feed host), `STORAGE_BACKEND=local`, `EMAIL_BACKEND=file` |
+| `ci` | Tests | GitHub Actions with a `postgres:18` service | Ephemeral | `AI_PROVIDER=fake`; all mocked; contract tests use recorded fixtures |
 | `preview` | One per pull request | Render preview (API plus worker, small Postgres) | Seed data | Sandbox keys; separate Supabase project; APNs sandbox |
 | `staging` | Release rehearsal, TestFlight backend | Render, same shape as production, smaller sizes | Synthetic, never a copy of production | Separate Anthropic workspace with a $50 monthly limit; App Store sandbox; RevenueCat sandbox |
 | `production` | Users | Render plus Cloudflare | Real | Separate workspace and keys for every service |
 
 Rules: staging and production have separate Supabase projects, R2 buckets, Sentry projects and PostHog projects. Only the image digest is promoted from staging to production; configuration is never copied automatically. The test suite and e2e seed refuse to start when `ENVIRONMENT=production` or when the database name does not end in `_test` for test runs.
 
+### 9.1 Local development on Windows
+
+- psycopg async needs the Selector event loop; `cli.py` sets it on win32. asyncio subprocesses need the Proactor loop, so `claude` is spawned with `Popen` in a thread.
+- Use the native `claude.exe`, never a `.cmd` file, and kill the whole process tree (`psutil`).
+- A command line is limited to about 32,000 characters: pass prompts on stdin and use `--system-prompt-file`.
+- Dev scripts use `uv run --no-sync`. npm scripts are node scripts (or `cross-env`).
+- Tests that need POSIX carry the `posix_only` marker and always run in Linux CI.
+- Python is 3.13 (`.python-version`). The PDF library must ship wheels for win32 and Linux (`fpdf2`).
+- A nightly `windows-latest` job runs the suites.
+
 ## 10. CI/CD pipeline
 
-GitHub Actions, one workflow per concern, all in `.github/workflows/` at the repository root (GitHub runs workflows from nowhere else). Production deploys use OIDC, never stored cloud keys.
+GitHub Actions, one workflow per concern, all in `.github/workflows/` at the repository root (GitHub runs workflows from nowhere else). Production deploys use OIDC, never stored cloud keys. Deploy jobs and live-eval jobs are gated on repository variables, so `main` stays green without secrets.
 
 | Workflow | Trigger | Steps |
 |---|---|---|
 | `ci.yml` | Pull request | 1. Install (`uv sync --frozen`, `npm ci`). 2. `npm run lint` (ruff, import-linter, oxlint, tsc). 3. `npm test` with a `postgres:18` service (pytest and vitest). 4. OpenAPI drift: `npm run gen:api` then `git diff --exit-code` on `schema.d.ts`; shared constants drift check. 5. Tenant-isolation suite (section 1.3 of [10-quality-security-launch.md](10-quality-security-launch.md)) and the SSRF hostile-address suite (section 5.4). 6. Migration test: from empty, and from the last released revision; single Alembic head. 7. Build the Docker image. 8. Trivy scan. |
-| `e2e.yml` | Pull request labeled `e2e`, nightly | Playwright against the built image with the e2e seed (desktop and iPhone viewport projects) |
-| `evals.yml` | Changes under `agents/`, prompts, or model config; weekly | AI evals through the Batch API; blocks merge on a gate miss |
-| `security.yml` | Weekly and on pull request | `pip-audit`, `npm audit`, `gitleaks`, CodeQL, Trivy |
+| `e2e.yml` | Pull requests labeled `e2e`, and `main` | Playwright against the built image with the e2e seed (desktop and iPhone viewport projects) |
+| `evals.yml` | Changes under `agents/`, prompts, or model config; weekly | AI evals through the Batch API; blocks merge on a gate miss. Runs only when the repository variable for live evals is set |
+| `security.yml` | Weekly and on pull request | `pip-audit`, `npm audit`, `gitleaks`, CodeQL, Trivy. Dependency audits are non-blocking (report only) |
 | `deploy-staging.yml` | Merge to `main` | Build and push image tagged with the commit SHA, deploy staging (pre-deploy migration runs), smoke test, post result to chat |
 | `deploy-prod.yml` | Manual approval on a tag | Promote the same image digest (no rebuild), snapshot Postgres if the release has a migration, pre-deploy migration, rolling deploy, post-deploy smoke test, automatic rollback if `/health/ready` fails for 2 minutes |
-| `ios.yml` | Tag `ios-*` or manual | Mac runner or Xcode Cloud: `npm run build`, `cap sync ios`, archive, upload to TestFlight, upload dSYMs to Sentry |
+| `ios.yml` | Tag `ios-*` or manual dispatch (`workflow_dispatch`) | Runs on a GitHub-hosted macOS runner (free for this public repository): `npm run build`, `cap sync ios`, archive, sign through Apple's cloud signing with an App Store Connect API key kept in GitHub Actions secrets, upload to TestFlight, upload dSYMs to Sentry. See [knowledge/ios-builds-on-ci.md](../../knowledge/ios-builds-on-ci.md) |
+| `windows.yml` | Nightly | The lint and test suites on `windows-latest` (section 9.1) |
+| `ci` (job in `ci.yml`) | Every pull request | The aggregator: `needs` every other job and always runs (`if: always()`); red if any needed job failed or was cancelled. It is the required check |
 | `.github/dependabot.yml` (configuration, not a workflow) | Continuous | Weekly grouped updates |
 
 Branching: trunk based. Short-lived branches, squash merge, `main` is always deployable. Every merge to `main` deploys staging automatically. A production release is a tag `vYYYY.MM.DD.N`.
 
 ## 11. Docker image
 
-One multi-stage `infra/docker/Dockerfile`:
+The Docker image and `infra/docker/compose.yml` are optional for local development; the image still builds in CI. One multi-stage `infra/docker/Dockerfile`:
 
 1. `node:22-slim` stage: `npm ci`, build `apps/web` (used only for the optional self-host image and e2e; production web ships from Cloudflare Pages).
 2. `python:3.13-slim` builder stage: install `uv`, `uv sync --frozen --no-dev` for `apps/api` and `apps/worker` into `/app/.venv`.
@@ -663,7 +697,7 @@ Both live in Postgres (`feature_flags`, `kill_switches`), are cached 5 seconds p
 
 | Key | Controls |
 |---|---|
-| `serpapi_live_fares` (on) | Live fare and rental provider (legal risk is flagged; turn it off here if the terms audit goes badly) |
+| `serpapi_live_fares` (off) | Live fare and rental provider (legal risk is flagged). Stays off until the owner turns it on in the console (03 section 11.5 seeds it off) |
 | `guest_mode` (on) | Local-first guest mode before sign-in |
 | `min_app_version` (on, `rules.min_version` 1.0.0) | Forces an update below a version |
 | `insurance_cards` (off until legal review) | Insurance referral cards |
@@ -679,7 +713,7 @@ Both live in Postgres (`feature_flags`, `kill_switches`), are cached 5 seconds p
 | `evidence_recheck` (on) | One-tap recheck of evidence older than 14 days |
 | `calendar_feed_polling` (on) | Opt-in "Keep checking this calendar" for feed imports |
 
-Settings are flags with `kind = 'setting'` (keys starting `setting_`, the value in `rules`): `setting_ai_warm_daily_usd` (5), `setting_ai_global_daily_usd` (50), `setting_serpapi_monthly_quota` (5000), and the Phase 1 settings `setting_import_reward` (the free Trip Pass for a first qualifying import: `min_items_applied` 3, a flight or a stay, verified email, no active Plus), `setting_referral_credits` (20 credits each side, 12 month expiry, referrer caps 5 per rolling 30 days and 10 per calendar year, the qualifying rule), `setting_booked_fare_drop` (`min_drop_pct` 5, `min_drop_usd` 10, `min_days_between` 7, `max_age_hours` 48) and `setting_calendar_polling` (6 hours, 3 failures, 3 feeds per person). Experiments start with `exp_`. Flags for later phases are added by the phase that ships them.
+Settings are flags with `kind = 'setting'` (keys starting `setting_`, the value in `rules`): `setting_ai_warm_daily_usd` (5), `setting_ai_global_daily_usd` (150), `setting_serpapi_monthly_quota` (5000), and the Phase 1 settings `setting_import_reward` (the free Trip Pass for a first qualifying import: `min_items_applied` 3, a flight or a stay, verified email, no active Plus), `setting_referral_credits` (20 credits each side, 12 month expiry, referrer caps 5 per rolling 30 days and 10 per calendar year, the qualifying rule), `setting_booked_fare_drop` (`min_drop_pct` 5, `min_drop_usd` 10, `min_days_between` 7, `max_age_hours` 48) and `setting_calendar_polling` (6 hours, 3 failures, 3 feeds per person). Experiments start with `exp_`. Flags for later phases are added by the phase that ships them.
 
 **Kill switches** (operational control, all off by default; turning one on disables the thing; an admin-set switch always has an expiry, 08 section 6.5)
 
@@ -719,15 +753,15 @@ The existing code is the Trip Planner repository, https://github.com/avillalv/tr
 
 | Existing module | Decision | Where it goes | Reason |
 |---|---|---|---|
-| `config.py` | Adapt | `apps/api/hermi/config.py` | Keep the typed settings pattern; remove passcode, host list, `CLAUDE_PATH`, backup and Windows paths; add section 7 variables |
+| `config.py` | Adapt | `apps/api/hermi/config.py` | Keep the typed settings pattern; remove passcode, host list, backup and Windows paths; add section 7 variables. Adapt, dev-only: the old `CLAUDE_PATH` becomes `CLAUDE_CLI_PATH` |
 | `db.py` | Adapt | `db.py` | Add pool limits, timeouts, TLS, the `app.user_id` session variable (`set_config('app.user_id', ...)`, read by policies through `app_user_id()`, 03 section 6.2) and a system session |
 | `main.py` | Adapt | `main.py` | Keep the app factory and router wiring; add CORS, middleware order (section 4), problem+json errors; no SPA serving |
 | `spa.py` | Drop | none | The web app ships from Cloudflare Pages |
 | `security.py` | Adapt | `security/` | Keep constant-time compare and redaction ideas; replace passcode cookie and loopback trust with JWT verification; rate limits move to Postgres |
 | `process.py`, `supervisor.py` | Drop | none | Windows watchdog and local supervisor; the platform restarts containers and migrations are pre-deploy |
-| `migrate.py`, `setup_db.py` | Adapt, Drop | `cli.py migrate`; setup dropped | Keep the Alembic runner with advisory lock; superuser prompt setup is local-only |
+| `migrate.py`, `setup_db.py` | Adapt | `cli.py migrate`; `npm run db:init` | Keep the Alembic runner with advisory lock; `setup_db.py` and the old `scripts/setup.mjs` are adapted into `npm run db:init` and `npm run setup` |
 | `paths.py` | Drop | none | `%LOCALAPPDATA%` and repo-relative paths; no writable local state |
-| `cli.py` | Adapt | `cli.py` | Keep the typer or argparse shape; commands become `api`, `worker`, `scheduler`, `migrate`, `seed`, `openapi` |
+| `cli.py` | Adapt | `cli.py` | Keep the typer or argparse shape; commands become `api`, `worker`, `scheduler`, `migrate`, `seed`, `openapi`, `admin-grant`, `ai-smoke` |
 | `migrations/` (7 revisions) | Drop history, keep `env.py` | `migrations/` | Start Hermi with a new baseline from [03-database-schema.md](03-database-schema.md); the 7 existing revisions are replaced by one baseline plus a one-off data import script |
 | `models/base.py` | Adapt | `modules/*/models.py` base | Keep the declarative base; switch to UUIDv7 public ids and `timestamptz` |
 | `models/trip.py`, `people.py` | Adapt | `trips`, `people`, `trip_people` | Add `deleted_at`, `owner_user_id`, `linked_user_id` (the UUIDv7 `id` is the public id); `trip_travelers` becomes `trip_people` |
@@ -749,9 +783,9 @@ The existing code is the Trip Planner repository, https://github.com/avillalv/tr
 | `services/flight_choice.py`, `quotes.py`, `routes.py` | Reuse / Adapt | `modules/flights/service.py` | Fare normalization, best-option logic and chosen-flight rules are the core; add tenant scope and cache keys |
 | `services/search_planner.py` | Adapt | `modules/flights/planner.py` | Date-window planning logic is reusable; budget input becomes per-account ceilings |
 | `services/serpapi_budget.py` | Adapt | `modules/credits` and `providers/serpapi.py` | The "spread a quota over remaining days" shape becomes per-account and global budgets |
-| `services/agent_ingest.py` | Reuse | `modules/ai/ingest.py` | The evidence rules, blocked domains, price bounds and `IngestRejection` are the trust boundary; called in process from tools |
+| `services/agent_ingest.py` | Reuse | `modules/ai/ingest.py` | The evidence rules, blocked domains, price bounds and `IngestRejection` are the trust boundary; called in process from tools. Its checks also validate the CLI backend's final JSON |
 | `services/agent_context.py` | Adapt | `modules/ai/context.py` | Builds model context from one trip; must read only that trip and exclude private notes and other travelers' names |
-| `services/claude_cli.py` | Drop | none | CLI sign-in and PID handling cannot be multi-tenant |
+| `services/claude_cli.py` | Adapt, dev-only | `providers/ai/claude_cli.py` | Keep `STRIPPED_ENV`, `find_claude`, `auth_status`, `NO_WINDOW`; one local CLI sign-in cannot be multi-tenant, so it never runs outside `local` |
 | `services/runs.py` and the old scheduled-run service | Adapt | `modules/ai` | Keep run lifecycle and log events; add budgets, refunds; scheduled agent runs are Phase 2 |
 | `services/backups.py` | Drop | `db_dump_offsite` job (new) | Windows `pg_dump.exe` and local folder; PITR is primary, weekly off-provider dump is new Linux code |
 | `services/system_status.py` | Adapt | `health` and admin status | Replace CLI and heartbeat checks with database, queue and provider checks |
@@ -766,11 +800,12 @@ The existing code is the Trip Planner repository, https://github.com/avillalv/tr
 | `worker/main.py`, `executor.py` | Drop | `apps/worker/app.py` | Two-second loop and thread pools replaced by Procrastinate lanes |
 | `worker/scheduler.py` | Drop | `apps/worker/scheduler.py` (new) | APScheduler per scheduled agent run double-fires with two instances; replaced by the leader and the `flight_routes.next_check_at` scan (`scan_due_routes`) |
 | `worker/jobs/flight_prices.py` | Adapt | `jobs/check_fare_route.py` | Provider call logic carries over; add cache, dedup and idempotency |
-| `worker/agents/runner.py`, `stream.py`, `smoke.py` | Drop, rebuild | `agents/loop.py` | CLI subprocess becomes `AgentLoop` on the Messages API; `smoke.py` idea becomes an eval runner |
+| `worker/agents/runner.py`, `stream.py` | Adapt, dev-only | The `claude_cli` backend's runner and stream parser (`providers/ai/`) | Keep Watchdog, StderrDrain, the stdin writer, `psutil` `kill_tree`, `guard_problem` and `explain_failure`. Product agent runs use `AgentLoop` on the Messages API (`agents/loop.py`) |
+| `worker/agents/smoke.py` | Adapt, dev-only | `hermi ai-smoke` | The smoke script for the CLI backend; the eval runner is separate |
 | `worker/agents/prompts.py` | Adapt | `agents/prompts.py` | Keep `SYSTEM_PROMPT` almost verbatim as the cached prefix; remove the tools section; version it |
-| `agent_bridge/` | Drop | none | MCP stdio bridge; tools are in process |
+| `agent_bridge/` | Drop | none | The CLI backend runs with `--strict-mcp-config` and no MCP servers; tools are in process |
 | `tests/conftest.py`, `factories.py` | Adapt | `apps/api/tests` | Keep the test database discipline; add a two-tenant fixture |
-| `tests/fake_claude.py` | Adapt | fake Messages client | Replay recorded `server_tool_use`, `pause_turn` and `refusal` fixtures |
+| `tests/fake_claude.py` | Adapt, dev-only | The fake `claude` for CLI tests, and the `fake` provider | The Messages API fake replays recorded `server_tool_use`, `pause_turn` and `refusal` fixtures; the fake `claude` for CLI tests emits stream-json events |
 | `tests/e2e_seed.py` | Adapt | e2e seed | Two users, one shared trip, one Plus and one Free |
 | Other pytest files (`test_trips`, `test_itinerary`, `test_lodging`, `test_flight_*`, `test_quotes`, `test_places`, `test_people`, `test_presentation`, `test_airports_seed`) | Adapt | Module tests | Logic assertions carry over; add auth and tenant arguments |
 | `test_auth`, `test_agent_*`, `test_backups`, `test_scheduler`, `test_startup`, `test_spa`, `test_system`, `test_serpapi_budget` | Drop or rewrite | Replaced by new suites | They test removed code; budget and scheduler tests are rewritten for the new designs |
@@ -795,7 +830,7 @@ The existing code is the Trip Planner repository, https://github.com/avillalv/tr
 | `routes/errors.tsx`, `trips-home.tsx`, `routes/trip/*` | Adapt | Add empty, offline, paywall and out-of-credits states |
 | `frontend/e2e`, `playwright.config.ts` | Adapt | Move to `apps/web/e2e`; Chromium and WebKit projects, iPhone viewport |
 | `scripts/*.ps1` (autostart, share-tailscale, run-hidden) | Drop | Windows and Tailscale only |
-| `scripts/setup.mjs` | Adapt | Becomes `npm run setup` that starts compose, migrates and seeds |
+| `scripts/setup.mjs` | Adapt | Becomes `npm run setup` that prepares native PostgreSQL 18 (`npm run db:init`), migrates and seeds |
 | Root `package.json` scripts | Adapt | Keep `dev`, `test`, `lint`, `format`, `gen:api`, `test:e2e`; drop `autostart:*`, `share`, `backup`, `restore`, `agent:smoke` |
 | `.claude/rules/*`, `knowledge/` | Adapt | Keep the three-tier context layout and the migrations and frontend rules for the new repo; rewrite the agent rules for the API loop |
 | `CLAUDE.md` rule "subagents use Sonnet" | Reuse | Build-time rule carries over; not a runtime rule |
@@ -816,3 +851,8 @@ A script `infra/scripts/import_trip_planner.py` reads the personal Trip Planner 
 | Booked-fare drop evaluator | `modules/flights/booked_fare.py`, `jobs/evaluate_booked_fare_drops.py` | Section 5.6 |
 | Referrals | `modules/referrals/`, `jobs/grant_referral_rewards.py` | 07 section 9 |
 | First-import reward pass | `modules/billing/service.py` (calls `grant_import_reward()`) | 07 section 10 |
+| AI provider seam | `providers/ai/` | Section 3 |
+| Database bootstrap | `infra/db/bootstrap.sql` | Roles and databases, run by `npm run db:init` |
+| Dev sign-in | `modules/auth/` (`AUTH_MODE=dev`) | Section 4.1 |
+| Fake-Access signer | `modules/admin/` (`ADMIN_AUTH_MODE=dev`) | 08 section 2 |
+| CLI commands | `hermi seed --demo`, `hermi admin-grant`, `hermi ai-smoke` | Seed, admin grant, CLI backend smoke |
