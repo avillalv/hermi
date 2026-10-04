@@ -303,7 +303,13 @@ jobs:
       - name: Container smoke test
         if: steps.detect.outputs.present == 'true'
         run: |
-          docker compose -f infra/docker/compose.yml up -d --wait postgres api
+          docker compose -f infra/docker/compose.yml up -d --wait postgres
+          {
+            echo "\set migrate_pw 'ci-throwaway'"; echo "\set api_pw 'ci-throwaway'"
+            echo "\set worker_pw 'ci-throwaway'"; echo "\set admin_pw 'ci-throwaway'"
+            cat infra/db/bootstrap.sql
+          } | docker compose -f infra/docker/compose.yml exec -T postgres psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres
+          docker compose -f infra/docker/compose.yml up -d --wait api
           curl -fsS http://localhost:8100/health/live
           if [ -d apps/api/hermi/migrations/versions ]; then
             docker compose -f infra/docker/compose.yml run --rm api migrate

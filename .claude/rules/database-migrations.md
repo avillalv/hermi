@@ -68,3 +68,26 @@ grep -rhoE "FORCE ROW LEVEL SECURITY" apps/api/hermi/migrations | wc -l
 # raw session-variable reads (only the app_user_id() definition may match)
 grep -rn "current_setting('app.user_id'" apps/api/hermi
 ```
+
+## Expand and contract (zero-downtime policy)
+
+Authority: `03-database-schema.md` section 10. The first release creates the schema from empty, so P04's own
+revisions may be plain. From the first production release on, every migration follows this policy.
+
+- **Expand, migrate, contract, in separate releases.** Release 1 adds the new column, table or index (nullable or
+  with a default, old code unaffected). Release 2 writes both and backfills in batches (a job, not the migration).
+  Release 3 drops the old shape once no deployed code reads it. Never drop or rename in the release that adds.
+- **A migration runs before the new code is deployed**, so the old code must keep working against the new schema.
+  No `ALTER COLUMN ... TYPE` rewrite, no `SET NOT NULL` on a populated column without a validated check first.
+- **Locks stay short** (03 says lock 3s, 02 section 12 says 5s; 3s is kept). `env.py` sets `lock_timeout = 3s` and `statement_timeout = 60s` on the migration
+  session, so a migration that cannot get its lock fails and is retried instead of queueing traffic behind it.
+- **Indexes on live tables:** `CREATE INDEX CONCURRENTLY` inside `with op.get_context().autocommit_block():`.
+- **Foreign keys and checks:** add `NOT VALID`, then `VALIDATE CONSTRAINT` in a later step.
+- **One migrator at a time:** `env.py` holds `pg_advisory_lock` for the whole run. Migrations run as one
+  pre-deploy job, never at server start.
+- **One head, linear chain.** `hermi.db.assert_single_head` runs in `env.py`, in `test_migrations.py` and in the CI
+  "Single head" step. Rebase and renumber instead of merging two heads.
+- **Downgrades exist for development and CI** (`downgrade base` then `upgrade head` on a scratch database).
+  Production never downgrades; the fix for a bad release is a new forward migration.
+- **0001 only checks roles** (`hermi.db.assert_roles_exist`) and stops with "run `npm run db:init`". Add a new
+  role to `infra/db/bootstrap.sql` and to `hermi.db.REQUIRED_ROLES` together.

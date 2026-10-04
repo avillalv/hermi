@@ -43,7 +43,23 @@ def test_api_host_flag_binds_container_address(monkeypatch):
     assert seen["host"] == "0.0.0.0"
 
 
-@pytest.mark.parametrize("cmd", ["worker", "scheduler", "migrate"])
+@pytest.mark.parametrize("cmd", ["worker", "scheduler"])
 def test_placeholder_commands_exit_non_zero_with_a_pointer(cmd):
     with pytest.raises(SystemExit, match="arrives with WF-"):
         cli.main([cmd])
+
+
+def test_seed_subcommand_runs_the_seed(monkeypatch):
+    seen = []
+    monkeypatch.setattr(cli, "seed", lambda: seen.append(1))
+    cli.main(["seed"])
+    assert seen == [1]
+
+
+def test_seed_exits_when_migration_url_missing(monkeypatch):
+    from hermi import config
+
+    monkeypatch.delenv("MIGRATION_DATABASE_URL", raising=False)
+    monkeypatch.setattr(config, "ROOT_ENV_FILE", config.ROOT_ENV_FILE.parent / "no-such.env")
+    with pytest.raises(SystemExit, match="MIGRATION_DATABASE_URL"):
+        cli.seed()

@@ -42,6 +42,9 @@ SELECT format('CREATE DATABASE %I OWNER hermi_owner', :'test_db') WHERE NOT EXIS
 -- Only the four login roles may connect.
 REVOKE CONNECT ON DATABASE :"main_db" FROM PUBLIC;
 REVOKE CONNECT ON DATABASE :"test_db" FROM PUBLIC;
+-- No temp tables for PUBLIC: a temp table can shadow a real one for code that does not list pg_temp last in its search_path.
+REVOKE TEMPORARY ON DATABASE :"main_db" FROM PUBLIC;
+REVOKE TEMPORARY ON DATABASE :"test_db" FROM PUBLIC;
 GRANT CONNECT ON DATABASE :"main_db" TO hermi_migrate_login, hermi_api_login, hermi_worker_login, hermi_admin_login;
 GRANT CONNECT ON DATABASE :"test_db" TO hermi_migrate_login, hermi_api_login, hermi_worker_login, hermi_admin_login;
 -- A role can become the owner of a function in a schema only if it has CREATE there, so this runs in each database.

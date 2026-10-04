@@ -360,7 +360,7 @@ SELECT add_updated_at_trigger('guest_allowances');
 -- so there is no app_user_id() to check: the caller is the allowlisted SystemSession that verified the App Attest assertion (04 section 5.1),
 -- and EXECUTE is granted to hermi_worker only.
 CREATE FUNCTION spend_guest_allowance(p_key_id text, p_credits integer, p_limit integer) RETURNS boolean
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_period text := to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM');
 BEGIN
   IF p_credits <= 0 OR p_limit < 0 THEN RAISE EXCEPTION 'invalid amount' USING ERRCODE = '22023'; END IF;
@@ -554,7 +554,7 @@ CREATE UNIQUE INDEX uq_trip_members_one_owner ON trip_members (trip_id) WHERE ro
 CREATE INDEX ix_trip_members_user_trip ON trip_members (user_id, trip_id);      -- the "my trips" query and RLS helper
 
 -- The owner is always a member.
-CREATE FUNCTION trips_add_owner_member() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+CREATE FUNCTION trips_add_owner_member() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   INSERT INTO trip_members (trip_id, user_id, role) VALUES (NEW.id, NEW.owner_user_id, 'owner');
   RETURN NEW;
@@ -650,7 +650,7 @@ The API role has no `INSERT` on `trip_members` and cannot change `trips.owner_us
 -- Redeem an invite for the caller. Returns the trip id. Raises invite_expired (P0001) for an unknown, revoked, expired or used-up invite, or one for a trashed trip
 -- (one error for all four, so a caller cannot tell them apart) and already_member (23505) when the caller is already on the trip.
 CREATE FUNCTION redeem_trip_invite(p_token_hash bytea) RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   v_me  uuid := app_user_id();
   v_inv trip_invites%ROWTYPE;
@@ -674,7 +674,7 @@ GRANT  EXECUTE ON FUNCTION redeem_trip_invite(bytea) TO hermi_app;
 
 -- Hand a trip to another member. Only the current owner may call it. The old owner becomes an editor. Returns the new owner id.
 CREATE FUNCTION transfer_trip_owner(p_trip uuid, p_new_owner uuid) RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   v_me uuid := app_user_id();
 BEGIN
@@ -1456,7 +1456,7 @@ SELECT add_updated_at_trigger('trip_imports');
 -- Called by the worker after the import is applied. The reward switch and minimum item count are the feature_flags setting 'setting_import_reward'.
 -- Conditions: at least 3 items applied including a flight or a stay, a verified email, no active pass on the trip, no active Plus, once per user.
 CREATE FUNCTION grant_import_reward(p_import uuid) RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   v_imp trip_imports%ROWTYPE; v_plan plans%ROWTYPE; v_min integer; v_enabled boolean; v_pass uuid;
 BEGIN
@@ -1504,7 +1504,7 @@ END $$;
 -- Switches "Keep checking this calendar" on or off for the caller's own applied feed import (the API runs as the caller). Returns true when the state changed.
 -- Turning it on needs a stored feed URL and fewer than 3 polled feeds; turning it off deletes the stored URL and any pending changes.
 CREATE FUNCTION set_import_polling(p_import uuid, p_enabled boolean) RETURNS boolean
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   v_me uuid := app_user_id(); v_imp trip_imports%ROWTYPE;
 BEGIN
@@ -1556,7 +1556,7 @@ CREATE INDEX ix_referral_rewards_queue ON referral_rewards (created_at) WHERE st
 
 -- Creates the user's referral code on first use (worker and internal callers).
 CREATE FUNCTION ensure_referral_code(p_user uuid) RETURNS text
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   v_code text; v_alpha constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; i integer;
 BEGIN
@@ -1579,14 +1579,14 @@ END $$;
 
 -- The API's entry points run as the caller (app.user_id) so a user can only act for themselves.
 CREATE FUNCTION my_referral_code() RETURNS text
-LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE sql SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT ensure_referral_code(app_user_id()) WHERE app_user_id() IS NOT NULL
 $$;
 
 -- The caller enters a friend's code. Returns the new referral_rewards.id, or NULL when the code is unknown, disabled,
 -- their own, too late (the account is older than 14 days), or they were already referred. The API answers all of those the same way.
 CREATE FUNCTION redeem_referral(p_code text) RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   v_me uuid := app_user_id(); v_code text := upper(btrim(p_code)); v_referrer uuid; v_cfg jsonb; v_id uuid;
 BEGIN
@@ -1608,7 +1608,7 @@ END $$;
 -- setting_referral_credits rules referrer_monthly_cap, referrer_yearly_cap and expiry_months; none of them is a ceiling raise (06 6.5).
 -- Returns true when the row was granted. Replays do nothing: each grant is keyed by period_key 'referral:<id>'.
 CREATE FUNCTION grant_referral_reward(p_reward uuid) RETURNS boolean
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   r referral_rewards%ROWTYPE; v_cap30 integer; v_capyear integer; v_months integer; v_recent integer; v_year integer;
   v_g_referrer uuid; v_g_referee uuid; v_ok boolean;
@@ -2394,7 +2394,7 @@ BEGIN
   IF TG_OP = 'DELETE'
      AND current_user = 'hermi_definer'
      AND current_setting('hermi.audit_purge', true) = 'on'
-     AND OLD.created_at < now() - CASE OLD.retention_class WHEN 'extended' THEN interval '7 years' ELSE interval '13 months' END
+     AND OLD.created_at < now() - (CASE OLD.retention_class WHEN 'extended' THEN interval '7 years' ELSE interval '13 months' END)
   THEN
     RETURN OLD;
   END IF;
@@ -2742,6 +2742,9 @@ SELECT 'CREATE DATABASE hermi_test OWNER hermi_owner' WHERE NOT EXISTS (SELECT 1
 -- Only the four login roles may connect.
 REVOKE CONNECT ON DATABASE hermi      FROM PUBLIC;
 REVOKE CONNECT ON DATABASE hermi_test FROM PUBLIC;
+-- No temp tables for PUBLIC: a temp table can shadow a real one for code that does not list pg_temp last in its search_path.
+REVOKE TEMPORARY ON DATABASE hermi      FROM PUBLIC;
+REVOKE TEMPORARY ON DATABASE hermi_test FROM PUBLIC;
 GRANT CONNECT ON DATABASE hermi      TO hermi_migrate_login, hermi_api_login, hermi_worker_login, hermi_admin_login;
 GRANT CONNECT ON DATABASE hermi_test TO hermi_migrate_login, hermi_api_login, hermi_worker_login, hermi_admin_login;
 -- A role can become the owner of a function in a schema only if it has CREATE there, so this runs in each database.
@@ -2835,15 +2838,15 @@ REVOKE TRUNCATE ON credit_ledger, credit_grants, credit_debts, store_transaction
   affiliate_conversions, affiliate_payouts, webhook_events, trip_imports, referral_rewards FROM hermi_worker;
 
 -- Credit functions run with the definer's rights so the API cannot write credit_grants directly.
-ALTER FUNCTION reserve_credits(uuid, uuid, integer, ai_action, uuid, text) SECURITY DEFINER SET search_path = public;
-ALTER FUNCTION settle_credits(uuid, integer, bigint) SECURITY DEFINER SET search_path = public;
+ALTER FUNCTION reserve_credits(uuid, uuid, integer, ai_action, uuid, text) SECURITY DEFINER SET search_path = public, pg_temp;
+ALTER FUNCTION settle_credits(uuid, integer, bigint) SECURITY DEFINER SET search_path = public, pg_temp;
 REVOKE EXECUTE ON FUNCTION reserve_credits(uuid, uuid, integer, ai_action, uuid, text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION settle_credits(uuid, integer, bigint) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION reserve_credits(uuid, uuid, integer, ai_action, uuid, text) TO hermi_app, hermi_worker;
 GRANT  EXECUTE ON FUNCTION settle_credits(uuid, integer, bigint) TO hermi_app, hermi_worker;
 -- The API asks for the lazy Free allowance and the taster grant through these two; debt functions are for the billing service (worker role) only.
-ALTER FUNCTION ensure_free_monthly_grant(uuid) SECURITY DEFINER SET search_path = public;
-ALTER FUNCTION ensure_taster_grant(uuid) SECURITY DEFINER SET search_path = public;
+ALTER FUNCTION ensure_free_monthly_grant(uuid) SECURITY DEFINER SET search_path = public, pg_temp;
+ALTER FUNCTION ensure_taster_grant(uuid) SECURITY DEFINER SET search_path = public, pg_temp;
 REVOKE EXECUTE ON FUNCTION ensure_free_monthly_grant(uuid), ensure_taster_grant(uuid), record_credit_debt(uuid, integer, text), settle_credit_debt(uuid) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION ensure_free_monthly_grant(uuid), ensure_taster_grant(uuid) TO hermi_app, hermi_worker;
 GRANT  EXECUTE ON FUNCTION record_credit_debt(uuid, integer, text), settle_credit_debt(uuid) TO hermi_worker;
@@ -2946,18 +2949,18 @@ Every API transaction starts with `SELECT set_config('app.user_id', '<uuid>', tr
 
 ```sql
 CREATE FUNCTION visible_trip_ids() RETURNS SETOF uuid
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT trip_id FROM trip_members WHERE user_id = app_user_id()
 $$;
 
 CREATE FUNCTION can_edit_trip(p_trip uuid) RETURNS boolean
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT EXISTS (SELECT 1 FROM trip_members
                   WHERE trip_id = p_trip AND user_id = app_user_id() AND role IN ('owner', 'editor'))
 $$;
 
 CREATE FUNCTION is_trip_owner(p_trip uuid) RETURNS boolean
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT EXISTS (SELECT 1 FROM trip_members WHERE trip_id = p_trip AND user_id = app_user_id() AND role = 'owner')
 $$;
 
@@ -3137,7 +3140,7 @@ CREATE POLICY users_update ON users FOR UPDATE USING (id = (SELECT app_user_id()
 CREATE FUNCTION bootstrap_user(p_provider text, p_subject text, p_email citext, p_email_is_relay boolean,
                                p_display_name text)
 RETURNS TABLE (user_id uuid, created boolean)
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   v_user uuid;
 BEGIN
@@ -3281,7 +3284,7 @@ SELECT r.rolsuper OR r.rolbypassrls
 Some requests must read or write rows that the caller's policies cannot show: a public page has no user, a purchase writes money tables, an invite redemption adds the caller to someone else's trip. There are exactly two permitted mechanisms, and nothing else in the API may use the worker or admin connection:
 
 1. **An allowlisted `SystemSession`.** A request handler opens the worker connection (`DATABASE_URL_SYSTEM`) only through one function that takes a purpose name from a fixed allowlist in the API code. A purpose not on the list raises, a test lists the allowlist, and a static test fails when a handler imports the worker engine any other way. Every use writes a structured log line with the purpose, the route and the caller (or `anonymous`).
-2. **A `SECURITY DEFINER` function** owned by `hermi_definer`, with `SET search_path = public` and an `EXECUTE` grant to `hermi_app`, that checks `app_user_id()` (and the caller's role on the trip or ownership of the row) before it changes anything. The DDL of `redeem_trip_invite` and `transfer_trip_owner` is in section 5.4.
+2. **A `SECURITY DEFINER` function** owned by `hermi_definer`, with `SET search_path = public, pg_temp` and an `EXECUTE` grant to `hermi_app`, that checks `app_user_id()` (and the caller's role on the trip or ownership of the row) before it changes anything. The DDL of `redeem_trip_invite` and `transfer_trip_owner` is in section 5.4.
 
 The public token reads and synchronous writes that use a SystemSession, by purpose name:
 
@@ -3438,7 +3441,7 @@ Reading `provider_calls` from the API role needs a `SECURITY DEFINER` wrapper be
 
 ```sql
 CREATE FUNCTION my_provider_spend_micros(since timestamptz) RETURNS bigint
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_me uuid := app_user_id();
 BEGIN
   IF v_me IS NULL THEN RAISE EXCEPTION 'not_authenticated' USING ERRCODE = '42501'; END IF;
@@ -3592,7 +3595,7 @@ The two nightly jobs that apply this table run as `SECURITY DEFINER` functions o
 -- Hard-deletes trips that have been in the trash for more than 30 days (job purge_trash, daily 04:30). Children cascade. Only trips are soft-deleted
 -- (trips.deleted_at); itinerary items, lodging and notes have no trash of their own and go with their trip. Returns the number of trips removed.
 CREATE FUNCTION purge_trash(p_window interval DEFAULT interval '30 days') RETURNS integer
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE n integer;
 BEGIN
   DELETE FROM trips WHERE deleted_at IS NOT NULL AND deleted_at < now() - p_window;
@@ -3603,7 +3606,7 @@ END $$;
 -- Applies every retention class in the table above except the ones that drop partitions (section 9), the cascades and the account deletion job (8.1)
 -- (job retention_sweep, daily 05:30). Returns the number of rows deleted or scrubbed.
 CREATE FUNCTION retention_sweep() RETURNS integer
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_sql text; k integer; n integer := 0;
 BEGIN
   FOREACH v_sql IN ARRAY ARRAY[
@@ -3744,18 +3747,18 @@ SELECT ensure_month_partitions('link_clicks', 3);
 -- migrations can still alter them) and the creation runs as hermi_definer (SECURITY DEFINER, 6.1). 0014 re-owns the parents and the first
 -- partitions made by 0005 once, at the end (the DO block below). No grant is given on any partition: the API reads and writes through the parent only.
 CREATE FUNCTION maintain_partitions() RETURNS integer
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   RETURN ensure_month_partitions('provider_calls', 3) + ensure_month_partitions('run_events', 3) + ensure_month_partitions('link_clicks', 3);
 END $$;
 ALTER FUNCTION maintain_partitions() OWNER TO hermi_definer;
-ALTER FUNCTION ensure_month_partitions(regclass, integer) SECURITY DEFINER SET search_path = public;
-ALTER FUNCTION drop_old_partitions(regclass, integer) SECURITY DEFINER SET search_path = public;
+ALTER FUNCTION ensure_month_partitions(regclass, integer) SECURITY DEFINER SET search_path = public, pg_temp;
+ALTER FUNCTION drop_old_partitions(regclass, integer) SECURITY DEFINER SET search_path = public, pg_temp;
 ALTER FUNCTION ensure_month_partitions(regclass, integer) OWNER TO hermi_definer;
 ALTER FUNCTION drop_old_partitions(regclass, integer) OWNER TO hermi_definer;
 -- The worker never gets the generic helpers (they take any table): it calls maintain_partitions() and a wrapper that fixes the parent list.
 CREATE FUNCTION drop_old_log_partitions(p_parent text, p_keep_months integer) RETURNS integer
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
   IF p_parent NOT IN ('provider_calls', 'run_events', 'link_clicks') THEN
     RAISE EXCEPTION 'not a partitioned log table' USING ERRCODE = '22023';
@@ -3821,7 +3824,7 @@ Practical rules for the revisions: functions, triggers, partitions, policies and
 | `0002_identity` | `users`, `auth_identities`, `device_attestations`, `guest_allowances`, `devices` | 0001 |
 | `0003_reference_catalog` | `airports`, `fx_rates`, `places_cache`, `fx_convert_minor`, `CREATE TYPE ai_action`, `plans`, `store_products`, `credit_action_prices` | 0001 |
 | `0004_trips_people` | `trips` (with owner-member trigger), `trip_members`, `trip_invites`, `trip_share_links`, `trip_destinations`, `activity_log`, `people`, `trip_people`, `redeem_trip_invite`, `transfer_trip_owner` | 0002 |
-| `0005_ai` | `runs`, `run_events` (partitioned), `ai_usage`, `provider_calls` (partitioned), `provider_call_rollups`, `shared_research_cache`, `my_provider_spend_micros`, partition functions and the first partitions (section 9). The same migration installs Procrastinate's own schema (the `procrastinate_*` tables and functions, taken from the library's SQL and not listed in this file) and the `job_heartbeats` view over its worker table | 0003, 0004 |
+| `0005_ai` | `runs`, `run_events` (partitioned), `ai_usage`, `provider_calls` (partitioned), `provider_call_rollups`, `shared_research_cache`, `my_provider_spend_micros`, partition functions and the first partitions (section 9). The same migration installs Procrastinate's own schema (the `procrastinate_*` tables and functions, taken from the library's SQL and not listed in this file) and the `job_heartbeats` view over its worker table (`procrastinate_workers`; columns `worker_id`, `last_heartbeat`, `seconds_since_heartbeat`) | 0003, 0004 |
 | `0006_billing_credits` | `store_transactions`, `subscriptions`, `entitlements`, `trip_passes`, `webhook_events`, `credit_grants`, `credit_ledger` (with its append-only trigger), `credit_debts`, `credit_balances`, `identity_hashes`, `identity_hashes_for`, `assert_credit_caller`, `reserve_credits`, `settle_credits`, `release_stale_reservations`, `expire_credit_grants`, `record_credit_debt`, `settle_credit_debt`, `ensure_free_monthly_grant`, `ensure_taster_grant` | 0003, 0004 |
 | `0007_imports_referrals` | `trip_imports` (with the polling columns), `grant_import_reward`, `set_import_polling`, `referral_codes`, `referral_rewards`, `ensure_referral_code`, `my_referral_code`, `redeem_referral`, `grant_referral_reward` | 0005, 0006 |
 | `0008_affiliate` | `affiliate_programs`, `affiliate_link_templates`, `link_clicks` (partitioned), `affiliate_conversions`, `affiliate_payouts`, materialized views | 0003 |
