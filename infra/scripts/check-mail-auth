@@ -1,0 +1,8 @@
+#!/usr/bin/env node
+// Wrapper so `infra/scripts/check-mail-auth <domain>` works in Git Bash. On PowerShell use: node infra/scripts/check-mail-auth.mjs <domain>
+import("./check-mail-auth.mjs").then(async ({ run }) => {
+  process.exitCode = await run(process.argv.slice(2));
+}).catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
