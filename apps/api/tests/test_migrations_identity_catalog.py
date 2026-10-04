@@ -15,6 +15,8 @@ from hermi import db
 from hermi.modules.auth import models as _auth  # noqa: F401  (register on Base.metadata)
 from hermi.modules.base import Base
 from hermi.modules.catalog import models as _catalog  # noqa: F401
+from hermi.modules.collaboration import models as _collab  # noqa: F401
+from hermi.modules.trips import models as _trips  # noqa: F401
 
 
 @pytest.fixture
