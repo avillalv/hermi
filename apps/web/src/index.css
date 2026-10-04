@@ -1,2 +1,6 @@
-@import "tailwindcss";
+/* Tailwind without preflight: the kit's own base in hermi.css is the reset, and the kit is drawn on browser defaults
+ * (headings, svg, borders). Preflight changes those and breaks parity with the kit (WF-130.2 kit tests). */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
 @import "@hermi/tokens/theme.css";

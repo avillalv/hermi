@@ -7,7 +7,6 @@
 @import "./hermi.css";
 
 html {
-  font: var(--tp-type-body);
   color: var(--tp-ink);
   background: var(--tp-paper);
 }
