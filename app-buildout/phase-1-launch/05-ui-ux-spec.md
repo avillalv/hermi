@@ -29,9 +29,12 @@ All tokens are CSS custom properties defined in `packages/tokens` (CSS and TS) a
 
 ### 2.1 Color: surfaces and ink
 
+The tables in 2.1 to 2.3 are machine-readable: one token per row, the token name in backticks in the first column, each color value in backticks. WF-005 parses them and compares them with `design/tokens.css`. Keep that shape.
+
 | Token | Light | Dark | Use |
 |---|---|---|---|
 | `--tp-paper` (`--background`) | `#FBF5EA` | `#0B1A2A` | Page ground, warm paper |
+| `--tp-ticket` | `#FBF5EA` | `#0B1A2A` | A named alias for the ticket surface; always equal to `--tp-paper` in both modes |
 | `--tp-sheet` (`--card`, `--popover`) | `#FFFDF8` | `#12263A` | Cards, tickets, sheets, inputs, popovers; a warm white |
 | `--tp-sunken` (`--secondary`, `--muted`, `--accent`) | `#F5ECDA` | `#1A3149` | Wells, chips, ticket stubs, hover fill, skeleton base |
 | `--tp-ink` (`--foreground`) | `#17324A` | `#E6F2FF` | Primary text, icons |
@@ -62,12 +65,37 @@ The light surfaces are warm (paper, sheet, sunken and rule), chosen in the 2026-
 | `--tp-route-a-ink` (new) | `#C4264D` | `#FF8FA5` | Pink when it is text or the only carrier of meaning |
 | `--tp-route-b` (new, replaces `--tp-violet` and `--tp-line-b`) | `#FFCB2E` | `#FFD45C` | Route yellow: traveler 2 and the right route of the logo. A decorative fill |
 | `--tp-route-b-ink` (new) | `#8A5A00` | `#FFD45C` | Yellow when it is text or the only carrier of meaning |
-| `--tp-traveler-1` to `--tp-traveler-8` (new) | `#FF5E7E`, `#FFCB2E`, `#2BBFAD`, `#6A45F2`, `#FF8A3D`, `#3DBE6B`, `#0B6BC0`, `#B92E86` | same | One color per person on a trip, in the order they joined: avatar fill, their route on the map and the timeline, their "added by" highlight. Initials on each use `--tp-traveler-ink-1` to `-8`: `#10283D`, `#17324A`, `#17324A`, `#FFFFFF`, `#17324A`, `#17324A`, `#FFFFFF`, `#FFFFFF` (all at least 5.1 to 1) |
+| `--tp-traveler-1` | `#FF5E7E` | `#FF5E7E` | One color per person on a trip, in the order they joined: avatar fill, their route on the map and the timeline, their "added by" highlight. Initials use `--tp-traveler-ink-1` to `-8` (at least 5.1 to 1 for all eight). |
+| `--tp-traveler-2` | `#FFCB2E` | `#FFCB2E` | Traveler color 2 |
+| `--tp-traveler-3` | `#2BBFAD` | `#2BBFAD` | Traveler color 3 |
+| `--tp-traveler-4` | `#6A45F2` | `#6A45F2` | Traveler color 4 |
+| `--tp-traveler-5` | `#FF8A3D` | `#FF8A3D` | Traveler color 5 |
+| `--tp-traveler-6` | `#3DBE6B` | `#3DBE6B` | Traveler color 6 |
+| `--tp-traveler-7` | `#0B6BC0` | `#0B6BC0` | Traveler color 7 |
+| `--tp-traveler-8` | `#B92E86` | `#B92E86` | Traveler color 8 |
+| `--tp-traveler-ink-1` | `#10283D` | `#10283D` | Initials on `--tp-traveler-1` |
+| `--tp-traveler-ink-2` | `#17324A` | `#17324A` | Initials on `--tp-traveler-2` |
+| `--tp-traveler-ink-3` | `#17324A` | `#17324A` | Initials on `--tp-traveler-3` |
+| `--tp-traveler-ink-4` | `#FFFFFF` | `#FFFFFF` | Initials on `--tp-traveler-4` |
+| `--tp-traveler-ink-5` | `#17324A` | `#17324A` | Initials on `--tp-traveler-5` |
+| `--tp-traveler-ink-6` | `#17324A` | `#17324A` | Initials on `--tp-traveler-6` |
+| `--tp-traveler-ink-7` | `#FFFFFF` | `#FFFFFF` | Initials on `--tp-traveler-7` |
+| `--tp-traveler-ink-8` | `#FFFFFF` | `#FFFFFF` | Initials on `--tp-traveler-8` |
 | `--viz-live` | `#00909a` | `#0f9aa2` | Chart series: live fare (Google Flights) |
 | `--viz-cached` | `#a86a12` | `#c2851f` | Chart series: cached fare (Aviasales) |
 | `--viz-agent` | `#5b47b0` | `#8a76e4` | Chart series: agent-found fare |
 | `--viz-google` | `#c24472` | `#d9598a` | Chart series: Google price history |
-| `--heat-1` to `--heat-5` | `#ceeff1`, `#93d9dc`, `#4fbec4`, `#009da3`, `#007980` | `#083a3d`, `#00565a`, `#007378`, `#00a0a6`, `#5ac8cd` | Date-grid price steps, one hue; the most prominent step is the cheapest. Text on each step uses `--heat-ink-1` to `--heat-ink-5` |
+| `--heat-1` | `#ceeff1` | `#083a3d` | Date-grid price steps, one hue; the most prominent step is the cheapest. Text on each step uses `--heat-ink-1` to `--heat-ink-5` |
+| `--heat-2` | `#93d9dc` | `#00565a` | Date-grid price step 2 |
+| `--heat-3` | `#4fbec4` | `#007378` | Date-grid price step 3 |
+| `--heat-4` | `#009da3` | `#00a0a6` | Date-grid price step 4 |
+| `--heat-5` | `#007980` | `#5ac8cd` | Date-grid price step 5 |
+| `--heat-ink-1` | `#17324A` | `#E6F2FF` | Text on `--heat-1` |
+| `--heat-ink-2` | `#17324A` | `#E6F2FF` | Text on `--heat-2` |
+| `--heat-ink-3` | `#17324A` | `#E6F2FF` | Text on `--heat-3` |
+| `--heat-ink-4` | `#0B1A2A` | `#0B1A2A` | Text on `--heat-4` |
+| `--heat-ink-5` | `#FFFFFF` | `#0B1A2A` | Text on `--heat-5` |
+| `--viz-band` | `#DCEFFF` | `#123A5C` | The typical-price band on the price chart; an alias of `--tp-brand-soft` |
 | `--cat-culture` | `#5b47b0` | `#a07fe0` | Plan blocks and pins: sights, museums |
 | `--cat-food` | `#e0621e` | `#d95926` | Food, nightlife |
 | `--cat-outdoors` | `#0f9f76` | `#1a9f71` | Parks, hikes, beaches |
@@ -107,12 +135,23 @@ The `--cat-*` tokens are color groups over the eight `itinerary_items.category` 
 | Route A ink on sunken (the "Added by" name on a stub) | 4.80 | 6.16 |
 | Route B ink on sunken | 5.05 | 9.39 |
 | `--tp-edge` on sunken (control borders on a stub) | 3.24 | 3.60 |
+| `--heat-ink-1` on `--heat-1` | 10.83 | 11.00 |
+| `--heat-ink-2` on `--heat-2` | 8.29 | 7.47 |
+| `--heat-ink-3` on `--heat-3` | 5.97 | 4.97 |
+| `--heat-ink-4` on `--heat-4` | 5.31 | 5.50 |
+| `--heat-ink-5` on `--heat-5` | 5.19 | 8.85 |
 
-The sunken rows were added with the warm surfaces, because tickets carry text and controls on `--tp-sunken` stubs. Every new color pair added later must be checked with the same formula and recorded here. Body text needs 4.5 to 1, large text and control boundaries 3 to 1. The logo's sky `#2AA5FF`, `--tp-route-a` and `--tp-route-b` are decorative fills and never carry text in a color of their own.
+The heat-ink rows are text on the date-grid steps. The sunken rows were added with the warm surfaces, because tickets carry text and controls on `--tp-sunken` stubs. Every new color pair added later must be checked with the same formula and recorded here. Body text needs 4.5 to 1, large text and control boundaries 3 to 1. The logo's sky `#2AA5FF`, `--tp-route-a` and `--tp-route-b` are decorative fills and never carry text in a color of their own.
 
 ### 2.4 Typography
 
-Three bundled families (`@fontsource-variable`, subset to Latin): **Fredoka** (display: rounded and friendly, used only for names, codes and page titles), **Atkinson Hyperlegible Next** (body and labels), **Atkinson Hyperlegible Mono** (numbers and data). Everything that is not a name, a code or a title is Atkinson Hyperlegible Next.
+Three bundled families (`@fontsource-variable`, subset to Latin): **Fredoka** (display: rounded and friendly, used only for names, codes and page titles), **Atkinson Hyperlegible Next** (body and labels), **Atkinson Hyperlegible Mono** (numbers and data). Everything that is not a name, a code or a title is Atkinson Hyperlegible Next. The app makes no request to Google Fonts (`googleapis` or `gstatic`); the fonts are the bundled OFL `@fontsource-variable` packages. CSS stacks, each beginning with the bundled variable family:
+
+| Token | Value |
+|---|---|
+| `--tp-font-display` | `'Fredoka Variable', 'Fredoka', 'Nunito', 'Arial Rounded MT Bold', system-ui, sans-serif` |
+| `--tp-font-body` | `'Atkinson Hyperlegible Next Variable', 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif` |
+| `--tp-font-mono` | `'Atkinson Hyperlegible Mono Variable', 'Atkinson Hyperlegible Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` |
 
 | Role (Tailwind utility) | Family and axes | Size and line height | Use |
 |---|---|---|---|
@@ -202,7 +241,9 @@ Rules:
 
 ## 4. Component library
 
-Base: shadcn/ui on Radix, already in the Trip Planner's `frontend/src/components/ui/` and carried to `apps/web/src/components/ui/` (button, badge, card, dialog, alert-dialog, dropdown-menu, input, textarea, label, separator, sheet, skeleton, sonner, switch, tabs, tooltip). Additions are named in each entry. Conventions: every component supports light and dark through tokens, has a visible focus ring (`--ring`, 3 px at 50% plus a 1 px solid edge), has a minimum 44 pt hit area on touch, and never relies on hover for information.
+For how a component looks, `design/hermi.css` and the mockups in `design/screens/` win over the prose of sections 4 and 6; the token values in section 2 still win over both. A component block the kit lacks is added to `hermi.css` and `components.html` by the ticket that needs it, in the same pull request.
+
+Base: shadcn/ui on Radix, already in the Trip Planner's `frontend/src/components/ui/` and carried to `apps/web/src/components/ui/` (button, badge, card, dialog, alert-dialog, dropdown-menu, input, textarea, label, separator, sheet, skeleton, sonner, switch, tabs, tooltip). Additions are named in each entry. Conventions: every component supports light and dark through tokens, has a visible focus ring (`--ring`, a 3 px solid outline with a 2 px offset: `outline: 3px solid var(--ring); outline-offset: 2px`, as in `hermi.css`; a 50 percent ring such as shadcn's `ring/50` failed the 3 to 1 rule of section 9.1 and is not used), has a minimum 44 pt hit area on touch, and never relies on hover for information.
 
 State vocabulary used below: default, hover (web), pressed, focus, disabled (50% opacity, not removed from focus order when it explains itself through a tooltip or helper), loading, error, selected.
 
@@ -211,8 +252,8 @@ State vocabulary used below: default, hover (web), pressed, focus, disabled (50%
 | Variant | Look | Use |
 |---|---|---|
 | Primary (`default`) | `--primary` fill, `--primary-foreground` text | One per screen or sheet |
-| Secondary | `--secondary` fill | Supporting action beside a primary |
-| Outline | Border `--tp-edge`, transparent fill | Neutral action, "Not now" on paywalls |
+| Secondary | 1.5 px `--tp-edge` border, `--tp-sheet` fill (`.h-btn--secondary` in `hermi.css`, the kit wins for looks). Maps to the shadcn `outline` variant; the shadcn `secondary` variant is not used for buttons | Supporting action beside a primary |
+| Outline | Border `--tp-edge`, transparent fill. The shadcn `outline` variant with a transparent fill; no kit class yet (added to `hermi.css` with the ticket that needs it) | Neutral action, "Not now" on paywalls |
 | Ghost | No fill, `--muted` on hover and press | Toolbar and inline |
 | Destructive | `--destructive` at 10% fill, danger text | Delete, remove, leave |
 | Link | Brand text, underline on hover and always underlined in body copy | Inline navigation |
@@ -458,7 +499,9 @@ The current repository routes (`/trips/:tripId/itinerary`, `/lodging`, `/agents`
 
 ## 6. Screens
 
-Every screen follows one template: **Purpose**, **Layout**, **Content**, **Interactions**, **States** (loading, empty, error, offline, no permission, limit reached where they apply), **Copy**, **Events** (analytics names, snake_case, properties in braces; `screen_viewed {screen}` fires on every screen and is not repeated; names and property values are the catalog in 10 section 4), **Accessibility**. Copy follows section 7. Credit prices and limits come from section 1.4 of [01-product-spec.md](01-product-spec.md).
+For how a component looks, `design/hermi.css` and the mockups in `design/screens/` win over the prose of sections 4 and 6; the token values in section 2 still win over both. A component block the kit lacks is added to `hermi.css` and `components.html` by the ticket that needs it, in the same pull request.
+
+Every screen follows one template: **Purpose**, **Layout**, **Content**, **Interactions**, **States** (loading, empty, error, offline, no permission, limit reached where they apply), **Copy**, **Events** (analytics names, snake_case, properties in braces; `screen_viewed {screen}` fires on every screen and is not repeated; names and property values are the catalog in 10 section 4), **Accessibility**. Copy follows section 7. Credit prices and limits come from section 1.4 of [01-product-spec.md](01-product-spec.md). Every state listed for a screen is built and has a component test; the offline and error states also have a Playwright test.
 
 ### 6.1 Splash and onboarding
 
@@ -603,7 +646,7 @@ The mockup supersedes this wireframe's band layout.
 **States.** Loading: skeleton header and five cards. Empty (no data yet): only "Next steps". Error: block-level retry per card. Offline: "Saved offline, updated 2 h ago" chip. No permission (viewer): Next steps hidden, summary cards read-only. Limit reached: a limited trip (Plus lapsed, pass expired) shows a banner "This trip is limited. Extra travelers are now viewers. Renew to restore editing." with the free actions visible (read, export).
 **Copy.** Empty next step "Pick your dates". Banner as above.
 **Events.** `trip_overview_viewed`, `next_step_tapped {step}`, `section_opened {section}`.
-**Accessibility.** The header reads as one heading plus a description; cards are links with the state in their name ("Stays, 2 of 3 voted"); the section strip is a `tablist`.
+**Accessibility.** The header reads as one heading plus a description; cards are links with the state in their name ("Stays, 2 of 3 voted"); the section strip is a `nav` with `aria-current="page"` on the current section.
 
 ### 6.8 Invite flow
 
@@ -712,7 +755,7 @@ The mockup supersedes this wireframe's band layout.
 **States.** Loading: day card skeletons. Empty trip: "Nothing planned yet", "Add a place, or ask for a draft to start from.", [Add a place] [Draft the trip, 4 credits]. Empty day: "Free day". Error: "We could not load your plan. Pull down to try again." Offline: readable, edits to notes and checkmarks queue, itinerary structure edits show the read-only banner "Offline. You can read your plan and check things off. Reconnect to rearrange." Conflict: 409 sheet with both versions and "Keep mine" or "Use theirs". No permission: viewers cannot edit. Limit reached: none on the plan itself (the calendar is never gated).
 **Copy.** Conflict "Sam changed this while you were editing."
 **Events.** `plan_viewed {mode}`, `itinerary_item_moved {method}`, `itinerary_item_deleted`, `edit_conflict_shown {resolution}`.
-**Accessibility.** Drag has full keyboard and VoiceOver alternatives (Move up, Move down, Move to day); timeline blocks have text labels with time and duration; the day chip strip is a `tablist`.
+**Accessibility.** Drag has full keyboard and VoiceOver alternatives (Move up, Move down, Move to day); timeline blocks have text labels with time and duration; the day chip strip is a `tablist` with `aria-selected` on the current day (a real tab widget).
 
 ### 6.13 Add item
 
@@ -818,7 +861,7 @@ The mockup supersedes this wireframe's band layout.
 
 **Purpose.** Walk the group through the plan on a phone, a TV or AirPlay, and print or share it.
 **Layout.** Outside the app shell, full screen, `deck-*` type utilities so text scales by container size. Slides: Title (destination, dates, travelers, route pattern), one per Destination, Flights per route, Stays shortlist, one per Day (map plus items), and Closing "Trip at a glance" (existing slide kinds). An optional last slide "Book the plan" lists partner links with the disclosure line, off by default for the owner to turn on. Chrome (hidden after 3 s of no input): close, slide counter, overview grid, share, print.
-**Interactions.** Phones in portrait: swipe up and down between slides in a story layout, tall slides scroll. Landscape and iPad: swipe or arrow keys, tap right or left third. Overview grid shows thumbnails. Screen stays awake (wake lock). Share creates a read-only link with redaction switches (hide addresses, prices, notes and traveler names, which show as "Traveler 1"; all hidden by default; the link expires after 90 days unless the owner picks another length up to a year) and a switch "Let search engines list this page" (off by default, see 6.34). Print or PDF one slide per 16:9 page, links live, checklist without partner buttons. Free shares carry a small "Made with Hermi" footer and the PDF a footer mark; paid tiers do not.
+**Interactions.** Phones in portrait: swipe up and down between slides in a story layout, tall slides scroll. Web and iPad (later): swipe or arrow keys, tap right or left third. Overview grid shows thumbnails. Screen stays awake (wake lock). Share creates a read-only link with redaction switches (hide addresses, prices, notes and traveler names, which show as "Traveler 1"; all hidden by default; the link expires after 90 days unless the owner picks another length up to a year) and a switch "Let search engines list this page" (off by default, see 6.34). Print or PDF one slide per 16:9 page, links live, checklist without partner buttons. Free shares carry a small "Made with Hermi" footer and the PDF a footer mark; paid tiers do not.
 **No partner content during playback.** No cards, no logos, no interstitials on any normal slide.
 **States.** Loading: title slide appears first, others stream in. Empty trip: "There is nothing to present yet. Add a day to your plan." Error: "We could not build the presentation. Try again." Offline: works from the offline copy, map slides use the static route plot. No permission: viewers can present. Limit: none (the footer is the only difference).
 **Copy.** Footer "Made with Hermi".
@@ -1650,13 +1693,14 @@ Body text 4.5 to 1, large text and UI boundaries 3 to 1 (measured table in 2.3).
 
 ### 9.2 Structure, keyboard and focus
 
-One `h1` per screen. Landmarks: header, nav, main. Section strips are `tablist`. Every interactive element is reachable by keyboard on web in a logical order, with visible focus. Sheets trap focus, restore it on close, close on Escape. No keyboard traps, no timing limits except session expiry (with a warning). Drag and drop has non-drag alternatives (WCAG 2.5.7). Targets are at least 24 by 24 CSS px on web (2.5.8) and 44 by 44 pt on touch. Consistent help: a Help link in the same place on every screen's overflow menu (3.2.6). Redundant entry is avoided: trip dates and travelers are prefilled from the trip (3.3.7). Authentication has no cognitive test and supports paste in the code field (3.3.8).
+One `h1` per screen. Landmarks: header, nav, main. The section strip is a `nav` element with `aria-current="page"` on the current section, not a `tablist`; `aria-selected` is kept only for true tab widgets such as segmented controls (9.3). Every interactive element is reachable by keyboard on web in a logical order, with visible focus. Sheets trap focus, restore it on close, close on Escape. No keyboard traps, no timing limits except session expiry (with a warning). Drag and drop has non-drag alternatives (WCAG 2.5.7). Targets are at least 24 by 24 CSS px on web (2.5.8) and 44 by 44 pt on touch. Consistent help: a Help link in the same place on every screen's overflow menu (3.2.6). Redundant entry is avoided: trip dates and travelers are prefilled from the trip (3.3.7). Authentication has no cognitive test and supports paste in the code field (3.3.8).
 
 ### 9.3 VoiceOver and Dynamic Type
 
 - Every icon button has an `aria-label` that names the action and object ("Remove Bairro Alto from Day 2"). Decorative route patterns and icons are hidden.
-- Custom controls expose roles and states (`aria-pressed` for votes, `aria-expanded` for day cards, `aria-selected` for tabs, `aria-current="step"` in the run timeline).
+- Custom controls expose roles and states (`aria-pressed` for votes, `aria-expanded` for day cards, `aria-selected` for true tab widgets such as segmented controls, `aria-current="step"` in the run timeline).
 - Dynamic content uses live regions: toasts (`status` or `alert`), run progress (polite), credit balance changes (polite). Loading states expose `aria-busy`.
+- Fixed-height shapes such as ticket stubs use `min-height` and grow with text. Playwright runs the main screens at 310 percent text zoom.
 - Rotor and headings: each day card is a heading; each list has an accessible count ("Stays, 4 items").
 - Reading order matches visual order. Price, age and source are read in one phrase ("412 dollars, cached, checked 3 hours ago"). Verdict chips are read as a word plus the place ("Confirmed, Time Out Market"); the sync indicator announces state changes only.
 - **Dynamic Type:** all text is `rem`. The native shell reads the system size through `@capacitor/text-zoom` and applies it to the root font size, supporting up to Accessibility XXXL (about 310%). Layouts reflow rather than clip: the section strip scrolls, the tab bar labels stay (icons stay 22 px, labels wrap to two lines then truncate only at the largest sizes with the accessible name intact), cards stack their metadata, tables scroll horizontally with a sticky label column, buttons grow in height. Test each screen at default, Large and the largest accessibility size.
@@ -1676,11 +1720,11 @@ Automated: `@axe-core/playwright` in the e2e suite on every screen in light and 
 |---|---|---|
 | Phone | 0 to 479 px | One column, bottom tabs, sheets, 16 px gutter, full-width primary buttons |
 | Large phone | 480 to 767 px | Same, cards up to 560 px centered, two-up chips |
-| Tablet | 768 to 1023 px | Icon rail (72 px), two-column grids (trips, stays), right panel as overlay, dialogs centered |
-| Laptop | 1024 to 1439 px | Full sidebar (248 px), content 720 to 1120 px, persistent right rail for AI and evidence |
+| Tablet | 768 to 1199 px | Icon rail (72 px), two-column grids (trips, stays), right panel as overlay, dialogs centered |
+| Laptop | 1200 to 1439 px | Full sidebar (248 px, starts at 1200 px), content 720 to 1120 px, persistent right rail for AI and evidence |
 | Desktop | 1440 px and up | Same as laptop, content capped at 1120 px, presentation and map can go full width |
 
-Rules: design mobile first; navigation switches at 768 px; safe areas through `env(safe-area-inset-*)`; `viewport-fit=cover`; inputs 16 px; landscape phone hides the tab bar labels and keeps icons; iPad runs the tablet layout (iPhone only in version 1, iPad later). Container queries drive the deck and dense cards so a component adapts to its container, not the window. Tables become stacked cards under 480 px except the compare table, which scrolls horizontally.
+Rules: design mobile first; navigation switches at 768 px; safe areas through `env(safe-area-inset-*)`; `viewport-fit=cover`; inputs 16 px; the iOS app is locked to portrait on phones in version 1 (set in the Capacitor config), and landscape applies to the web and to iPad later; iPad runs the tablet layout (iPhone only in version 1, iPad later). Container queries drive the deck and dense cards so a component adapts to its container, not the window. Tables become stacked cards under 480 px except the compare table, which scrolls horizontally.
 
 ## 11. Haptics
 
