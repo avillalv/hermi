@@ -4,25 +4,25 @@ The build's memory. Every autopilot session updates this file in its pull reques
 
 ## Current prompt
 
-S3, spec fixes, roadmap, prompts and lint (branch `spec/s3-spec-roadmap-prompts`). Documents and `scripts/spec-lint.mjs` only, no application code.
+01, repository foundation, CI and landing page (branch `phase1/p01-repo-foundation`).
 
 Steps, in order (one session each):
 
-1. S3.1.1 Roadmap, new tickets: items 1 to 5 (WF-130 to WF-133 as full entries, their dependencies, sections 1 to 4 milestones, critical path, capacity and cut list, no `routines`) in `09-build-roadmap.md`, plus the four new rows in the tables of prompts 06, 11, 12 and 13 and in their `README.md` and `PROGRESS.md` ticket lists, so spec-lint passes.
-2. S3.1.2 Roadmap, runtime and data rewrites: items 6 to 13 (business gates, WF-004 to WF-008, the P04 schema re-cut, WF-013 dev auth).
-3. S3.1.3 Roadmap, business and feature rewrites: items 14 to 22 (402 paywall, imports, metering, provider seam, evals, admin auth, webhooks, PDF library, deletion).
-4. S3.2.1 Roadmap, `Kit:` lines: item 1 (a `- Kit:` line on every UI ticket, mapped through the `design/README.md` Screens table).
-5. S3.2.2 Roadmap, coverage criteria and the definition of done: items 2 to 16.
-6. S3.3.1 Prompts 01 to 07: items 1 to 7 and 13 for those files.
-7. S3.3.2 Prompts 08 to 14: items 1 and 8 to 13 for those files.
-8. S3.4 Prompts 15 to 28, the prompts README, the `PROGRESS.md` ticket lists and the ticket count.
-9. S3.5 `scripts/spec-lint.mjs` strict checks (relative links by default, `Kit:` lines on UI tickets, no `routines`, ticket count from the roadmap).
+1. WF-001 Name, domain and email: `docs/adr/0001-name.md` (trademark search checklist, provisional name decision), DNS and mail record list in `infra/cloudflare/rules.md`, `infra/scripts/check-mail-auth` (takes a domain, exits non-zero on a missing record). `Done (docs)` plus a provisional "go" row in `DECISIONS.md`.
+2. WF-003 Interview kit, price test and terms checklist: `docs/validation/` (interview script, written "yes" signal, price test cards, switching question, provider terms checklist). `Done (docs)` plus a provisional "go" row in `DECISIONS.md`.
+3. WF-004.1 Scaffold, monorepo skeleton: the 02 section 2 tree (`apps/api` FastAPI on uv, `apps/worker`, `apps/web` Vite, React 19, TanStack Query, Tailwind 4, `packages/shared`, `packages/tokens`, `packages/eslint-config`, `infra/`, `docs/`), uv and npm workspaces, `.python-version` (3.13), Node 22 pin, `posix_only` marker, Selector loop in `cli.py`, `GET /health/live`, root scripts `test`, `lint`, `format`, `test:api`, `test:web` and placeholder node scripts for the rest. Tests: pytest health route, vitest smoke render.
+4. WF-004.2 Scaffold, local run tooling: node scripts `setup`, `db:init` (runs `infra/db/bootstrap.sql` as `postgres` via `pgpass.conf`, finds the PostgreSQL 18 `bin`), `doctor` (never prints values), `dev` (API 8100, Vite 5173, `envDir: '../..'`, `uv run --no-sync`), `start`, base `.env.example`, Playwright config with `test:e2e` and `test:e2e:smoke`, README setup in under 10 lines, `.claude/skills/run-hermi-locally/SKILL.md`, and the verified Commands section in `CLAUDE.md`. Ported from the Trip Planner `scripts/setup.mjs` and `setup_db.py`.
+5. WF-006 Typed configuration: `apps/api/hermi/config.py` (only reader of env), full `.env.example` from 02 section 7, refusal matrix with one test per rule, `.env.example` vs `config.py` check.
+6. WF-007 CI pipeline: rewrite `.github/workflows/ci.yml` (keep the always-running `ci` job and its "Autopilot tests" step), `e2e.yml`, nightly `windows-latest`, `scripts/check-copy.mjs`, stylelint `declaration-strict-value`, `jsx-a11y`, OpenAPI drift, Alembic two-heads check.
+7. WF-008 Docker and health: `infra/docker/Dockerfile` (multi-stage, non-root), `infra/docker/compose.yml` (optional), `/health/ready` (database, migrations at head, `ai_provider`), container smoke and Trivy in CI.
+8. WF-010 Security scanning: `.github/workflows/security.yml` (pip-audit, npm audit, gitleaks, CodeQL, Trivy, non-blocking audits), `.github/dependabot.yml` grouped weekly.
+9. WF-002 Landing page and waitlist (UI): static page in `apps/web/public/`, `POST /v1/waitlist` in `apps/api/hermi/modules/notifications/` (validation, in-memory dedupe, rate limit, Resend audience only when `RESEND_API_KEY` is set, console or file email otherwise), privacy policy page, Playwright submit flow. Kit: 05 6.1, `design/screens/01-welcome.html`.
 
-Tests: `node scripts/spec-lint.mjs` and the dash grep before every commit; `opus-reviewer` checks every fix by its number and that nothing outside the ticket's file group changed.
+Tests: `npm run lint`, `npm run test:api`, `npm run test:web`, and `npm run test:e2e:smoke` from WF-004.2 on; the dash grep before every docs commit.
 
-Risks: S3.1, S3.2 and S3.3 are split because of their size; each part stays within its own items and the parts edit the same files in order. The new tickets must appear in prompt tables in the same commit as their roadmap entries (S3.1.1) or spec-lint fails. After reordering, no ticket may depend on a ticket of a later prompt. The S3.5 strict checks (relative links over all docs, ticket count) may surface failures in files the earlier steps did not touch; S3.5 fixes only what its items require and records anything else under "Notes for later prompts". All dependencies (S1, S2) are Done.
+Risks: WF-004 is split because one session would touch many modules and well over 600 lines. Steps 3 and 4 must leave every root script runnable (placeholders exit 0 with a message until their ticket lands) so the `ci` job stays green. No migrations exist yet, so `/health/ready` and the Alembic checks must handle "no revisions" cleanly; Alembic itself arrives in WF-011 (prompt 04), so WF-008 may need a minimal Alembic environment, record that choice in `DECISIONS.md`. Docker is not available locally: the compose and container checks run only in CI. All dependencies (S1 to S3) are Done.
 
-Owner-pending items: none (documents only; the owner-pending notes this prompt writes into prompts 01 to 28 apply to later prompts).
+Owner-pending items: WF-001 (trademark opinion, domain purchase, Apple enrollment, App Store name; `HUMAN_TASKS.md` row 23), WF-003 (interviews, price test, signed decision; row 28), WF-002 "page live on the production domain" (domain and Cloudflare Pages account), WF-007 branch protection requiring `ci`, WF-010 secret scanning and push protection (row 3).
 
 ## Setup prompts
 
@@ -40,7 +40,7 @@ Same status values as above.
 
 | # | Prompt | Tickets | Status |
 |---|---|---|---|
-| 01 | [Repository foundation, CI and landing page](01-repo-foundation.md) | WF-001, WF-003, WF-004, WF-006, WF-007, WF-008, WF-010, WF-002 | Not started |
+| 01 | [Repository foundation, CI and landing page](01-repo-foundation.md) | WF-001, WF-003, WF-004, WF-006, WF-007, WF-008, WF-010, WF-002 | In progress (phase1/p01-repo-foundation) |
 | 02 | [Port reusable code from the old Trip Planner](02-port-reusable-modules.md) | WF-005 | Not started |
 | 03 | [Staging and production environments](03-deploy-environments.md) | WF-009 | Not started |
 | 04 | [Database foundation and schemas](04-database-foundation.md) | WF-011, WF-012, WF-022, WF-021, WF-020 | Not started |
