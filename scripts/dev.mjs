@@ -12,7 +12,7 @@ if (!existsSync(vite)) {
   console.error("vite is not installed. Run npm run setup.");
   process.exit(1);
 }
-for (const port of [8100, 5173]) {
+for (const port of [Number(env.PORT || 8100), 5173]) {
   if (await portInUse(port)) {
     console.error(`port ${port} is already in use. Stop the other process first.`);
     process.exit(1);

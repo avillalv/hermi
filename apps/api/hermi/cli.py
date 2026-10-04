@@ -1,22 +1,30 @@
 import argparse
 import sys
 
+HOST = "127.0.0.1"
 
-def uvicorn_kwargs() -> dict:
+
+def uvicorn_kwargs(port: int = 8100) -> dict:
     # uvicorn ignores the asyncio event loop policy; ask for the selector loop on Windows.
-    # shortcut: port is fixed; WF-006 moves it to config.py (PORT).
     return {
-        "host": "127.0.0.1",
-        "port": 8100,
+        "host": HOST,
+        "port": port,
         "loop": "asyncio:SelectorEventLoop" if sys.platform == "win32" else "auto",
     }
 
 
 def api() -> None:
-    """Run the API on loopback, port 8100."""
+    """Run the API on loopback at PORT. Bad config exits before the server binds."""
     import uvicorn
 
-    uvicorn.run("hermi.main:app", **uvicorn_kwargs())
+    from hermi.config import ConfigError, load_settings
+    from hermi.main import create_app
+
+    try:
+        settings = load_settings(bind_host=HOST)
+    except ConfigError as e:
+        sys.exit(str(e))
+    uvicorn.run(create_app(settings), **uvicorn_kwargs(settings.port))
 
 
 def main(argv: list[str] | None = None) -> None:

@@ -2,7 +2,12 @@
 name = "hermi-api"
 version = "0.0.0"
 requires-python = ">=3.13"
-dependencies = ["fastapi>=0.115", "uvicorn>=0.32"]
+dependencies = [
+    "fastapi>=0.115",
+    "python-dotenv>=1.0",
+    "pydantic-settings>=2.15.0",
+    "uvicorn>=0.32",
+]
 
 [project.scripts]
 hermi = "hermi.cli:main"
