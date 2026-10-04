@@ -60,6 +60,7 @@ the URLs with generated passwords. You never type a database password. The super
 | `DATABASE_URL_ADMIN` | Admin login (`hermi_admin_login`, `BYPASSRLS`): the admin console only. New | Required | Startup fails | Written by `npm run setup` |
 | `DATABASE_POOL_SIZE`, `DATABASE_MAX_OVERFLOW` | Pool size per process | Required | Startup fails | `10`, `5` |
 | `DATABASE_STATEMENT_TIMEOUT_MS` | Per-statement timeout | Required | Startup fails | `15000` |
+| `PG_BIN` | Local tooling override read by `npm run db:init` and `npm run doctor` (not by the app): the PostgreSQL 18 `bin` directory when it is not in the default install path | Optional | Default install paths, then `PATH` | Your PostgreSQL 18 install |
 | `REDIS_URL` | Empty until Redis is added (about 10k monthly users) | Optional | Empty: no Redis | Nothing to do |
 
 ## Sign-in

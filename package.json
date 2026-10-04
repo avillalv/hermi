@@ -5,6 +5,11 @@
   "engines": { "node": ">=22" },
   "workspaces": ["apps/web", "packages/*"],
   "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "start": "node scripts/dev.mjs --preview",
+    "dev": "node scripts/dev.mjs",
+    "db:init": "node scripts/db-init.mjs",
+    "doctor": "node scripts/doctor.mjs",
     "lint": "node scripts/lint.mjs",
     "format": "node scripts/format.mjs",
     "test": "node scripts/test.mjs",
@@ -13,8 +18,8 @@
     "gen:api": "node scripts/stub.mjs gen:api",
     "gen:shared": "node scripts/stub.mjs gen:shared",
     "test:kit": "node scripts/stub.mjs test:kit WF-130",
-    "test:e2e": "node scripts/stub.mjs test:e2e",
-    "test:e2e:smoke": "node scripts/stub.mjs test:e2e:smoke",
+    "test:e2e": "node scripts/stub.mjs test:e2e WF-130",
+    "test:e2e:smoke": "node --test scripts/e2e-smoke.mjs",
     "evals": "node scripts/stub.mjs evals WF-057",
     "smoke:live": "node scripts/stub.mjs smoke:live"
   }
