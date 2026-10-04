@@ -357,13 +357,13 @@ def test_app_login_can_call_definer_functions_and_not_insert_members(conn):
         assert app.execute("SELECT redeem_trip_invite(%s)", (b"tok",)).fetchone() == (tid,)
 
 
-# --- Schema vs DDL: 0002 to 0004 tables against the DDL in 03 sections 5.1 to 5.5 ---------------
+# --- Schema vs DDL: 0002 to 0005 tables against the DDL in 03 sections 5.1 to 5.6 ---------------
 
 
 def _ddl_text():
     lines = SPEC.read_text(encoding="utf-8").split("\n")
     start = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.1 "))
-    end = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.6 "))
+    end = next(i for i, ln in enumerate(lines) if ln.startswith("### 5.7 "))
     out, inside = [], False
     for ln in lines[start:end]:
         if ln.startswith("```sql"):
@@ -378,7 +378,7 @@ def _ddl_text():
 def _ddl_tables(sql):
     """{table: {columns, constraints}} from every CREATE TABLE in the DDL."""
     tables = {}
-    for m in re.finditer(r"CREATE TABLE (\w+) \((.*?)\n\);", sql, re.S):
+    for m in re.finditer(r"CREATE TABLE (\w+) \((.*?)\n\)(?: PARTITION BY RANGE \(\w+\))?;", sql, re.S):
         cols, cons = set(), set()
         for ln in m.group(2).split("\n"):
             s = ln.strip()
@@ -399,7 +399,7 @@ def _ddl_indexes(sql):
     """{name: (table, unique, columns, partial)} from every CREATE [UNIQUE] INDEX."""
     out = {}
     for m in re.finditer(
-        r"CREATE (UNIQUE )?INDEX (\w+) ON (\w+) \(((?:[^()]|\([^()]*\))*)\)( WHERE [^;]*)?;", sql
+        r"CREATE (UNIQUE )?INDEX (\w+) ON (\w+) \(((?:[^()]|\([^()]*\))*)\)(\s+WHERE [^;]*)?;", sql
     ):
         out[m.group(2)] = (m.group(3), bool(m.group(1)), _norm_cols(m.group(4)), bool(m.group(5)))
     return out
@@ -414,7 +414,7 @@ def _live_indexes(c):
         "SELECT i.relname, t.relname, x.indisunique, pg_get_indexdef(x.indexrelid) "
         "FROM pg_index x JOIN pg_class i ON i.oid = x.indexrelid JOIN pg_class t ON t.oid = x.indrelid "
         "JOIN pg_namespace n ON n.oid = t.relnamespace "
-        "WHERE n.nspname = 'public' AND NOT x.indisprimary "
+        "WHERE n.nspname = 'public' AND NOT x.indisprimary AND NOT i.relispartition AND t.relname NOT LIKE 'procrastinate%' "
         "AND NOT EXISTS (SELECT 1 FROM pg_constraint k WHERE k.conindid = x.indexrelid)"
     ).fetchall()
     out = {}
@@ -432,7 +432,8 @@ def test_live_schema_matches_ddl_in_03(conn):
     live_tables = {
         r[0]
         for r in conn.execute(
-            "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
+            "SELECT c.relname FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p') "
+            "AND NOT c.relispartition AND c.relname <> 'alembic_version' AND c.relname NOT LIKE 'procrastinate%'"
         )
     }
     assert live_tables == set(ddl_tables)
@@ -462,5 +463,5 @@ def test_live_schema_matches_ddl_in_03(conn):
         ).fetchone() == (1,), table
 
     live_idx = _live_indexes(conn)
-    # Index tables restricted to those in the DDL range; 0002 to 0004 own every public table so far.
+    # Procrastinate tables and partition children are excluded; every other public table is in the DDL range.
     assert live_idx == ddl_idx
