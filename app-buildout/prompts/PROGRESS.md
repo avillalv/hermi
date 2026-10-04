@@ -4,22 +4,21 @@ The build's memory. Every autopilot session updates this file in its pull reques
 
 ## Current prompt
 
-S1, spec fixes, runtime (branch `spec/s1-spec-runtime`). Documents only, no code.
+S2, spec fixes, product and UI (branch `spec/s2-spec-product-ui`). Documents only, no code.
 
 Steps, in order (one session each):
 
-1. S1.1 Root README and Phase 1 README: settled values, AI stack row, reuse paragraph (`app-buildout/README.md`, `phase-1-launch/README.md`).
-2. S1.2.1 Architecture, sections 1 to 6: items 1 to 9, 21 and 24 (AI provider seam, layout, no `routines`, bearer auth, database access column, RLS wording, lanes, import pipeline, calendar feed, admin sign-in, webhook names).
-3. S1.2.2 Architecture, sections 7 to 14: items 10 to 20, 22 and 23 (Local column and variables, role names, AI caps, config rules, third-party services, environments, CI aggregator, Docker optional, reuse table, new in Phase 1, `ios.yml`, `serpapi_live_fares` off).
-4. S1.3 Database roles, RLS and grants (03 section 6, section 10 roles, the `audit_log` trigger in 5.16).
-5. S1.4 Database tables, functions and seeds (03, the rest).
-6. S1.5 API contract (`04-api-spec.md`).
-7. S1.6 AI agents spec (`06-ai-agents-spec.md`), adapting `.reference/trip-planner` `claude_cli.py` and the worker agent files.
-8. S1.7 Admin console (`08-admin-control-center.md`).
+1. S2.1.1 UI and UX spec, tokens and rules: items 1 to 8 and 11 to 13 (font stacks, machine-readable token tables, `--tp-ticket`, heat-ink and `--viz-band` with contrast rows, solid focus ring, Secondary button mapping, kit precedence line, 1200 px sidebar, section 6 state rule, section strip as `nav`, Dynamic Type, portrait on phones) in `05-ui-ux-spec.md`.
+2. S2.1.2 UI and UX spec, screens: items 9, 10 and 14 to 19 (Discover sample trips gallery, Overview "Happening now", disclosure snapshot, credit pool display, Delete my AI history, guest local data, import and calendar feed wording, 402 limits) in `05-ui-ux-spec.md`.
+3. S2.2 Design kit and brand (`design/tokens.css`, `design/components.html`, `DESIGN-LANGUAGE.md`, `design/README.md`, `brand/BRAND.md`).
+4. S2.3 Product spec (`01-product-spec.md`).
+5. S2.4 Monetization spec (`07-monetization-spec.md`).
+6. S2.5.1 Quality, security and launch, testing: items 1 to 3 (integration test rules, evals, smoke flows mapped to the journeys).
+7. S2.5.2 Quality, security and launch, the rest: items 4 to 11 (security controls, never-fetch test, privacy, analytics catalogue, alerts, launch checklist tags, calendar feed token, no `routines`).
 
-Tests: `node scripts/spec-lint.mjs` and the dash grep before every commit; `opus-reviewer` checks every fix by its number and that nothing outside the ticket's file group changed.
+Tests: `node scripts/spec-lint.mjs` and the dash grep before every commit; `opus-reviewer` checks every fix by its number and that nothing outside the ticket's file group changed. The S2.2 reviewer diffs 05 section 2 against `tokens.css` (design-token-sync rule).
 
-Risks: S1.2 is split in two because it has 24 items; the reviewer of S1.2.2 checks the whole file for `routines`. S1.3 and S1.4 both edit `03-database-schema.md` and must keep to their own sections. Names a fix does not give are chosen once and recorded in `DECISIONS.md`.
+Risks: S2.1 and S2.5 are split because of their size; each half must stay within its own items and both halves edit the same file. S2.2 depends on S2.1.1 values. The S1 follow-ups for these files are covered here: 01 and 10 mirror the 04 section 5.26 imports limits table (S2.3 item 7, S2.5 item 8) and 07 section 5.4 states the taster-first rule (S2.4 item 2). Names a fix does not give are chosen once and recorded in `DECISIONS.md`.
 
 Owner-pending items: none.
 
@@ -30,7 +29,7 @@ Status values: `Not started`, `In progress (<branch>)`, `In review (#<pr>)`, `Do
 | # | Prompt | Tickets | Status |
 |---|---|---|---|
 | S1 | [Spec fixes, runtime (README, 02, 03, 04, 06, 08)](S1-spec-runtime.md) | S1.1, S1.2, S1.3, S1.4, S1.5, S1.6, S1.7 | Done (#5) |
-| S2 | [Spec fixes, product and UI (01, 05, 07, 10, design kit, brand)](S2-spec-product-ui.md) | S2.1, S2.2, S2.3, S2.4, S2.5 | Not started |
+| S2 | [Spec fixes, product and UI (01, 05, 07, 10, design kit, brand)](S2-spec-product-ui.md) | S2.1, S2.2, S2.3, S2.4, S2.5 | Done (#6) |
 | S3 | [Spec fixes, roadmap, prompts and lint](S3-spec-roadmap-prompts.md) | S3.1, S3.2, S3.3, S3.4, S3.5 | Not started |
 
 ## Prompts
@@ -72,6 +71,7 @@ Same status values as above.
 
 Things a later prompt must know (a helper that exists, a pattern to reuse, a known limitation).
 
+- S2.1.1 follow-up for S2.2: the kit still calls the section strip a `tablist` (`design/DESIGN-LANGUAGE.md` near lines 179 and 236, `design/components.html` near 919 and 932, `h-strip` in `design/screens/` 03, 04, 06, 07, 08); 05 now says `nav` with `aria-current="page"`. Align the kit markup and wording.
 - S1.5 follow-ups: 03 needs a place for the hashed legacy claim token (`POST /me/legacy-claim`, WF-040): a small table or columns on the pre-created legacy `users` row; 04 section 5.1 carries a note to remove once 03 has it. 03 `clear_my_ai_history` (line near 2906) only nulls run content, while 04 `DELETE /me/ai-history` deletes `runs`, `run_events` and AI notes; align 03. 01, 02 and 10 must mirror the 04 5.26 imports limits table. 03 gives `link_clicks.redirect_status` no value set; 04 defines it as the HTTP status sent (add a DECISIONS row if kept).
 - S1.4 follow-ups: `bootstrap_user()` (03 section 6) needs a sixth parameter `p_provider_subject text` that writes `auth_identities.provider_subject`, with the ALTER, REVOKE and GRANT lines in 6.1 and 6.1.1 updated, and 04 `/me/bootstrap` passes it (S1.5 or an S1.3 round before the S1 merge). 04 must use `device_attestations`, `guest_allowances`, `spend_guest_allowance` and the guest endpoints. 08 line 278 must say `serpapi_live_fares` is off (S1.7). 07 section 5.4 needs a one-line match for the taster-first rule for `agent_run`. The `credit_grants_select` policy (6.4) must let trip members see `trip_pass` grants.
 

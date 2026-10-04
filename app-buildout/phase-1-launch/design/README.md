@@ -33,7 +33,7 @@ Each screen is a file in [screens/](screens), numbered in the order below. Add `
 
 ## How to use it, for build agents
 
-1. **Port the tokens.** Copy `tokens.css` into `packages/tokens`. The token names are fixed. The values must equal [05 section 2](../05-ui-ux-spec.md). If they differ, 05 wins and `tokens.css` is wrong.
+1. **Port the tokens.** Port `tokens.css` into `packages/tokens` and import `hermi.css` verbatim; the React wrappers emit the `h-` classes. The token names are fixed. The values must equal [05 section 2](../05-ui-ux-spec.md). If they differ, 05 wins and `tokens.css` is wrong. A component block the kit lacks is added to `hermi.css` and `components.html` by the ticket that needs it. The mockups load Google Fonts for convenience; the app bundles the variable fonts and makes no request to Google.
 2. **Build each component from its block.** Find the class in `hermi.css`. The comment above the block names the 05 section 4 component and the React component (for example `4.4 Trip card -> <TripTicket>`). Keep the class names or map them one to one to Tailwind utilities; do not change a number.
 3. **Match the screen before you build it.** Open the screen's HTML and its PNG in `png/`. The result must look the same at 390 by 844 in light and dark.
 4. **A screen with no mockup** follows [DESIGN-LANGUAGE.md](DESIGN-LANGUAGE.md) and its new-screen checklist.
@@ -42,6 +42,7 @@ Each screen is a file in [screens/](screens), numbered in the order below. Add `
 ## What wins when two sources disagree
 
 - **For the look:** 05 section 2 values first, then this kit, then the ASCII wireframes in 05 section 6.
+- **For how a component looks:** `hermi.css` and the mockups win over the prose of 05 sections 4 and 6; the 05 section 2 token values still win over both.
 - **For behavior and copy:** 05.
 
 Where the kit differs from 05 on purpose, [DESIGN-LANGUAGE.md](DESIGN-LANGUAGE.md) lists it under "Known gaps".

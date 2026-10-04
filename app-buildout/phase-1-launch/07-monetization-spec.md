@@ -55,21 +55,31 @@ Rules:
 
 ### 2.2 Tier limits (the capability table)
 
-The entitlement service resolves to this table, which mirrors the `plans.limits` seed in 03 section 11.1. Values the README states are final; others are defaults. The free first-import Trip Pass (section 10) has exactly the `trip_pass` column.
+The entitlement service resolves to this table, which carries every limit key of the `plans.limits` seed in 03 section 11.1 with the same values (the table and the seed change together). Values the README states are final; others are defaults. A cell that says absent is left out of the seed on purpose: a missing key means not granted. The pass has no `active_trips`; it carries `active_trips_bonus` instead. The free first-import Trip Pass (section 10) has exactly the `trip_pass` column.
 
 | Capability key (`plans.limits`) | `free` | `plus` | `trip_pass` (on its trip) |
 |---|---|---|---|
 | `active_trips` | 2 | unlimited (fair use 25) | `active_trips_bonus` 1: the passed trip does not count toward the owner's limit |
 | `routes_per_trip` (cached-fare routes) | 1 | 5 | 3 |
-| `live_routes` (checked daily, within 120 days of departure, `live_window_days`) | 0 | 3 | 2, at most 60 checks (`live_checks_max`) |
+| `live_routes` (checked daily, within 120 days of departure, `live_window_days`) | 0 | 3 | 2, at most 60 checks (`live_checks_max`; absent on Free and Plus) |
 | Credits: `monthly_credits` for tiers, `credits_granted` for passes | 12 a month | 60 a month | 40 once |
 | `collaborators` (people the owner can invite to one trip) | 1 | 6 (default) | 6 |
 | `travelers_per_trip` | 2 | 8 | 8 |
-| `price_alerts` (`live_alerts` false on Free; the booked-fare drop watch does not count here) | 1 cached-fare | 3 | 2 |
-| `imports` (including Google Maps lists and calendar polling) and `calendar_feed` | yes | yes | yes |
+| `price_alerts` (the booked-fare drop watch does not count here) | 1 cached-fare | 3 | 2 |
+| `live_alerts` (alerts may use live fares) | false | true | true |
+| `can_invite` (the owner may invite collaborators) | true | true | true |
+| `saved_lodging_per_trip` (shortlist cap; the 9th stay on Free is the `ninth_stay` trigger) | 8 | 100 | 30 |
+| `lodging_compare` (stays compared side by side) | 2 | 4 | 4 |
+| `places_searches_per_day` (place searches a day) | 30 | 100 | 100 |
+| `destinations_per_trip` | 12 | 12 | 12 |
+| `airports_per_side` (airports on each side of a route) | 2 | 4 | 4 |
+| `imports` (including Google Maps lists), `calendar_feed` and `calendar_polling` | yes | yes | yes |
 | Share links (read-only, `Made with Hermi` footer on Free) | yes | yes | yes |
 | `verify_items_per_run` (items one "Verify this plan" check may include) | 5 | 12 | 12 |
 | `hide_presentation_footer` (true removes the Made with Hermi footer and PDF watermark) | false (shown) | true | true |
+| `taster_agent_runs` (one-time free deep agent run) | 1 | 0 | absent (not granted) |
+| `monthly_ceiling_micros` (provider spend a month, micro-dollars) | 250,000 ($0.25) | 2,250,000 ($2.25) | 1,800,000 ($1.80, the pass ceiling for its trip) |
+| `daily_ceiling_micros` (provider spend a day, micro-dollars) | 50,000 ($0.05) | 400,000 ($0.40) | 400,000 ($0.40) |
 
 Everyone joins other people's trips free, on every tier, and gets that trip's capabilities on that trip.
 
@@ -203,7 +213,7 @@ Rules that the algorithm encodes:
 
 ### 4.3 Enforcement points
 
-Every mutation route calls `require(actor_context, capability, value)`; limit errors return HTTP 403 with `code = 'limit_reached'` (or `entitlement_required` when the capability is missing) and a `paywall` hint whose `reason` the client passes to the paywall engine (section 6; [04-api-spec.md](04-api-spec.md) sections 1.4 and 2.2). Not enough credits is 402 `insufficient_credits`, raised from the `WF402` error of `reserve_credits`. A client never infers a limit from its own data.
+Every mutation route calls `require(actor_context, capability, value)`; limit errors return HTTP 402 with `code = 'limit_reached'` (or `entitlement_required` when the capability is missing) and a `paywall` body whose `reason` the client passes to the paywall engine (section 6; [04-api-spec.md](04-api-spec.md) sections 1.4 and 2.2). The one exception is `verify_items` (a per-run cap): 402 `limit_reached` with no `paywall`. 403 is kept for `insufficient_role`, `account_inactive`, `account_pending_deletion`, `ai_consent_required` and `ai_disabled_for_trip`, never for a plan limit. Not enough credits is 402 `insufficient_credits`, raised from the `WF402` error of `reserve_credits`. A client never infers a limit from its own data.
 
 ## 5. Credit system
 
@@ -217,12 +227,14 @@ One credit is a budget of up to $0.02 of provider spend. Credit action codes, pr
 |---|---|---|---|---|---|
 | `monthly` (Free) | Lazily at first use in a month (`period_key` `YYYY-MM`) | 12 | user | End of calendar month (UTC) | 1 |
 | `monthly` (Plus) | Subscription period or monthly tick | 60 | user | End of that month's period | 1 |
-| `promo` | Free taster, referral rewards (section 9) | Taster: the `agent_run` price (40) with `restricted_action = 'agent_run'`. Referral: 20 for each person (`setting_referral_credits`), no restriction | user | Taster: none. Referral: 12 months after the grant | 2 |
-| `trip_pass` | Pass start (purchased or import reward) | 40, from `plans.credits_granted` | trip (`trip_id`; spendable by any member acting on that trip) | Pass expiry (90 days) | 3 |
+| `promo` | Free taster, referral rewards (section 9) | Taster: the `agent_run` price (40) with `restricted_action = 'agent_run'`. Referral: 20 for each person (`setting_referral_credits`), no restriction | user | Taster: none. Referral: 12 months after the grant | 2 (taster: see 5.4) |
+| `trip_pass` | Pass start (purchased or import reward) | 40, from `plans.credits_granted` | trip (`trip_id`; one pool per pass, spendable by every member who may start AI on that trip: the owner and editors) | Pass expiry (90 days) | 3 |
 | `adjustment` | Support goodwill | any | user | Set by admin (default 12 months) | 4 |
 | `purchase` | Pack purchase | 50, 150 or 400 | user | 12 months after purchase | 5 (oldest expiry first) |
 
-`credit_grants` columns used: `id`, `user_id`, `trip_id` (required for `trip_pass` grants), `kind`, `credits`, `remaining`, `restricted_action`, `period_key`, `expires_at`, `store_transaction_id`, `created_at`. Idempotency comes from the unique indexes on (`user_id`, `kind`, `period_key`) and `store_transaction_id`. The spend order is the `ORDER BY` inside `reserve_credits` (03 section 5.13). Period keys for the growth grants: `import_reward:{import_id}` for the first-import pass and `referral:{reward_id}` for referral rewards.
+`credit_grants` columns used: `id`, `user_id`, `trip_id` (required for `trip_pass` grants), `kind`, `credits`, `remaining`, `restricted_action`, `period_key`, `expires_at`, `store_transaction_id`, `created_at`. Idempotency comes from the unique indexes on (`user_id`, `kind`, `period_key`) and `store_transaction_id`. The spend order is the `ORDER BY` inside `reserve_credits` (03 section 5.8) and is stated once, in 5.4. Trip Pass credits are a trip pool: the grant is keyed by `trip_id` (its `user_id` is only the buyer), a pass is one pool however many people spend from it, and every other grant is spendable only by its own `user_id`. The taster draws its own grant and never debits another grant. Period keys for the growth grants: `import_reward:{import_id}` for the first-import pass and `referral:{reward_id}` for referral rewards.
+
+**Provider-spend ceilings.** Credits never override a ceiling (03 section 7.4; [06-ai-agents-spec.md](06-ai-agents-spec.md) section 6.5). The monthly ceilings are Free $0.25 (plus the one-time taster), Plus $2.25 and Trip Pass $1.80; the daily ceilings are Free $0.05, Plus and Trip Pass $0.40. "Month" and "day" are calendar periods in UTC, never a rolling 30 days or 24 hours. The pass is the payer for the pass ceiling: work on a trip with an active Trip Pass counts against that trip's pass ceiling, summed over every member, and not against the actor's tier ceiling. The global AI daily cap is $150 (setting `setting_ai_global_daily_usd`, environment variable `AI_GLOBAL_DAILY_CAP_USD`), and the taster stop is $0.80.
 
 ### 5.2 Purchase grants
 
@@ -244,15 +256,15 @@ The scheduler job `grant_monthly_credits` (02 section 5.1) runs hourly. It finds
 
 ### 5.4 Spend order
 
-When an action reserves N credits, the ledger draws from pools in this order, oldest expiry first within a priority:
+When an action reserves N credits, the ledger draws from pools in this order, oldest expiry first within a priority (the same order as 03 section 5.8). The one exception comes first: for an `agent_run`, the taster is drawn first, before any pool, whenever its `remaining` covers the whole price. It covers that run alone and never mixes with, or debits, another grant; when it cannot cover the price, the run is paid in the order below and the taster is left untouched.
 
 1. Monthly allowance pools the actor can use: their own `monthly` grant.
-2. `promo` grants (the taster, only for the `agent_run` action it is restricted to, and referral credits, for any action).
-3. `trip_pass` grants of the trip they are acting on.
+2. `promo` grants other than the taster (referral credits, for any action).
+3. `trip_pass` grants of the trip they are acting on (the trip's pool).
 4. `adjustment` grants.
 5. `purchase` grants, oldest expiry first (purchased credits are spent last).
 
-A reservation that spans pools records each draw (`credit_ledger` rows with `grant_id`), so a refund returns credits to the same pools. If a pool expired before the refund, the refund is skipped for that part and the ledger says so; in practice runs last minutes, so this is rare. Credits are charged to the person who starts the action, so a collaborator on a Trip Pass trip first uses their own allowance, then the trip's pass pool. The order lives in `reserve_credits`, which raises SQLSTATE `WF402` when the pools cannot cover the price.
+A reservation that spans pools records each draw (`credit_ledger` rows with `grant_id`), so a refund returns credits to the same pools. If a pool expired before the refund, the refund is skipped for that part and the ledger says so; in practice runs last minutes, so this is rare. Credits are charged to the person who starts the action, so a collaborator on a Trip Pass trip first uses their own allowance, then the trip's pass pool. Only the owner and editors can spend the pass pool, and the provider spend of that work counts against the pass ceiling (5.1). The order lives in `reserve_credits`, which raises SQLSTATE `WF402` when the pools cannot cover the price.
 
 ### 5.5 Expiry and rollover
 
@@ -260,6 +272,7 @@ A reservation that spans pools records each draw (`credit_ledger` rows with `gra
 - Expiry is processed by `expire_credit_grants()`, called by the `expire_credits` job (02 section 5.1; `reserve_credits` ignores expired pools, so the schedule only affects ledger tidiness): for each grant past `expires_at` with `remaining > 0`, it writes a `credit_ledger` row with `entry_type = 'expire'` and the negative `delta` and sets `remaining = 0`. Reserved credits are already out of `remaining`, so running actions are untouched; a second run finds nothing to expire.
 - Downgrade or lapse: allowance pools vanish at period end; `purchase` and `adjustment` credits stay usable on Free.
 - Trip pass credits expire with the pass; unspent credits do not convert to anything.
+- The monthly credit pools and the monthly provider-spend ceilings use the calendar month in UTC (`period_key` `YYYY-MM` for Free), so they reset together at 00:00 UTC on the 1st. The daily ceilings use the UTC day.
 
 ### 5.6 Refunds and clawback
 
@@ -289,7 +302,7 @@ Three actions join the price list of the README. Prices are in credits at the RE
 | Action | Credit action code | Price | Cap | Real cost (Haiku 4.5) |
 |---|---|---|---|---|
 | Read a pasted plan into items ("Verify this plan", step 1) | `explain` | 1 | one plan, up to 8,000 characters and 25 items | about $0.004 to $0.008 |
-| Check a plan item (step 2) | `verify_plan` | 1 per checked item | 5 items per run on Free, 12 on Plus and Trip Pass (`plans.limits.verify_items_per_run`) | about $0.002 when place data settles it, about $0.017 with one search and one page; the hard stop is $0.02 per item |
+| Check a plan item (step 2) | `verify_plan` | 1 credit per checked item (billed per checked item, hard stop $0.02 per item; reading the pasted plan is an `explain`) | 5 items per run on Free, 12 on Plus and Trip Pass (`plans.limits.verify_items_per_run`) | about $0.002 when place data settles it, about $0.017 with one search and one page; the hard stop is $0.02 per item |
 | Recheck evidence older than 14 days | `explain` | 1 | one fact; refunded when the source page cannot be reached | about $0.005 |
 
 How it plays out: a 7 item plan costs 1 + 7 = 8 credits; one full check of 12 items on Plus costs 13. A Free account has 12 monthly credits, which is two short checks of 5 items (6 credits each), so a person who likes it reaches the credit limit naturally and sees the normal credit-out paywall (`out_of_credits_verify`, 6.2): a Trip Pass (40 credits) covers about three full checks, Plus (60 a month) about four to five, and the 50-credit pack about three. The price is per checked item, not per dollar: a hit on a popular place served from the shared `place_check` cache still costs 1 credit, because the cache is margin. Unchecked items, items that hit a provider error or the dollar stop, and a plan in which nothing is found are refunded in full (06 section 6.3), so no one pays for work that did not happen. Every step states its price before it runs, and a check of 6 or more items asks for the usual confirm.
@@ -339,7 +352,7 @@ Trigger ids are the same as in [05-ui-ux-spec.md](05-ui-ux-spec.md) section 6.27
 | `out_of_credits_verify` | "Check these places" in Verify this plan (or a Recheck) | Fewer credits than the items selected | `credits` or `plus_first` | Check fewer items, or invite a friend for credits (section 9) |
 | `export_footer` | Export or share with the Made with footer | Free export | Soft line at export, never a modal | Export with footer |
 | `ninth_stay` | Save the 9th lodging option | Free limit | `trip_first`; keep saving to a "later" list | Later list |
-| `lifecycle_14d` | 14 days before departure | Free trip with dates | `trip_first` via email or in-app card, not a modal | Dismiss |
+| `lifecycle_14d` | 14 days before departure | Free trip with dates | `trip_first` via push, email or in-app card (05 section 6.27 wins), not a modal | Dismiss |
 
 No trigger exists for the first session, for presentation playback, for actions after an affiliate booking, or for the first-import reward (the free Trip Pass is a gift, not an upsell). Hard limits (third trip) are a block with the free alternative, not a nag. A trip that already has an active pass, paid or promo, never gets a Trip Pass offer, and triggers that pass already covers do not fire. The API `reason` for each trigger ([04-api-spec.md](04-api-spec.md) section 2.2): `third_trip` is `trip_limit`; `second_route`, `track_live` and `alert_limit` are `live_routes`; `invite` is `sharing`; the four `out_of_credits_*` triggers are `credits` (the taster is `agent_taster_used`). `export_footer`, `ninth_stay` and `lifecycle_14d` are client-initiated and are sent as `reason` by their trigger code.
 
@@ -379,6 +392,10 @@ Later: Phase 2: the household signal and the `family` offering. Phase 1 has no h
 | Credit-out paywalls show only when the user tapped the AI action (never as a banner) | always |
 | Hard-limit blocks (third trip) always show their block, but the offer section is subject to the mute rules | always |
 | Lifecycle prompts go by email or an in-app card, never a modal, and at most one per trip per 14 days | 14 days |
+| `second_route` and `alert_limit`: shown only when the user taps the action; they count toward the 3 views per 7 days; dismissing mutes that trigger for 7 days, and 3 dismissals mute it for 30 days | 7 days, then 30 days |
+| `ninth_stay`: the block shows the "later" list as the free path; the offer section counts toward the 3 views per 7 days and shows at most once per trip per 7 days; dismissing mutes it for 7 days, and 3 dismissals for 30 days | 7 days, then 30 days |
+| `export_footer`: a soft line at export, never a modal and never counted as a paywall view; shown at most once per export session; dismissing the line mutes it for 30 days | 30 days |
+| `lifecycle_14d`: one push, email or in-app card per trip per 14 days (05-ui-ux-spec.md section 6.27 wins on the channel); dismissing the in-app card mutes it for 30 days; an email unsubscribe stops the `lifecycle_14d` email until the user opts in again (one-click unsubscribe is permanent) | 14 days, then 30 days for the card |
 
 Counters are read server-side from `users.prefs` (`paywall`: the times of recent `paywall_viewed` and `paywall_dismissed` events and the muted triggers), so they hold across devices.
 
@@ -457,7 +474,7 @@ Support can grant goodwill credits (an `adjustment` grant) but never reverse a r
 ### 7.7 Trip pass binding and expiry
 
 1. On purchase the store transaction is written (`store_transactions`, `kind = 'pass'`). If the purchase started from a trip, the app sent its `trip_id` and the `trip_passes` row is written at once. Otherwise the app asks "Which trip is this for?" and lists the owner's trips; until then the pass is unapplied (a `store_transactions` row with `trip_id` null and no `trip_passes` row) and waits in Settings, Purchases, for 12 months (default), then lapses.
-2. Binding (`trip_id` on `POST /v1/purchases/sync`, or `POST /v1/me/passes/{pass_id}/bind`) inserts `trip_passes` with `starts_at = now()` and `expires_at = starts_at + 90 days`, sets `store_transactions.trip_id`, copies `live_routes_max`, `live_checks_max`, `collaborators_max`, `travelers_max` and `credits_granted` from `plans.limits` of the purchased plan, writes the `trip_pass` credit grant (40, with `trip_id`) and recomputes the trip's capabilities. Only the trip owner may bind, and the purchaser must be the owner. A trip holds one active pass (`uq_trip_passes_one_active`); binding a second pass is refused with `409 state_conflict`.
+2. Binding (`trip_id` on `POST /v1/purchases/sync`, or `POST /v1/me/passes/{pass_id}/bind`) inserts `trip_passes` with `starts_at = now()` and `expires_at = starts_at + 90 days`, sets `store_transactions.trip_id`, copies `live_routes_max`, `live_checks_max`, `collaborators_max`, `travelers_max` and `credits_granted` from `plans.limits` of the purchased plan, writes the `trip_pass` credit grant (40, with `trip_id`) and recomputes the trip's capabilities. Only the trip owner may bind: a buyer who is not the trip's owner gets `403 insufficient_role`. A trip holds one active pass (`uq_trip_passes_one_active`). When a paid second pass cannot bind because the trip already has an active pass, the call returns `200 { bound: false, pass: null, credits_granted: 40, support_ticket_id, message }` (`BindResult`, [04-api-spec.md](04-api-spec.md) section 5.19) and not `409`. The server grants the pass's 40 credits to the buyer, opens a `support_tickets` row for the refund, and the `message` is, word for word: "This trip already has a Trip Pass. We added the 40 credits to your account and support will send you the refund request." `POST /v1/purchases/sync` and the RevenueCat webhook handler apply the same logic when `trip_id` names a trip the buyer does not own or that already has a pass. The grant is idempotent by `store_transaction_id` (`uq_credit_grants_txn`), so a retry grants once. It is an `adjustment` grant (spend order 4, expiring 12 months after the grant) with `credit_ledger.note = 'unbound_pass'`; `credit_grants` has no reason column. This is a deliberate divergence from 04, which names a `trip_pass` grant: that kind needs a `trip_id` and would land in a trip pool that this trip's pass already fills, so the credits go to the buyer instead. The server never refunds on its own; Apple refunds go through the store (7.6).
 3. A pass can be moved once (`move_count` 0 to 1, `POST /v1/me/passes/{pass_id}/move`) to another trip that the same owner owns; moving keeps the original `expires_at`, changes `trip_id` on the pass and on its unspent `trip_pass` grant, and pauses live routes on the old trip. A second move is refused.
 4. Live check counters (`live_checks_used` against `live_checks_max`) belong to the pass and move with it.
 5. Expiry at `expires_at`: `status` becomes `expired`, capabilities drop to the owner's tier, unspent pass credits expire, the trip stays. The app shows the pass status and expiry date in the trip's settings, a notice 7 days before, and offers renewal by buying a new pass (a new pass starts a new 90 days).
@@ -516,7 +533,7 @@ Affiliate income is the Free tier's revenue. It is earned on every tier in the s
 | `travelpayouts_compensair` | Travelpayouts | compensation | active | Paid per confirmed application |
 | `travelpayouts_ekta`, `travelpayouts_visitorscov` | Travelpayouts | insurance | planned | Off until legal sign-off; insurer-approved copy only |
 
-Later: Phase 2: the direct programs `expedia_group` (Vrbo, Expedia, Hotels.com), `booking_direct`, `skyscanner`, `airalo`, `getyourguide_direct` and the month-3 programs after them.
+Later: Phase 2: the direct affiliate programs, which are not applied for or seeded in Phase 1: `expedia_group` (Expedia Group, for Vrbo, Expedia and Hotels.com), `booking_direct` (Booking.com), `skyscanner`, `airalo` and `getyourguide_direct` (GetYourGuide), and the month-3 programs after them. Until then Booking.com links come only through `travelpayouts_booking` and GetYourGuide links only through `travelpayouts_gyg`, Vrbo has no program, and eSIM has no active program in Phase 1, so an eSIM checklist item shows plain guidance and no button (see the checklist rule below).
 
 Not integrated: Airbnb (no program an app can join: listings get a plain link that is never converted), credit cards, VPNs, Amazon product data, the Expedia Rapid API, and new integrations on Partnerize (merging into CJ).
 
@@ -546,6 +563,7 @@ Rules:
 3. The app opens the URL in `SFSafariViewController` (Capacitor Browser plugin). The web app opens a new tab with `rel="noopener noreferrer"`.
 4. `GET /go/{click_id}` looks the row up; checks it is under 10 minutes old and has not been used; sets `clicked_at`; returns HTTP 302 to the partner URL built from the stored template, with the sub-id. Headers: `Cache-Control: no-store`, `Referrer-Policy: no-referrer`. The response has no body and renders no page, so there is no third-party script, pixel or cookie from us. A known but expired or used id returns a 302 to the plain destination (the non-affiliate route) so the user is never stranded; an id that never existed returns 404 with an empty body.
 5. No open redirects: the target is only ever a stored template filled with validated fields. There is no `url=` parameter on `/go`.
+6. `/go` outcomes agree with [04-api-spec.md](04-api-spec.md) section 5.21: a fresh, unused id is a 302 to the partner URL; an expired or used id, or an off kill switch (`affiliate.{code}` or `affiliate.all`), is a 302 to the plain non-affiliate destination (`redirect_status` 302 in both cases); an id that never existed is a 404 with an empty body. `/go` carries no reason code in its response. The `surface` sent to `/v1/outbound` is a placement name such as `lodging-shortlist` or `checklist-esim` (04 section 5.21), and it is never a paywall trigger code from 6.2: paywall triggers are not outbound clicks, and a click is never counted as a paywall view.
 
 `link_clicks` columns used: `id`, `click_id` (the random sub-id), `short_id`, `user_id`, `trip_id`, `program_id`, `template_id`, `entity_type`, `entity_id`, `checklist_item_kind`, `surface`, `variant` (A/B cell), `destination_url`, `opened_in` (`sfsvc`, `safari` or `web`), `created_at`, `clicked_at`, `redirect_status`, `country`, `platform`, `app_version`, `ip_hash` (salted, rotated monthly). The category comes from the program (`affiliate_programs.category`). No advertising ID, no IDFA or IDFV, no device fingerprint.
 
@@ -558,9 +576,10 @@ Rules:
 
 ### 8.5 Disclosure
 
-- Sentence used everywhere, next to every partner button, in AI output cards, on shared trip pages, in presentation mode and in the PDF: **"We earn a commission if you book here."** Text, never color alone; VoiceOver reads it in the same element as the button.
+- Sentence used everywhere, next to every partner button, in AI output cards, on shared trip pages, in presentation mode, in the PDF and in emails: **"We earn a commission if you book here."** Text, never color alone; VoiceOver reads it in the same element as the button.
 - "Ad" tag on UK and EU storefronts (by App Store storefront country or account country; the stricter rule applies when unknown).
 - Booking.com adds its own required line where its tracking link appears.
+- The disclosure text in force when a PDF export or an email is created is snapshotted into it, so an exported copy and a sent email keep the wording they carried even if the sentence changes later (05-ui-ux-spec.md section 7).
 - Every list says how it is sorted (price, rating, distance, hearts) and that commission plays no part. Prices from partners show the date checked and provider. "How we earn" page (`/how-we-earn`, public, no sign-in) linked from Settings, every paywall and empty states, and from every `/vs` page: it states the rules (never ranked by commission, every link labeled, no ads, no sale of data, Airbnb, Vrbo and Booking.com pages never fetched), lists every active partner by category with its disclosure line, and shows live counts (partners and categories, from `affiliate_programs`; 04 section 5.28). It is rendered from data, so a new partner cannot be added without appearing on it; a "Hide booking links" switch collapses buttons to a plain "Open on partner site" link.
 - No insurance card until the trip has a chosen flight or booking; no eSIM card for domestic trips; AI never gives insurance advice; visas link to official sites first.
 - No affiliate push that exists only to drive clicks (Guideline 4.10). User-requested price alerts are fine, and they link into the app route, not to a partner.
@@ -633,7 +652,7 @@ All values are defaults in the setting `setting_referral_credits` and can change
 | Limit | Rule |
 |---|---|
 | Referrer caps | At most 5 rewards granted to one referrer in a rolling 30 days and 10 in a calendar year (`referrer_monthly_cap` and `referrer_yearly_cap`). Past a cap the referred person still gets their credits and the referrer gets nothing more |
-| New people only | The code must be redeemed within 14 days of sign-up. The referred person must not share an identity (Apple or Google subject, or a normalized email with case, dots and plus suffix removed where the provider ignores them) with an existing account, or with an account deleted in the last 90 days (kept only as a salted hash for this check) |
+| New people only | The code must be redeemed within 14 days of sign-up. The referred person must not share an identity (Apple or Google subject, or a normalized email with case, dots and plus suffix removed where the provider ignores them) with an existing account, or with an account deleted in the last 90 days (kept only as a salted hash for this check; this 90-day hash is separate from `identity_hashes`, which has no kind for it and is purged with the rest of the deletion job's output). Separately, the identity hashes of the Apple or Google subject and the verified email are kept 12 months (`identity_hashes`, 03 section 5.8), so a deleted and re-created account does not earn the free taster again |
 | Self-referral | Not your own code; not the same device key (App Attest key or device id) as the referrer; not the same hashed IP within 30 days; not the same normalized email. No chains between two accounts (A refers B, then B refers A) |
 | Real activity | No reward without a verified email and the qualifying action above |
 | Disposable email | Addresses on a disposable-domain denylist cannot earn or give rewards. Apple's private relay addresses are allowed |
@@ -662,10 +681,10 @@ The free Trip Pass rewards people who switch from another planner by importing a
 
 - **Once per user.** The first qualifying import earns it, once for life (gate `import_reward`). The unique index `uq_trip_imports_one_reward` and `grant_import_reward()` enforce it, and the reward flag lives on the import row, so deleting the trip and importing again never grants a second pass.
 - **Conditions.** All must hold, otherwise nothing is granted and, where noted, the reward is not consumed:
-  - The confirm saved at least 3 items, at least one a flight or a stay (the setting `setting_import_reward` holds the minimum). Place-only imports (Google Maps lists and pasted places) and calendar change confirmations never qualify. An empty, duplicate or junk import earns nothing, and the same file hash (`trip_imports.content_hash`) or the same set of event `UID` values cannot earn it twice across accounts.
+  - The confirm saved at least 3 items, at least one a flight or a stay (the setting `setting_import_reward` holds the minimum). Place-only imports (Google Maps lists and pasted places) and calendar change confirmations never qualify. An empty, duplicate or junk import earns nothing, and the same file hash (`trip_imports.content_hash`) or the same set of event `UID` values (`trip_imports.uid_set_hash`, a sha256 of the sorted UIDs, stored as an `import_uids` identity hash for 12 months) cannot earn it twice across accounts, and a deleted and re-created account cannot earn it again with the same calendar.
   - The trip is owned by the importer, is not in the trash, and has no active pass (otherwise nothing is consumed and the reward stays for the next import).
   - The owner has no active Plus subscription, because Plus already carries these capabilities (nothing is consumed).
-  - The account has a verified email (an Apple relay address counts), and no earlier reward went to this user, this normalized email, or this Apple or Google subject.
+  - The account has a verified email (an Apple relay address counts), and no earlier reward went to this user, this normalized email, or this Apple or Google subject. The identity hashes of the user (subjects and verified email, kind `import_reward`) are kept 12 months after the grant (`identity_hashes`, 03 section 5.8), so deleting the account and signing up again inside that window earns nothing.
 - **Grant.** `grant_import_reward()` inserts a `trip_passes` row (`plan_code = 'trip_pass'`, `source = 'import_reward'`, no `store_transaction_id`, `starts_at` now, `expires_at` 90 days later, and the limits of the `trip_pass` plan: 2 live routes, 60 live checks, 6 collaborators, 8 travelers), writes the `trip_pass` credit grant (40 credits, `period_key = 'import_reward:{import_id}'`, expiring with the pass), and sets `trip_imports.reward_granted_at` and `reward_pass_id`. A concurrent second call does nothing. Only `billing.service` writes `trip_passes`.
 - **A gift.** No card is asked, it is not a trial that converts, it is not refundable, and it is not restorable through the store because there is no transaction. It can move to another trip once, like any pass (7.7). It expires like any pass: a notice 7 days before, capabilities drop to the owner's tier, unspent pass credits expire, the trip stays.
 - **What the user sees.** `GET /me/import-reward` drives the onboarding card and the import screen copy, and the confirm response carries the pass. One note on the result: "Your trip has a free Trip Pass for 90 days: 2 live fare routes, up to 6 people to plan with, and 40 credits." It is never a paywall. The 7-day expiry notice may offer a Trip Pass or Plus under the normal mute rules (6.5), and a trip with an active pass never gets a Trip Pass offer.

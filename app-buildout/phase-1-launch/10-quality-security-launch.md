@@ -34,7 +34,10 @@ Principle: test what loses money or trust first (tenant leaks, entitlements, cre
 - Fixtures build real rows through factories (`users`, `trips`, `trip_members`, `entitlements`, `credit_grants`). No mocking of the database.
 - Providers are replaced by fakes behind the provider interface (`PROVIDERS_MODE=fake`). The Anthropic fake replays recorded responses including `server_tool_use`, `pause_turn`, `refusal`, `max_tokens` and 429. A fake resolver and fake HTTP server stand in for calendar feeds.
 - Time is injected (`clock` fixture) so monthly grants, pass expiry and cron slots are deterministic.
-- Tests refuse to run when `ENVIRONMENT=production` or when the database name does not end in `_test`.
+- Tests refuse to run when `ENVIRONMENT=production` or when the database name does not end in `_test`. Tests and the API also refuse to run as a superuser, a `BYPASSRLS` role or the table owner. Fixtures write through the system connection.
+- Tests force `AI_PROVIDER=fake`, set `PROVIDERS_MODE=fake` and never read `.env` (the process environment overrides it).
+- The `posix_only` pytest marker tags tests that need POSIX behavior. They always run in Linux CI and are skipped on Windows.
+- Committed multi-connection concurrency tests cover credit reserve and settle (several connections racing on one balance) and a parallel admission test for spend ceilings: several simultaneous reservations near the ceiling admit at most the headroom.
 - Two-user fixtures exist for every feature: `owner_free`, `owner_plus`, `editor`, `viewer`, `outsider`, `admin`.
 
 Required integration scenarios (each is a named test file):
@@ -50,13 +53,13 @@ Required integration scenarios (each is a named test file):
 9. Account deletion end to end (grace period, purge, Supabase user removal, Apple revoke call recorded), including import previews, referral rows and calendar tokens.
 10. Data export contains every table that holds the user's data (checked against a list generated from the schema; a new table without an export rule fails the test).
 11. `/go/{click_id}` never redirects to a host outside `affiliate_link_templates`.
-12. Scheduler: two instances, one leader; 500 due routines fire exactly once; outage of a day fires one check; no agent job is ever scheduled in Phase 1.
+12. Scheduler: two instances, one leader; 500 due flight route checks fire exactly once, through `scan_due_routes`; outage of a day fires one check; no agent job is ever scheduled in Phase 1.
 13. ICS file import: a TripIt export, a Google Calendar export and an Apple Calendar export import into the right itinerary items, flights and stays; re-import adds nothing (dedupe by `UID`); oversized, malformed and too-many-event files fail cleanly and leave the trip unchanged; nothing is saved before the user confirms the preview.
-14. ICS feed import: a fake feed imports through the same parser; every hostile URL in section 2.5 is refused before any socket opens; the feed URL appears in no log line, Sentry event, `provider_calls` row or analytics event, and is stored (encrypted) only while polling is on; the fifth feed import in an hour succeeds and the sixth returns 429.
+14. ICS feed import: a fake feed imports through the same parser; every hostile URL in section 2.5 is refused before any socket opens; the feed URL appears in no log line, Sentry event, `provider_calls` row or analytics event, and is stored (encrypted) only while polling is on; the fifth feed registration in a day succeeds and the sixth returns 429.
 15. Pasted confirmations: the recorded Anthropic request for a corpus of confirmations contains none of the planted personal data; booking codes come back from local extraction, not the model; an empty or failed extraction refunds the credit; instructions inside the pasted text do not change the output schema or call any tool; consent is required.
 16. First-import reward (settled conditions): the first qualifying import (verified email, at least 3 saved items including a flight or a stay, no active pass on the trip, no active Plus) creates one `trip_passes` row with `source = 'import_reward'` and one 40 credit grant; concurrent and repeated imports grant once; an import with only places, fewer than 3 items, no flight or stay, an unverified email or a Plus owner gets nothing and does not consume the reward; revoking the reward reverses the grant.
 17. Booked-fare drop alert (settled thresholds): a fare at least 5 percent and at least $10 (converted) below what was paid, on the same route and dates, triggers exactly one alert with source and age; a drop under 5 percent or under $10, and equal or higher fares, trigger none; a second qualifying drop within 7 days of the first alert triggers none; the alert has no partner link and its copy contains no refund promise.
-18. Calendar feed: the token URL returns the trip's events and no private notes; rotating the token kills the old URL at once; the token is absent from logs; 60 requests a minute per token.
+18. Calendar feed: the token URL returns the trip's events and no private notes; rotating the token kills the old URL at once; the token is in the path, not a query parameter, and request logs hold only the route template `/v1/calendar/{token}.ics`, so the token is absent from logs; the 121st request in an hour per token returns 429.
 19. Public pages and reports: sample and shared pages render without JavaScript; planted sentinel strings in private notes, addresses, prices and traveler names never appear; a report creates a queue item; disabling a link returns 410 and removes the sitemap entry within 5 minutes.
 20. Referral (settled values): a valid referral grants 20 credits to both sides once, after the referred person's first trip with dates, expiring after 12 months; the sixth reward in a rolling 30 days and the eleventh in a calendar year pay the referrer nothing while the referred person is still paid; self-referral (same device key, IP hash or normalized email) and duplicates grant nothing; the credits never raise a provider-spend ceiling; revoking reverses the ledger.
 21. Offline: a trip cached on the client renders without network; sign-out and account deletion purge the cache.
@@ -101,7 +104,7 @@ Contract drift: a weekly job replays the newest real (scrubbed) payloads from st
 
 ### 1.5 AI evals
 
-Evals are the quality bar for anything that touches fares or facts. Spec of the task set is in [06-ai-agents-spec.md](06-ai-agents-spec.md); the gates that block a merge or a prompt rollout are here.
+Evals are the quality bar for anything that touches fares or facts. Live evals run only with `EVALS_LIVE=1` and `--max-usd`. There is one path, `npm run evals`, with `--provider`. The gates in this section are certified only on `anthropic_api`, because the CLI `WebFetch` returns summaries; `claude_cli` numbers are provisional. Spec of the task set is in [06-ai-agents-spec.md](06-ai-agents-spec.md); the gates that block a merge or a prompt rollout are here.
 
 | Eval | Set | Metric | Gate |
 |---|---|---|---|
@@ -127,9 +130,9 @@ If a plan-check gate fails at launch, the flag `verify_plan` stays off (the scre
 
 ### 1.6 Web end to end (Playwright)
 
-Smoke set (runs on every labeled pull request and nightly):
+Smoke set (runs on every labeled pull request and nightly). Each flow is listed in its owning ticket's Tests line in `09-build-roadmap.md`, and WF-101 checks the flow manifest against this list:
 
-1. Sign in with an email code (test inbox through Mailpit), land on an empty Trips screen.
+1. Dev-persona sign-in: pick the Free persona on the sign-in screen (`AUTH_MODE=dev`, `POST /v1/dev/session`) and land on an empty Trips screen. The real email code path is an owner check on a Supabase project.
 2. Create a trip with two destinations; add an itinerary item; reload; it persists.
 3. As a Free owner, invite one person by link; a second browser context accepts as a Free user; both see the trip; attribution shows.
 4. The Free owner taps Invite a second time and sees the `collaborators` paywall with a visible close control (the free path is always visible).
@@ -147,6 +150,16 @@ Smoke set (runs on every labeled pull request and nightly):
 16. Keep checking this calendar: after a fake feed import the switch is off; turning it on and changing the fake feed produces a "Calendar changed" sheet; nothing changes in the trip until "Apply" is tapped.
 17. On the web client the paywall says "Upgrade in the iOS app" with no price or purchase button; the public pages `/how-we-earn` and `/billing` load without sign-in and pass axe.
 18. The trip header shows "Synced N s ago" and changes to "Offline, 1 edit waiting" when the network is cut; a degraded component in the fake status source shows the status banner.
+19. Discover gallery: open a sample trip from Discover, tap "Use this plan", and see it as a new trip in Trips.
+20. Dates and flights (01 section 3.4): add a route, see cached fares, choose a fare, set an alert.
+21. Stays (01 section 3.5): paste a stay link, heart it, compare two to four stays, mark one Booked.
+22. Plan days (01 section 3.6): drag items onto days, then use Add activity with place search and the map.
+23. Agent and drafts (01 sections 3.6 and 3.7): draft a day and a trip, run research, and run an agent with its live log in the UI (fake Anthropic).
+24. Before you go (01 section 3.9): after a stay is marked Booked the checklist shows on the Overview; one item is marked done and one not needed; both persist after reload.
+25. Travel (01 section 3.10): the Overview shows the "Happening now" state, the trip reads offline, and the calendar feed can be subscribed to and its token rotated.
+26. After the trip (01 section 3.11): archive a past trip, then duplicate it into a new trip that appears in Trips.
+
+Journey coverage: flow 1 covers 3.1, flows 2 to 4 cover 3.2 and 3.3, flows 5 and 21 cover 3.5, flow 12 covers 3.8, flows 7, 8, 15 and 16 cover 3.12, flow 13 covers 3.13, flow 14 covers 3.14. Flows 19 to 26 fill the gaps (3.4, 3.5, 3.6, 3.7, 3.9, 3.10, 3.11 and the Discover gallery).
 
 Full set adds: paywall states for each tier, out-of-credits state, offline banner, 409 conflict UI, share link read-only view, calendar feed subscription URL, referral link, admin console login gate, empty and error states. Every test file also runs an axe scan on its main screen, in light and dark, so the `--tp-edge` control borders and `--tp-warning-ink` warning text are checked on real screens.
 
@@ -160,7 +173,7 @@ Full set adds: paywall states for each tier, out-of-credits state, offline banne
 
 ### 1.8 Load test targets
 
-Tool: k6 against staging sized like production, with synthetic data (5,000 trips, 20,000 routines, 50,000 fare observations). Run against the API and the queue separately and together.
+Tool: k6 against staging sized like production, with synthetic data (5,000 trips, 20,000 flight routes, 50,000 fare observations). Run against the API and the queue separately and together.
 
 | Target | Value |
 |---|---|
@@ -169,7 +182,7 @@ Tool: k6 against staging sized like production, with synthetic data (5,000 trips
 | Write latency | p95 under 500 ms |
 | Error rate | Under 0.5 percent 5xx |
 | Polling | 5,000 clients polling `updated_since` every 20 seconds, p95 under 150 ms, Postgres CPU under 50 percent |
-| Scheduler | 5,000 due routines enqueued within 10 minutes; each fires once |
+| Scheduler | 5,000 due flight route checks enqueued within 10 minutes; each fires once |
 | Queue | `api` lane 30 jobs per second sustained; `ai` lane 100 concurrent fake agent runs; oldest job age under 5 minutes at p95 |
 | Imports | 50 concurrent ICS file imports of 500 events each complete in under 10 seconds p95; the parser sandbox never exceeds its memory limit; 20 concurrent feed imports from a fake feed stay within lane limits |
 | Public pages | 100 requests per second to sample and shared pages with a CDN hit rate above 90 percent; origin p95 under 400 ms on a miss |
@@ -201,8 +214,8 @@ Status values: `build` = must be built and tested before the named gate, `verify
 |---|---|---|
 | V1 Architecture | Threat model document; trust boundaries drawn (client, API, worker, providers, AI, calendar feed hosts); one place for authorization (`require_trip`, `entitlements.require`) | Month 1 |
 | V2 Authentication | No passwords stored; Supabase Auth handles sign-in; email codes are 6 digits, single use, expire in 10 minutes, 5 attempts then invalidate; Sign in with Apple and Google use authorization code with PKCE; generic error messages that do not reveal whether an email exists | Month 1 |
-| V2 Admin authentication | SSO plus 2FA for admins (section 2.13) | Month 3 |
-| V3 Session management | Access JWT 15 to 60 minutes; refresh token rotation with reuse detection; refresh token in the Keychain on iOS; web cookie HttpOnly, Secure, SameSite=Lax; "sign out everywhere" revokes `devices` and refresh tokens; re-authentication before delete, export and email change | Month 1 |
+| V2 Admin authentication | Cloudflare Access plus 2FA for admins (section 2.13) | Month 3 |
+| V3 Session management | Access JWT 15 to 60 minutes; refresh token rotation with reuse detection; refresh token in the Keychain on iOS; bearer tokens only on web and iOS; "sign out everywhere" revokes `devices` and refresh tokens; re-authentication before delete, export and email change | Month 1 |
 | V4 Access control | Deny by default; every route classified; `require_trip` returns 404 for non-members; role table enforced server side; request schemas never accept `owner`, `role`, `tier` or `user_id` from the client; RLS as a second lock; tenant test in CI | Month 1 |
 | V5 Validation and encoding | Pydantic models with strict types and length limits on every input; output encoding in React by default; no `dangerouslySetInnerHTML` except through one sanitizing component (DOMPurify) used for public-page text; parameterized SQL only; imported text treated as untrusted at every render | Month 2 |
 | V6 Cryptography | TLS 1.2 and up; HSTS with preload; invite tokens, share tokens, calendar feed tokens and referral codes are at least 128 bit random, tokens stored as SHA-256 hashes; `link_clicks` ids are random UUIDv4 (not guessable UUIDv7 for external use); field encryption for the Apple refresh token; no custom crypto | Month 1 |
@@ -211,11 +224,11 @@ Status values: `build` = must be built and tested before the named gate, `verify
 | V9 Communications | TLS to Postgres; origin locked to Cloudflare; HSTS; iOS App Transport Security on; no mixed content | Month 1 |
 | V10 Malicious code | Dependency audit in CI (`pip-audit`, `npm audit`, Trivy), lockfiles committed, Dependabot, secret scanning and push protection on, CodeQL, pinned GitHub Actions by SHA, no dynamic code loading, only the script hosts in the CSP | Month 1 |
 | V11 Business logic | Credits reserved and settled in one transaction; idempotency keys on purchases, grants, rewards and AI actions; per-account ceilings; one agent run at a time; refund reversals; one import reward per account; referral caps; limits on invites, members, text and imports; no owner or role change through public APIs | Month 4 |
-| V12 Files | The only upload in Phase 1 is an `.ics` file for import: at most 1 MB, content sniffed (must be text beginning with `BEGIN:VCALENDAR`), parsed in memory in a resource-limited subprocess, never written to disk or object storage, never executed or rendered. Photo and document uploads to R2 are Phase 2 | Month 4 |
+| V12 Files | The only uploads in Phase 1 are import files: an `.ics` file (at most 2 MB, content sniffed: must be text beginning with `BEGIN:VCALENDAR`) and a Google Maps export (`.csv`, `.json`, `.geojson` or `.kml`, at most 5 MB), per the limits table in section 2.6; parsed in memory in a resource-limited subprocess, never written to disk or object storage, never executed or rendered. Photo and document uploads to R2 are Phase 2 | Month 4 |
 | V13 API | Versioned routes; strict CORS list; content types enforced; rate limits per route class; `If-Match` on updates; mass assignment prevented by explicit schemas; OpenAPI is the contract and drift is a CI failure | Month 2 |
 | V14 Configuration | Hardened container (non-root, read-only file system); `/docs` off in production; security headers (CSP, `X-Content-Type-Options`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, `frame-ancestors 'none'`); separate keys per environment; least-privilege database roles (`hermi_owner` for migrations only, `hermi_app`, `hermi_worker`, `hermi_admin`; see [03-database-schema.md](03-database-schema.md) section 6.1) | Month 1 |
 
-CSP for the web app: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; img-src 'self' data: blob: https://*.tile-host https://upload.wikimedia.org; connect-src 'self' api host, Supabase, PostHog, Sentry; frame-ancestors 'none'`. The exact tile and image hosts are listed in `infra/cloudflare/rules.md` and tested in e2e with CSP violation reporting to Sentry. Public pages use the same CSP with no `connect-src` beyond the API host.
+CSP for the web app: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile-host https://upload.wikimedia.org; connect-src 'self' api host, Supabase, PostHog, Sentry; frame-ancestors 'none'`. The exact tile and image hosts are listed in `infra/cloudflare/rules.md` and tested in e2e with CSP violation reporting to Sentry. Public pages use the same CSP with no `connect-src` beyond the API host. The CSP never allows `googleapis` or `gstatic` hosts; fonts are self-hosted.
 
 ### 2.2 Secrets
 
@@ -225,7 +238,7 @@ CSP for the web app: `default-src 'self'; script-src 'self'; style-src 'self' 'u
 - Rotation: quarterly for API keys, immediately on a laptop change, a departure, or a suspected leak. The rotation runbook in `docs/runbooks/key-rotation.md` lists every key: Anthropic, Supabase service role, Supabase hook secret, RevenueCat (webhook and REST), Travelpayouts, SerpApi, Geoapify, Viator, APNs `.p8`, Resend, R2, database roles, `GUEST_TOKEN_SECRET`, `ADMIN_SESSION_SECRET`, `FIELD_ENCRYPTION_KEY`. Webhook secrets support two active values during rotation.
 - JWT verification uses Supabase's published keys (JWKS), so Supabase-side rotation signs nobody out and Hermi holds no signing secret.
 - Anthropic: one workspace per environment with a hard monthly spend limit. Production limit is reviewed monthly.
-- Redaction: the log filter masks keys matching `key|secret|token|password|authorization|cookie|dsn` and JWT-shaped strings, and masks any `token`, `key` or `secret` query parameter in a logged URL (calendar feed and referral URLs included). A unit test feeds sample secrets and feed URLs through the logger and asserts masking.
+- Redaction: the log filter masks keys matching `key|secret|token|password|authorization|cookie|dsn` and JWT-shaped strings, and masks any `token`, `key` or `secret` query parameter in a logged URL (referral URLs included). The calendar feed token is in the path, not a query parameter, so request logs record only the route template `/v1/calendar/{token}.ics` and never the concrete path. A unit test feeds sample secrets, referral URLs and a concrete feed path through the logger and asserts masking and that only the route template is logged.
 
 ### 2.3 Rate limits
 
@@ -240,11 +253,11 @@ Limits are enforced in the app (Postgres token buckets, Redis later) and again a
 | Write API | 120 per minute per user, 600 per minute per IP |
 | AI actions | 30 per hour per user; one agent run at a time per account; credits and spend ceilings apply on top |
 | Invites | 30 per user per day, 20 pending per trip, email domain throttle |
-| ICS file import | 20 per user per day, 5 per trip per hour |
-| ICS feed import | 5 per user per hour, 20 per user per day, 100 per IP per day |
-| Pasted confirmation import | 10 per user per hour (credits and ceilings apply on top) |
+| Import previews (ICS file, ICS feed, pasted booking text, Google Maps file, pasted places) | 20 per user per day, all methods together; sizes and counts in the table in section 2.6 |
+| ICS feed registration and refresh | 5 registrations per user per day, 4 refreshes per day per import; registrations (not refreshes) count toward the 20 previews a day; 100 per IP per day |
+| Pasted booking text | Counts toward the 20 previews a day (credits and ceilings apply on top) |
 | Import preview confirmation | 30 per user per day |
-| Calendar feed reads | 60 per minute per token, 120 per minute per IP; 404 for unknown tokens counted per IP and blocked at 30 a minute |
+| Calendar feed reads (`GET /v1/calendar/{token}.ics`, token in the path) | 120 per hour per token, 600 per hour per IP; unknown tokens count against the IP limit and always return an empty 404 |
 | Share and public page views | 60 per minute per token or slug, 120 per minute per IP (the CDN absorbs most traffic) |
 | Content reports | 10 per user per hour, 30 per IP per day; one open report per user per page |
 | Referral link opens | 30 per IP per hour; referral reward claims limited by the caps in section 2.8 |
@@ -261,6 +274,7 @@ Limits are enforced in the app (Postgres token buckets, Redis later) and again a
 - Purpose: tie the Free allowance (12 credits a month and one taster agent run) to a real device and stop signup farming. One attested device gets one Free allowance per 30 days across accounts, and one import reward and one referral reward claim per account.
 - Fallback: if attestation is unavailable (old OS, simulator, Apple outage) the account still works with stricter limits: half the free AI allowance, email verification required, per-IP signup limits, no referral reward until the account is verified. Never block normal planning.
 - Web has no attestation. Web Free accounts get the same caps and rely on email verification, Cloudflare Turnstile on signup, per-IP limits and disposable-email blocking.
+- Guest AI: the one guest route, `POST /guest/ai/draft-day`, carries `X-Attest-Key-Id` and `X-Attest-Assertion` instead of a JWT. The server checks the assertion against the stored public key and advances the counter in one statement; a replayed counter is 401. Spend is drawn from `guest_allowances` (one row per attestation key and UTC month, through `spend_guest_allowance`, never from `credit_grants`); an empty allowance is 402 with the sign-up prompt. A guest allowance counts against the Free monthly allowance when the guest claims. Tests: a replayed counter is refused, two parallel calls cannot overspend the allowance, and a new month starts a new row.
 - Jailbreak signals are not used to block users.
 
 ### 2.5 SSRF protection for link previews and calendar feed import and polling
@@ -270,21 +284,31 @@ Two features fetch URLs typed by users: link previews (`providers/link_preview.p
 1. Only `https` and `http` schemes on ports 80 and 443 (`webcal://` is rewritten to `https://` before validation). No credentials in the URL (`user:pass@`). A feed URL's query string may hold the feed's secret token; it is used for the request and then discarded.
 2. Host is resolved by our code. Every resolved address (IPv4 and IPv6) must be public: block loopback, link-local (including `169.254.169.254`), private ranges, carrier-grade NAT, multicast, unique local, and IPv4-mapped IPv6 forms. Decimal, octal and hex IP spellings are normalized first. The connection then goes to the validated IP address (pinned), with the original `Host` header and SNI, so DNS rebinding cannot swap it.
 3. Redirects are followed manually, at most 3, and each hop repeats steps 1 and 2. A redirect from https to http is refused.
-4. Timeouts: 3 seconds connect, 5 seconds total. Response body capped at 1 MB after decompression (link preview parses only `text/html`; feed import accepts only `text/calendar`, `text/plain` or `application/octet-stream` that begins with `BEGIN:VCALENDAR`). Content is never executed or rendered. A link preview extracts only `og:title`, `og:image` URL, `og:description` and `<title>` as plain text; a feed body goes to the sandboxed parser in section 2.6.
-5. Denylist: Airbnb, Vrbo and Booking.com hosts (and their country domains) are refused outright, which also satisfies the site-terms rule. The link preview response says "Paste the details or use the bookmarklet."; the feed import says "That link is not a calendar feed we can read." The denylist lives in one module shared with the AI fetch tool.
+4. Timeouts: 3 seconds connect, 5 seconds total for a link preview. Response body capped at 1 MB after decompression for a link preview and at 2 MB for a feed, which also gets 5 seconds connect and 15 seconds total (link preview parses only `text/html`; feed import accepts only `text/calendar`, `text/plain` or `application/octet-stream` that begins with `BEGIN:VCALENDAR`). Content is never executed or rendered. A link preview extracts only `og:title`, `og:image` URL, `og:description` and `<title>` as plain text; a feed body goes to the sandboxed parser in section 2.6.
+5. Never-fetch list: one code constant, `BLOCKED_HOSTS` (`ai/policy.py`, 06 section 2.4), holds the brands `airbnb`, `vrbo` and `booking`. A host is refused when the label of its registrable domain equals one of them, with any ending and any subdomain. No setting, flag or admin screen can change the constant. This also satisfies the site-terms rule. A test proves `airbnb.co.kr`, `www.airbnb.co.uk`, `vrbo.com` and `secure.booking.com` are refused, and that a look-alike such as `notairbnb.com` is not matched by accident. A refused feed URL returns `422 blocked_domain`. The link preview response says "Paste the details or use the bookmarklet."; the feed import says "That link is not a calendar feed we can read." The constant lives in one module shared with the AI fetch tool.
 6. Fetches run in the `api` job lane on a worker with egress through a fixed proxy that has its own network deny rules for internal ranges, as defense in depth.
 7. Returned image URLs are not fetched by the server; the client loads them under the CSP.
 8. A feed URL is a secret. It is never logged (log masking, section 2.2), never sent to Sentry, PostHog or `provider_calls` (the row stores the host only), and never echoed back in an error message. It is held only until the preview is confirmed or discarded; if the person turns on "Keep checking this calendar" it is then kept encrypted (`FIELD_ENCRYPTION_KEY`, AES-GCM) until polling is turned off, fails three times in a row, the trip ends plus 7 days, the import is discarded or the account is deleted, at which point it is deleted. Otherwise the user repastes it to refresh. The stored address is shown back only as host plus a masked path.
 10. Polling limits: every 6 hours per feed, at most 3 polled feeds per account, at most 60 fetches an hour to one destination host across the platform, conditional requests, the same guard on every poll (a host that starts resolving to a private address is refused and counts as a failure). A change preview is stored, never applied automatically, and deleted after 30 days if not confirmed.
 9. Tests: a table of hostile URLs (`http://127.0.0.1`, `http://[::1]`, `http://169.254.169.254`, `http://0x7f000001`, `http://2130706433`, `http://localtest.me`, `gopher://`, `file:///`, `https://user:pass@host`, a non-standard port, a DNS name that resolves to a private address, a name that resolves to a public address first and a private one second, a redirect to a private address, an https to http downgrade, a 30x loop, an oversized body, a gzip bomb that expands past 1 MB, a response that never finishes) must all be refused, for both the link preview and the feed import, using a fake resolver and a fake socket layer so the test never touches the network.
 
-The AI `web_fetch` tool is Anthropic's server tool, so it does not run on our network, but the same blocked domain list applies, and fetched URLs must already appear in the conversation.
+The AI `web_fetch` tool is Anthropic's server tool, so it does not run on our network, but the same `BLOCKED_HOSTS` constant (item 5) applies, and fetched URLs must already appear in the conversation.
 
 ### 2.6 ICS parsing safety and fuzzing
 
 Calendar files and feeds come from other people's software and from attackers. The parser is treated as hostile-input code.
 
-1. **Limits.** File or feed body at most 1 MB (measured after decompression); at most 500 `VEVENT`s; line length at most 8 KB; property count per event at most 100; nesting depth at most 4; text fields truncated to 2,000 characters; `RRULE` is not expanded beyond 50 occurrences per event and an event with `COUNT` or `UNTIL` beyond that is imported as a single item with a note; `ATTACH`, `URL` and `ATTENDEE` values are ignored and never fetched; `X-` properties are ignored; no `VALARM` is honored.
+1. **Limits.** One table, mirrored from [04-api-spec.md](04-api-spec.md) section 5.26 (which wins if they differ):
+
+| Source | Maximum size | Maximum items | Rate limit |
+|---|---|---|---|
+| ICS file | 2 MB | 500 events; description extraction at most 3 AI calls (18 events) | 20 previews a day |
+| ICS feed body | 2 MB | 500 events; description extraction at most 3 AI calls (18 events) | 5 registrations a day, 4 refreshes a day per import; counts toward the 20 previews a day |
+| Pasted booking text | 12,000 characters | 1 AI call | 20 previews a day (file, paste and feed together) |
+| Google Maps file | 5 MB | 200 places | 20 previews a day |
+| Pasted places | 20,000 characters | 200 places | 20 previews a day |
+
+   Sizes are measured after decompression. Inside those limits: line length at most 8 KB; property count per event at most 100; nesting depth at most 4; text fields truncated to 2,000 characters; `RRULE` is expanded up to 60 occurrences inside the trip window and the rest are dropped with the warning `recurrence_trimmed`; `ATTACH`, `URL` and `ATTENDEE` values are ignored and never fetched; `X-` properties are ignored; no `VALARM` is honored.
 2. **Sandbox.** The parser runs in a short-lived subprocess with CPU (5 seconds) and memory (256 MB) limits, no network access (the subprocess is started without sockets and a test asserts any attempt fails) and a read-only file system. A timeout or limit hit returns a clear "We could not read that file" message and is counted as a metric.
 3. **Output.** The parser returns plain data (title, start, end, time zone, location text, description text, `UID`). Every string is treated as untrusted text from then on: escaped by React, never rendered as HTML, never used to build a URL, never sent to the model in the file and feed paths.
 4. **Mapping.** Mapping to itinerary items, flights and stays is a deterministic rule set (TripIt and Google Calendar conventions), not the model. A nothing-found result says so; it does not guess.
@@ -299,7 +323,7 @@ Pasted confirmations and pasted plans (Verify this plan) are sent to Anthropic, 
 
 1. **What is redacted before any model call:** personal names (traveler names become "Traveler 1", "Traveler 2" using the trip's `people` list and a name detector), email addresses, phone numbers, postal and home addresses, dates of birth, booking references and confirmation codes, ticket and loyalty numbers, payment card numbers (Luhn-checked and pattern-based), passport and identity document numbers, and URLs with tokens or query strings. Hotel and airline names, places, dates and times are kept because extraction needs them.
 2. **Booking codes come back locally.** The model never sees a code; the preview re-attaches the code found by local extraction from the original text, so the user still gets their reference on the item.
-3. **Fail closed.** If the redactor raises or finds an unparsable chunk, the request is not sent and the credit is not charged. Pasted confirmations over 12,000 characters and pasted plans (Verify this plan) over 8,000 characters are refused, not truncated silently.
+3. **Fail closed.** If the redactor raises or finds an unparsable chunk, the request is not sent and the credit is not charged. Pasted confirmations over 12,000 characters (the limit in the section 2.6 table) and pasted plans (Verify this plan) over 8,000 characters are refused, not truncated silently.
 4. **Consent and labels.** AI consent (section 3.5) is required; the paste screen says the text is processed by Anthropic with personal data removed. Output is labeled "From your pasted text" and needs confirmation before saving.
 5. **Logging.** Pasted text and model output are not logged at INFO; run records keep sizes and hashes. Prompt content is kept for 30 days server side as for every AI call (section 3.5), with the pasted text in redacted form only.
 6. **Injection.** Pasted text is placed in a `tool_result` style data block, never in the system prompt; the model has no tools in this action; output must match a strict schema or is discarded. The eval set in section 1.5 includes confirmations that contain instructions.
@@ -311,6 +335,7 @@ Free Trip Passes and referral credits cost real money in AI and provider spend, 
 
 - **Import reward** (one free Trip Pass for the first qualifying import on a trip): once per account; requires a verified email; requires at least 3 items saved from the import including a flight or a stay (places-only imports and calendar change confirmations never qualify); never for an account that already has Plus; never stacks on an existing pass for that trip; nothing for an empty, duplicate or junk import (the same file hash and the same set of `UID`s cannot earn it twice across accounts); the grant is idempotent on `(user_id, 'import_reward')`; the pass and its 40 credits are revocable from admin with the ledger reversed.
 - **Referral credits:** a referral link carries only an opaque code (no user id or email). Both sides are rewarded only after the referred account has a verified email and has created their first trip with dates and, on iOS, has passed attestation or the stricter fallback. Both sides receive 20 credits that expire after 12 months and never raise a spend ceiling. Blocked: self-referral (same device key, same IP hash within 30 days, or the same normalized email), referral chains between two accounts, and more than 5 paid rewards in a rolling 30 days or 10 in a calendar year per referrer (the referred person is still paid). The pair is unique; a refund or an abuse flag on the referred account reverses both grants. Rewards are credits only (never cash or gift cards) and are never tied to a rating, review or social post (App Review Guideline 5.6.1).
+- **Abuse memory:** `identity_hashes` keeps sha256 hashes of what a person already earned (`apple:<sub>`, `google:<sub>` and `email:<lower(email)>`, kinds `taster` and `import_reward`; for kind `import_uids` the import's `uid_set_hash`, a hash of the sorted set of source UIDs) for 12 months, then `retention_sweep` purges them. A deleted and re-created account, or the same calendar imported by a new account, does not earn the taster or the import reward again. No application role can read the table (03 section 6.1).
 - **Detection:** `referral_blocked` and `import_reward_granted` events, a daily query for referrers with a high rate of rewards, shared device keys across accounts, and referred accounts that never return after the reward. A spike alert is in section 5.3.
 - **Kill switches:** `referrals.grant` pauses referral credit grants (codes can still be entered); `import.all` stops every import path and the reward; `import.polling` stops only feed polling; `ai.import` stops pasted confirmations.
 - **Tests:** scenarios 16 and 20 in section 1.2, plus concurrency tests that import the same file in two sessions at once and refer with two signups at once.
@@ -342,17 +367,19 @@ Public sample trips and shared-trip pages put user content on the open web, so t
 | Source | Check |
 |---|---|
 | RevenueCat | Shared secret in the `Authorization` header compared with `hmac.compare_digest`. Reject if missing or wrong. Payload is also cross-checked by a REST fetch for any event that grants something (purchase, refund), so a forged payload with a leaked secret still cannot grant without RevenueCat confirming |
-| Resend | Svix style signature verified with `RESEND_WEBHOOK_SECRET` |
-| Supabase auth hook | Standard webhooks signature with `SUPABASE_AUTH_HOOK_SECRET` |
-| Affiliate report pulls | Outbound pulls (we call them), so no inbound signature; responses are validated against a schema |
+| Resend | Svix signature (`svix-id`, `svix-timestamp`, `svix-signature`) verified with `RESEND_WEBHOOK_SECRET`; a timestamp older than 5 minutes is refused |
+| Supabase auth hook | Shared secret in `Authorization: Bearer <SUPABASE_AUTH_HOOK_SECRET>`, compared in constant time |
+| Affiliate postbacks (`travelpayouts`, `viator`, `stay22`; `POST /webhooks/affiliate/{network}`) | Travelpayouts: shared token plus IP allow-list; Stay22 and Viator: token. Unknown network slugs return 404. The nightly report pull is outbound (we call them), so it has no inbound signature and its responses are validated against a schema |
+
+The webhook providers are exactly the six in [04-api-spec.md](04-api-spec.md) section 6: `revenuecat`, `travelpayouts`, `viator`, `stay22`, `resend` and `supabase`. There is no Apple endpoint (Apple events arrive through RevenueCat).
 
 Every webhook: read the raw body first (before any JSON parsing), verify, insert into `webhook_events` with the provider event id as a unique key, return 200, and process in a job. Unverified requests return 401, write nothing and increment a counter that alerts above 30 per hour. Processing is idempotent and order tolerant. Webhook endpoints have no cookies and no CORS.
 
 ### 2.12 Other controls
 
 - **Prompt injection.** Tools bind `user_id`, `trip_id` and `run_id` from the run row; the model supplies only ids that are checked against the trip. No tool can email, post or spend. Web text, pasted confirmations and collaborator notes stay in `tool_result` blocks, never in the system prompt. Private notes are excluded from context. Evals gate every change (section 1.5).
+- **`claude_cli` is development only.** The backend runs only when `ENVIRONMENT=local`, the server is bound to loopback, and `AUTH_MODE=dev` or the user is in `AI_CLI_ALLOWED_EMAILS` (re-checked on every call). It runs the CLI with a stripped environment (no Hermi secrets) and keeps web tools off except with the `BLOCKED_HOSTS` blocklist of section 2.5. It is never enabled in staging or production; `/health/ready` reports the provider and an alert fires if it is not `local` (section 5.3).
 - **Clickjacking and XSS.** `frame-ancestors 'none'`, strict CSP, no inline scripts, React escaping, sanitized rich text only in one component. Imported titles and descriptions are plain text everywhere.
-- **CSRF.** Bearer tokens are immune. The web cookie path requires the `X-Hermi: 1` header plus `Origin` match. Calendar feed and public page routes are read-only GETs.
 - **Supply chain.** Lockfiles, pinned base image digests, pinned GitHub Actions by SHA, SBOM generated in CI, provenance attestation on the image. The ICS parser library is pinned and fuzzed on every upgrade.
 - **iOS app.** Keychain for tokens, no secrets in the bundle (public keys only), ATS on, no `server.url` in production, jailbreak not enforced, privacy manifest shipped, universal links validated server side.
 - **Denial of service.** Cloudflare rate rules and bot fight mode, body size limits, pagination caps (max 100), query timeouts, parser sandbox limits, and kill switches.
@@ -363,20 +390,20 @@ Every webhook: read the raw body first (before any JSON parsing), verify, insert
 
 The admin console (see [08-admin-control-center.md](08-admin-control-center.md)) is the most powerful surface, so it has its own controls.
 
-1. **SSO only.** Admins sign in through the company identity provider (OIDC). Only emails on `ADMIN_ALLOWED_DOMAIN` with a matching row in `admin_users` get a session. No passwords, no Supabase Auth users for admins.
-2. **2FA required.** The identity provider enforces a phishing-resistant second factor (passkey or hardware key). An `admin_users` row records `mfa_enrolled`; the time of the last factor check comes from the identity provider's token, and sessions older than 12 hours or without a recent factor check are refused. Step-up (fresh factor within 10 minutes) is required for refunds, credit grants over 100, flag changes, kill switch changes, user suspension, reward and referral revocation, data export access and deletion.
+1. **Cloudflare Access only.** Admins sign in through Cloudflare Access in front of `admin.hermi.world` and `/v1/admin/*` ([08-admin-control-center.md](08-admin-control-center.md) section 2). The API verifies the Access JWT and only a verified email with a matching, enabled row in `admin_users` gets a session. The sign-in domain and the IP or device policy are Cloudflare Access rules (08 sections 2 and 9). No passwords, no Supabase Auth users for admins.
+2. **2FA required.** The app layer requires a second factor, passkey or hardware key preferred and TOTP as the fallback (08 section 2). An `admin_users` row records `mfa_enrolled`; the time of the last factor check is recorded by the API, and sessions older than 12 hours or without a recent factor check are refused. Step-up (a fresh factor within 5 minutes) applies to the actions listed in 08 section 2.2, which is authoritative.
 3. **Roles.** `support` (read users and trips by id, view tickets and content reports, resend emails), `ops` (kill switches, feature flags, queue tools), `finance` (credits, refunds, affiliate revenue), `owner` (all, manage admins). Two admins must approve granting `owner`.
 4. **Scope of view.** Support sees account metadata by default. Trip contents need a ticket id and a reason, logged, and expire after 30 minutes. Import previews and pasted text are never visible to admins.
 5. **Audit.** Every admin call writes `audit_log` (admin, action, target, before and after, reason, IP, request id). The log is append-only at the database level (no update or delete grants) and is exported weekly to R2. Alerts fire on off-hours use, bulk actions, and any admin change to `admin_users`.
-6. **Network.** Optional IP allowlist (`ADMIN_IP_ALLOWLIST`), separate Cloudflare rules for `/admin`, stricter rate limits, and no admin routes on the iOS origin.
-7. **No shared accounts.** Offboarding removes the `admin_users` row and the identity provider account the same day.
+6. **Network.** Cloudflare Access policy (IP or managed device check, 08 section 9), stricter rate limits, and no admin routes on the iOS origin.
+7. **No shared accounts.** Offboarding removes the `admin_users` row and the Cloudflare Access policy entry the same day.
 
 ### 2.14 Verify this plan and evidence recheck
 
 Both features send text to Anthropic and open web pages on the user's behalf, so they follow the AI rules in [06-ai-agents-spec.md](06-ai-agents-spec.md) sections 4.3, 5.11 and 5.12 and these checks.
 
 1. **Privacy.** The pasted plan goes through the same redactor as pasted confirmations (2.7) and is never stored; only the extracted items and their evidence are kept, for 30 days. A check request carries only one item's name, planned time, claimed hours and price and the matched place's public fields.
-2. **No fetching of booking sites.** The blocked-domain list (Airbnb, Vrbo, Booking.com and their country sites) applies to every search and fetch; an item whose only source is such a page ends `unchecked` with `blocked_source`. Links inside the pasted text and in an item are never opened; a recheck fetches only the stored source URL that an earlier run already saw.
+2. **No fetching of booking sites.** The `BLOCKED_HOSTS` constant of section 2.5 (the brands `airbnb`, `vrbo` and `booking`, any ending, any subdomain) applies to every search and fetch; an item whose only source is such a page ends `unchecked` with `blocked_source`. Links inside the pasted text and in an item are never opened; a recheck fetches only the stored source URL that an earlier run already saw.
 3. **Verdicts are code, not model output.** The model reports what a page showed; every reported value must appear in a tool result of the same request, and the cited page must be one the search returned or the fetch opened. A value that cannot be grounded is discarded, and a green or amber row without a cited page and date cannot be written (database constraint `ck_plan_verification_items_evidence`).
 4. **Tamper resistance.** Members can change only the check and import ticks; verdicts, reasons, evidence and counts are written by the worker role (grants in 03 section 6.1), and the tenant-isolation tests cover both tables.
 5. **Injection.** Item text, place data and fetched pages are data; the model has no write tool; output is a strict schema; the eval set includes pages with hidden instructions (section 1.5).
@@ -394,11 +421,12 @@ Plain statement used in the app and policy: Hermi does not sell personal data, d
 | Lawful basis (GDPR) | Contract for running the service; consent for AI processing, marketing email and optional analytics; legitimate interest for security logs and abuse prevention (device and IP hashes) |
 | Data inventory | A maintained `docs/privacy/data-map.md`: each table or store, what it holds, purpose, retention, processor, deletion rule. A test fails if a new table lacks an entry (the `referral_*` tables, `plan_verifications`, stored feed addresses and calendar tokens included) |
 | Rights | Access, portability (export), correction (edit in app), deletion (in app), objection and restriction (by support within 30 days; 45 days for CCPA) |
+| Account controls | Settings has "Sign out everywhere" (`POST /me/sign-out-everywhere`, recent sign-in required) and preferences (`users.prefs`: notifications, analytics, AI consent). `DELETE /me/ai-history` deletes the person's `runs`, `run_events` and AI-created `notes`; `ai_usage` rows that money records need stay with `user_id` set to null |
 | CCPA | No sale or sharing. No "Do not sell or share" link needed because there are no ad SDKs; the policy says so. Honor Global Privacy Control as an opt-out of optional analytics |
 | Processors | DPA signed with Anthropic, Supabase, Render, Cloudflare, RevenueCat, Sentry, PostHog, Resend, Better Stack. List is public in the policy |
 | International transfers | Standard contractual clauses where needed; US primary region at launch; EU region only when revenue or partners require |
 | Breach notice | 72 hours to regulators where required; users notified without undue delay (runbook 8.4) |
-| Imports | Uploaded calendar files and Google Maps exports are processed in memory and dropped; a feed URL is kept (encrypted) only while the person has "Keep checking this calendar" on and is deleted when it is turned off; Google Maps list links are never opened or stored; pasted confirmations and pasted plans are redacted before any AI processing, and only confirmed trip items (and, for plan checks, the extracted items with their evidence for 30 days) are kept |
+| Imports | The raw import file is never stored: uploaded calendar files and Google Maps exports are processed in memory and dropped; a feed URL is kept (encrypted) only while the person has "Keep checking this calendar" on and is deleted when it is turned off; Google Maps list links are never opened or stored; pasted confirmations and pasted plans are redacted before any AI processing, and only confirmed trip items (and, for plan checks, the extracted items with their evidence for 30 days) are kept |
 | Public pages | Shared pages are opt-in for indexing; the owner can turn a page off at any time; reports can take a page down. "How we earn", "How billing works", the Android guide and the status page are static or data-driven pages with no personal data |
 | Minors | See 3.7 |
 | DPIA | A short data protection impact assessment for AI processing, imports and shared trips, reviewed yearly |
@@ -413,14 +441,14 @@ Mandatory in the app under Apple guideline 5.1.1(v): Settings, Account, Delete a
 4. Owned trips with no other members: deleted at the end of the grace window.
 5. Trips owned by others: the user is removed; their contributions remain, attributed to "Deleted user" (stated in the policy).
 6. Grace window of 30 days: signing in restores the account. A reminder email goes out at day 23.
-7. Day 30: `delete_account` job hard deletes `users`, `auth_identities`, `devices`, `people` owned by the user, `consents` (except the deletion record), referral links, `credit_ledger` (aggregated into anonymous totals), AI history, the Supabase Auth user (service role call), PostHog person, and Sentry user context where possible. A checklist row per step makes partial failure visible, and each step is idempotent.
-8. Kept by law, stripped of profile data: `store_transactions` and tax records (typically 7 years), and a hashed abuse marker (email hash and device key hash) for 12 months, which also stops a deleted account from claiming a second Free allowance, import reward or referral reward.
+7. Day 30: `delete_account` job hard deletes `users`, `auth_identities`, `devices`, `people` owned by the user, `consents` (except the deletion record), referral links, `credit_ledger` (aggregated into anonymous totals), AI history (the same data `DELETE /me/ai-history` clears), the Supabase Auth user (service role call), PostHog person, and Sentry user context where possible. A checklist row per step makes partial failure visible, and each step is idempotent.
+8. Kept by law, stripped of profile data: `store_transactions` and tax records (typically 7 years), and the abuse memory in `identity_hashes` (section 2.8: hashes of the upstream subject and verified email, plus import UID sets) for 12 months, which also stops a deleted account from claiming a second Free allowance, import reward or referral reward.
 9. Backups age out within 35 days (the policy says so). The restore runbook re-applies deletions after any restore (`deletion_requests` is replayed).
 10. Test: end-to-end test in the integration suite (section 1.2) and a quarterly drill that restores a backup and confirms deleted users stay deleted.
 
 ### 3.3 Data export
 
-Settings, Account, Export my data (re-authentication required, 1 per day). The `export_user_data` job writes a zip to the R2 exports bucket: one JSON file per table that holds the user's data, a readable PDF or CSV per trip, ICS calendars, and consent and referral history. A signed link is emailed and expires in 7 days; the file is deleted at expiry. Target under 24 hours; legal limits are 30 days (GDPR) and 45 days (CCPA). Export is free on every tier and is never gated by a subscription. A generated list of tables with personal data drives both export and deletion so they cannot drift (tested).
+Settings, Account, Export my data (re-authentication required, 1 per day). The `export_user_data` job writes a zip to the R2 exports bucket: one JSON file per table that holds the user's data (AI history included, until the person clears it with `DELETE /me/ai-history`), a readable PDF or CSV per trip, ICS calendars, and consent and referral history. A signed link is emailed and expires in 7 days; the file is deleted at expiry. Target under 24 hours; legal limits are 30 days (GDPR) and 45 days (CCPA). Export is free on every tier and is never gated by a subscription. A generated list of tables with personal data drives both export and deletion so they cannot drift (tested).
 
 ### 3.4 App Privacy labels and privacy manifest
 
@@ -605,8 +633,7 @@ Common properties on every event (not repeated below): `app_version`, `platform`
 | `checklist_item_shown` | `kind` (`checklist_items.kind`) | Checklist row seen, once per item per session |
 | `checklist_item_updated` | `kind`, `status` (`done`, `skipped`, `not_needed`, `todo`) | Row ticked, dismissed or reset |
 | `discover_viewed` | none | Discover opened |
-| `destination_opened` | `country_code` | A destination page opened |
-| `trip_started_from_discover` | none | "Start a trip here" tapped |
+| `sample_trip_opened` | `slug` | A sample trip is opened from Discover or a public page |
 | `activity_viewed` | `unread_bucket` | Activity opened |
 | `activity_item_opened` | `kind` (`alert`, `change`, `run`, `invite`) | Activity row opened |
 | `account_viewed` | none | Account opened |
@@ -630,7 +657,7 @@ Common properties on every event (not repeated below): `app_version`, `platform`
 | `calendar_feed_rotated` | none | The link is rotated |
 | `calendar_feed_read` | none | The feed is fetched by a calendar app (server side, counted per trip per day) |
 | `public_page_viewed` | `kind` (`sample`, `shared`), `referrer_bucket` (`search`, `social`, `direct`, `other`) | A public page loads (server side) |
-| `sample_trip_copied` | none | "Copy this trip" after sign-up |
+| `sample_trip_copied` | `slug`, `was_guest` (bool) | "Use this plan" tapped on a sample trip |
 | `share_indexing_toggled` | `value` (bool) | Owner turns search indexing on or off |
 | `content_reported` | `surface` (`shared_trip`, `sample_trip`, `ai_answer`, `research`), `reason` (enum) | A report is submitted |
 | `vs_page_viewed` | `competitor` (`tripit`, `wanderlog`, `tripsy`) | A comparison page loads (server side) |
@@ -667,7 +694,7 @@ Funnels tracked from these events: activation (`signup_completed` to `first_itin
 
 ### 5.1 Logs
 
-JSON to stdout, one line per event, shipped to Better Stack and kept 14 days hot (30 for security events). Fields: `ts`, `level`, `service`, `env`, `release`, `request_id`, `job_id`, `run_id`, `user_id` (opaque), `route`, `status`, `latency_ms`. `request_id` flows into jobs. No prompts, itineraries, notes, emails, tokens, feed URLs or pasted text at INFO; sizes and hashes instead. Security events (`auth_failed`, `role_changed`, `webhook_rejected`, `admin_action`, `rate_limited`, `import_blocked_url`, `referral_blocked`, `content_report_created`) use a dedicated `event` field.
+JSON to stdout, one line per event, shipped to Better Stack and kept 14 days hot (30 for security events). Fields: `ts`, `level`, `service`, `env`, `release`, `request_id`, `job_id`, `run_id`, `user_id` (opaque), `route`, `status`, `latency_ms`. `request_id` flows into jobs. No prompts, itineraries, notes, emails, tokens, feed URLs or pasted text at INFO; sizes and hashes instead. Request logs record the route template only (for example `/v1/calendar/{token}.ics`), never the concrete path. Security events (`auth_failed`, `role_changed`, `webhook_rejected`, `admin_action`, `rate_limited`, `import_blocked_url`, `referral_blocked`, `content_report_created`) use a dedicated `event` field.
 
 ### 5.2 Metrics
 
@@ -675,7 +702,7 @@ JSON to stdout, one line per event, shipped to Better Stack and kept 14 days hot
 |---|---|
 | API | Request rate, p50, p95, p99 latency by route template, 5xx rate, 4xx by code, auth failures, rate limit hits |
 | Queue | Depth per lane, oldest job age, jobs per minute, retry rate, dead letters, worker heartbeats, reaper requeues |
-| Scheduler | Ticks per minute, due routines, enqueued, skipped by reason, lag (now minus oldest `next_run_at`) |
+| Scheduler | Ticks per minute, due routes, enqueued, skipped by reason, lag (now minus oldest `next_check_at`) |
 | Database | CPU, connections versus limit, longest transaction, lock waits, replication lag if any, disk growth, slow queries |
 | Providers | Success rate, latency, 429 rate and remaining quota per provider, cache hit rate |
 | AI | Spend per day, model, action and tier; cost per active user; p95 cost per action; refusal rate; cache hit rate; batch share; retries |
@@ -703,7 +730,9 @@ Severity: `page` (phone, any hour), `notify` (chat, business hours), `digest` (w
 | Queue depth | Over 1,000 waiting in `api` or over 200 in `ai` for 10 minutes | notify |
 | Dead letters | More than 5 in an hour in one lane | notify |
 | Scheduler heartbeat | No ping for 3 minutes | page |
-| Scheduler lag | Oldest due routine over 15 minutes late | notify |
+| Default partition rows | `maintain_partitions` finds any row in a default partition | notify |
+| `claude_cli` outside `local` | `/health/ready` reports `AI_PROVIDER=claude_cli` when `ENVIRONMENT` is not `local` | page |
+| Scheduler lag | Oldest due route check over 15 minutes late | notify |
 | Database CPU | Over 70 percent for 15 minutes | notify; over 90 percent page |
 | Database connections | Over 80 percent of limit | notify |
 | Database disk | Over 80 percent | notify; over 90 percent page |
@@ -737,7 +766,7 @@ The most likely way to lose money is a runaway agent or a loop. Alerts run from 
 
 | Alert | Threshold | Severity | Automatic action |
 |---|---|---|---|
-| Global daily spend (absolute) | Over `AI_GLOBAL_DAILY_CAP_USD` (launch value $150) | page | Circuit breaker pauses the `ai` and `batch` lanes for non-urgent work and notifies |
+| Global daily spend (absolute) | Over `AI_GLOBAL_DAILY_CAP_USD` (launch value $150; the setting `setting_ai_global_daily_usd` defaults to it and may only lower it) | page | Circuit breaker pauses the `ai` and `batch` lanes for non-urgent work and notifies |
 | Global daily spend (relative) | Over 1.5 times the trailing 7 day average after noon UTC | page | None; founder decides |
 | Hourly spend | Over 25 percent of the daily cap in one hour | page | Pause agent runs (`ai.agent_runs`) |
 | Single account | Over 3 times its daily ceiling (the ledger should prevent this, so it means a bug) | page | Suspend AI for that account |
@@ -881,70 +910,81 @@ Budget two review cycles of 1 to 4 days. Keep the backend and demo accounts up d
 
 Gates match the month exits in the Phase 1 README and [09-build-roadmap.md](09-build-roadmap.md). Each item has an owner (the founder unless noted) and a link or artifact as evidence; each gate review is written to `docs/gates/month-N.md`.
 
+Every item in 7.1 to 7.5 is tagged. `[agent]` means a session checks it with a command and a pass condition, on CI or a local run, named after the colon. `[owner]` means it needs a device, an account, a store, real money or a human decision. The gate for month N runs in the ship session of the prompt after the one that ends the month (prompts 07, 12, 16, 21 and 25) and writes `docs/gates/month-N.md`. The (Month 1) and (Month 2) suffixes in 7.1 let the gates after prompts 06 and 11 find their items.
+
 ### 7.1 Month 1 and Month 2 gates (validate, set up, core planning)
 
-- [ ] Demand signal recorded against the "yes" written before the first interview; go decision signed (Month 1).
-- [ ] Tenant-isolation test green in CI and on staging; RLS policies tested (direct SQL pass and no-variable pass) (Month 1).
-- [ ] A signed-in user creates a trip on staging (Month 1).
-- [ ] Free owner invites one collaborator and the second invite shows the paywall; two people plan a trip together on the web (Month 2).
-- [ ] Restore drill passed once (PITR to a scratch database, smoke test against it) (Month 2).
-- [ ] Contrast test green for every token pair in the Hermi palette (05 section 2.3), including `--tp-edge`, `--tp-warning-ink` and `--tp-sky-ink` on sky; axe clean on the core screens in light and dark.
-- [ ] Sentry and structured logs live; log scan finds no tokens.
+- [ ] [owner] Demand signal recorded against the "yes" written before the first interview; go decision signed (Month 1).
+- [ ] [agent] Tenant-isolation test green in CI and on staging; RLS policies tested (direct SQL pass and no-variable pass): `npm run test:api`, the tenant-isolation suite passes with zero leaks and zero unclassified routes (Month 1).
+- [ ] [agent] A signed-in user creates a trip: `npm run test:e2e:smoke` flow 2 passes in CI (dev-persona sign-in) (Month 1).
+- [ ] [owner] A user signs in with a real Supabase email code on staging and creates a trip (Month 1).
+- [ ] [agent] Free owner invites one collaborator and the second invite shows the paywall; two people plan a trip together on the web: `npm run test:e2e:smoke` flows 3 and 4 pass (Month 2).
+- [ ] [owner] Restore drill passed once (PITR to a scratch database, smoke test against it) (Month 2).
+- [ ] [agent] Contrast test green for every token pair in the Hermi palette (05 section 2.3), including `--tp-edge`, `--tp-warning-ink` and `--tp-sky-ink` on sky; axe clean on the core screens in light and dark: `npm run test:web` (contrast test) and `npm run test:e2e:smoke` (axe scans).
+- [ ] [owner] Sentry and structured logs live in staging and production.
+- [ ] [agent] Log scan finds no tokens: the logger masking unit test in `npm run test:api` passes and a grep of a test-run log finds no secret-shaped string.
 
 ### 7.2 Month 3 gate (AI and credits)
 
-- [ ] Credit reserve and settle tests green; ledger reconciliation query returns zero drift.
-- [ ] Agent run cost measured over 50 runs on staging with p95 under $0.80; report saved.
-- [ ] Every ceiling enforced in tests; the taster works once per account.
-- [ ] AI spend alerts fired in a staging drill; every kill switch exercised, including the new `import.all`, `import.polling`, `ai.verify`, `ai.recheck`, `referrals.grant` and `public_pages` switches; AI off in under 30 seconds.
-- [ ] Anthropic workspace limits set per environment.
-- [ ] Evidence labels on every AI-saved fact (eval gate 100 percent); injection evals at 0.
-- [ ] Evidence freshness: a 15-day-old finding shows "May be out of date" and a recheck moves the date, refunds when unreachable and never searches (scenario 23).
-- [ ] AI consent live; consent required before any AI call.
+- [ ] [agent] Credit reserve and settle tests green, including the multi-connection concurrency tests; ledger reconciliation query returns zero drift: `npm run test:api`.
+- [ ] [owner] Agent run cost measured over 50 runs on staging with p95 under $0.80; report saved (needs the real Anthropic API and a budget; `npm run evals -- --provider anthropic_api --max-usd <n>` with `EVALS_LIVE=1`).
+- [ ] [agent] Every ceiling enforced in tests, including the parallel admission test; the taster works once per account: `npm run test:api`.
+- [ ] [owner] AI spend alerts fired in a staging drill; every kill switch exercised, including the new `import.all`, `import.polling`, `ai.verify`, `ai.recheck`, `referrals.grant` and `public_pages` switches; AI off in under 30 seconds.
+- [ ] [owner] Anthropic workspace limits set per environment.
+- [ ] [owner] Evidence labels on every AI-saved fact (eval gate 100 percent) and injection evals at 0, certified on `anthropic_api` (section 1.5): `npm run evals -- --provider anthropic_api --max-usd <n>` with `EVALS_LIVE=1`, run by the owner with a key. The fake-provider run in `npm run test:api` is the agent check.
+- [ ] [agent] Evidence freshness: a 15-day-old finding shows "May be out of date" and a recheck moves the date, refunds when unreachable and never searches (scenario 23): `npm run test:api`.
+- [ ] [agent] AI consent live; consent required before any AI call: `npm run test:api` (403 `consent_required` test) and `npm run test:e2e:smoke` flow 6.
 
 ### 7.3 Month 4 gate (money, imports, admin essentials)
 
-- [ ] Webhook contract tests green; replay test run.
-- [ ] Sandbox purchases pass end to end on the harness for Plus monthly and annual, Trip Pass and every credit pack.
-- [ ] Affiliate: disclosure text present on every partner placement (automated UI check), `/go` tests green, clicks and conversions visible in the admin overview.
-- [ ] Imports: golden files pass; fuzz run clean (Hypothesis on every pull request, Atheris 30 minutes); SSRF table refused for both feed import and link preview; PII corpus shows zero leaks; first-import reward granted once and only under the settled conditions (3 items including a flight or a stay, verified email, no active Plus); the TripIt, Tripsy and Wanderlog entries and pasted places work; the rival help-page check is dated.
-- [ ] Verify this plan works through the API on staging: extraction and checking evals run, the false-green and evidence gates are measured, credits settle per item (scenario 22).
-- [ ] Booked-fare alert drill with a fake fare drop (5 percent and $10 thresholds, once per flight every 7 days, no partner link).
+- [ ] [agent] Webhook contract tests green; replay test run: `npm run test:api` (contract suite).
+- [ ] [owner] Sandbox purchases pass end to end on the harness for Plus monthly and annual, Trip Pass and every credit pack (needs an App Store Connect sandbox account).
+- [ ] [agent] Affiliate: disclosure text present on every partner placement (automated UI check: `npm run test:web`), `/go` tests green (`npm run test:api`, scenario 11).
+- [ ] [owner] Clicks and conversions visible in the admin overview with real network data.
+- [ ] [agent] Imports: golden files pass; fuzz run clean (Hypothesis on every pull request); SSRF table refused for both feed import and link preview; the never-fetch test passes; PII corpus shows zero leaks; first-import reward granted once and only under the settled conditions (3 items including a flight or a stay, verified email, no active Plus): `npm run test:api` (scenarios 13 to 16, 24 and 25).
+- [ ] [owner] Atheris fuzz run of 30 minutes clean; the rival help-page check is dated.
+- [ ] [agent] Verify this plan works through the API: credits settle per item (scenario 22): `npm run test:api` with the fake provider.
+- [ ] [owner] Verify this plan extraction and checking evals run on `anthropic_api`; the false-green and evidence gates are measured.
+- [ ] [agent] Booked-fare alert drill with a fake fare drop (5 percent and $10 thresholds, once per flight every 7 days, no partner link): `npm run test:api` (scenario 17).
 
 ### 7.4 Before TestFlight external testing (Month 5 gate)
 
-- [ ] Sandbox purchase matrix passed (section 1.7) on the real purchase flow.
-- [ ] Push works end to end (sandbox then production APNs).
-- [ ] Universal links and the invite flow from Messages verified on device.
-- [ ] Offline trip verified in airplane mode on a real device; offline edits sync on reconnect.
-- [ ] Account deletion revokes the Apple token (verified in Apple's settings).
-- [ ] App Attest flow verified on a real device; fallback verified.
-- [ ] Calendar feed subscribes in Apple Calendar and Google Calendar; rotating the token breaks the old link.
-- [ ] Keep checking this calendar: a real TripIt or Google feed is polled every 6 hours, a change produces a preview, nothing applies without confirmation, turning it off deletes the stored address.
-- [ ] The sync indicator and the status banner behave on a real device in airplane mode and with a degraded component in staging.
-- [ ] Accessibility pass with VoiceOver and Dynamic Type, and a check that `--tp-edge` borders, `--tp-warning-ink` text and `--tp-sky-ink` text on sky hold their contrast in the native shell in light, dark and Increase Contrast.
-- [ ] 30 beta testers, crash-free sessions above 99.5 percent over 100 or more sessions; beta report saved.
-- [ ] Export and deletion working; privacy policy, terms and affiliate disclosure published.
+- [ ] [owner] Sandbox purchase matrix passed (section 1.7) on the real purchase flow.
+- [ ] [owner] Push works end to end (sandbox then production APNs).
+- [ ] [owner] Universal links and the invite flow from Messages verified on device.
+- [ ] [owner] Offline trip verified in airplane mode on a real device; offline edits sync on reconnect. (Agent check: `npm run test:e2e:smoke` flow 18 on the web.)
+- [ ] [owner] Account deletion revokes the Apple token (verified in Apple's settings). (Agent check: `npm run test:api` scenario 9 records the revoke call.)
+- [ ] [owner] App Attest flow verified on a real device; fallback verified.
+- [ ] [owner] Calendar feed subscribes in Apple Calendar and Google Calendar; rotating the token breaks the old link. (Agent check: `npm run test:api` scenario 18.)
+- [ ] [owner] Keep checking this calendar: a real TripIt or Google feed is polled every 6 hours, a change produces a preview, nothing applies without confirmation, turning it off deletes the stored address. (Agent check: `npm run test:api` scenario 24 and `npm run test:e2e:smoke` flow 16.)
+- [ ] [owner] The sync indicator and the status banner behave on a real device in airplane mode and with a degraded component in staging.
+- [ ] [owner] Accessibility pass with VoiceOver and Dynamic Type, and a check that `--tp-edge` borders, `--tp-warning-ink` text and `--tp-sky-ink` text on sky hold their contrast in the native shell in light, dark and Increase Contrast.
+- [ ] [owner] 30 beta testers, crash-free sessions above 99.5 percent over 100 or more sessions; beta report saved.
+- [ ] [owner] Privacy policy, terms and affiliate disclosure published.
+- [ ] [agent] Export and deletion working: `npm run test:api` (scenarios 9 and 10) and `npm run test:e2e:smoke` flows 10 and 11.
 
 ### 7.5 Before public launch (Month 6 gate)
 
-- [ ] Penetration test complete; no open high or critical findings (WF-110).
-- [ ] Load test at 10x expected launch traffic passed; Anthropic rate limits raised and tested at 3x peak.
-- [ ] All runbooks in section 8 written, reviewed and each drilled once in staging (spend spike, provider outage with a status page incident posted, webhook backlog, bad deploy rollback, import abuse, public page takedown, a wrong fact in a plan check; breach tabletop).
-- [ ] On-call routing tested (a real page reaches the phone at night).
-- [ ] Backups: PITR healthy, weekly off-provider dump verified by restore.
-- [ ] Dependency audit clean; secrets rotated after beta; secret scan of history clean.
-- [ ] Affiliate: program terms filed, conversion import working for Travelpayouts, Viator and Stay22.
-- [ ] Public pages: privacy scan clean, report flow and takedown drilled, sitemap lists only opted-in and sample pages; `/vs` facts all sourced and under 90 days old.
-- [ ] Referral and import reward abuse controls tested with the abuse scenarios in section 2.8.
-- [ ] Provider terms recheck: SerpApi decision, Geoapify, Travelpayouts; Airbnb, Vrbo and Booking.com remain link only.
-- [ ] Support live: inbox, macros (including import problems), FAQ, refund and cancellation guidance, abuse inbox.
-- [ ] Data processing agreements on file for every processor.
-- [ ] App Review passed; release set to manual.
-- [ ] Status page live with its five monitors and a practice incident posted; announcement drafted; launch day owner and rollback plan named.
-- [ ] Verify this plan: all gates in section 1.5 pass (false green under 2 percent, invented places never green, evidence valid 100 percent, plan check p95 under $0.02 per item) or the `verify_plan` flag stays off.
-- [ ] Trust pages live and reviewed: How we earn lists every active partner, How billing works matches the paywall prices, the cancel link opens the subscription sheet, the trial reminder email carries it.
-- [ ] Android Chrome: the manual checklist in section 1.9 passed on a real phone and tablet; the install guide screenshots match the current Chrome menus.
+- [ ] [owner] Penetration test complete; no open high or critical findings (WF-110).
+- [ ] [owner] Load test at 10x expected launch traffic passed; Anthropic rate limits raised and tested at 3x peak. (Agent check: the k6 thresholds of section 1.8 pass against staging.)
+- [ ] [owner] All runbooks in section 8 written, reviewed and each drilled once in staging (spend spike, provider outage with a status page incident posted, webhook backlog, bad deploy rollback, import abuse, public page takedown, a wrong fact in a plan check; breach tabletop).
+- [ ] [owner] On-call routing tested (a real page reaches the phone at night).
+- [ ] [owner] Backups: PITR healthy, weekly off-provider dump verified by restore.
+- [ ] [agent] Dependency audit clean and secret scan of history clean: `pip-audit`, `npm audit` and `gitleaks` jobs pass in CI.
+- [ ] [owner] Secrets rotated after beta.
+- [ ] [owner] Affiliate: program terms filed, conversion import working for Travelpayouts, Viator and Stay22.
+- [ ] [agent] Public pages: privacy scan clean, sitemap lists only opted-in and sample pages: `npm run test:api` (scenario 19) and `npm run test:e2e:smoke` flow 13.
+- [ ] [owner] Report flow and takedown drilled; `/vs` facts all sourced and under 90 days old.
+- [ ] [agent] Referral and import reward abuse controls tested with the abuse scenarios in section 2.8: `npm run test:api` (scenarios 16 and 20 and the concurrency tests).
+- [ ] [owner] Provider terms recheck: SerpApi decision, Geoapify, Travelpayouts; Airbnb, Vrbo and Booking.com remain link only. (Agent check: the never-fetch test of section 2.5 in `npm run test:api`.)
+- [ ] [owner] Support live: inbox, macros (including import problems), FAQ, refund and cancellation guidance, abuse inbox.
+- [ ] [owner] Data processing agreements on file for every processor.
+- [ ] [owner] App Review passed; release set to manual.
+- [ ] [owner] Status page live with its five monitors and a practice incident posted; announcement drafted; launch day owner and rollback plan named. (Agent check: `npm run test:e2e:smoke` flow 18.)
+- [ ] [owner] Verify this plan: all gates in section 1.5 pass on `anthropic_api` (false green under 2 percent, invented places never green, evidence valid 100 percent, plan check p95 under $0.02 per item) or the `verify_plan` flag stays off.
+- [ ] [agent] Trust pages: How we earn lists every active partner and How billing works matches the paywall prices: `npm run test:api` (scenario 27) and `npm run test:e2e:smoke` flow 17.
+- [ ] [owner] Trust pages reviewed by the founder; the cancel link opens the subscription sheet on a device and the trial reminder email carries it.
+- [ ] [owner] Android Chrome: the manual checklist in section 1.9 passed on a real phone and tablet; the install guide screenshots match the current Chrome menus. (Agent check: the Pixel 7 Playwright project in `npm run test:e2e:smoke`.)
 
 ### 7.6 Launch day and first 72 hours
 

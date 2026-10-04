@@ -69,8 +69,9 @@ not sold in Phase 1.
 
 Rules: a trip's capabilities are the best of its owner's tier and any pass on that trip. Invitees
 join free and get the trip's capabilities on that trip. AI credits are charged to the person who
-starts the action. Apple Family Sharing is off. A Trip Pass can also be earned free by a first
-import (F-IMP-3).
+starts the action, except Trip Pass credits: they are a pool for the trip, and every member who
+may start AI on that trip spends from it. Apple Family Sharing is off. A Trip Pass can also be
+earned free by a first import (F-IMP-3).
 
 **AI credits.** 1 credit is a budget of up to $0.02 of provider spend.
 
@@ -88,7 +89,8 @@ The packing list (F-AI-9), booking import (F-AI-10, F-IMP-2), reading a pasted p
 provider-spend ceilings: Free $0.25 (plus the one-time taster), Plus $2.25, Trip Pass $1.80; only purchased
 credits raise a ceiling, never referral, taster or pass credits. Daily:
 Free $0.05, Plus and Trip Pass $0.40. An agent run is admitted if the month has $0.80 of headroom,
-even above the daily budget. Cached data always keeps working. Models: Claude Haiku 4.5
+even above the daily budget. A global cap of $150 a day applies to all AI spend across every
+account. The taster stops at $0.80. Cached data always keeps working. Models: Claude Haiku 4.5
 (`claude-haiku-4-5`) for short answers and page summaries, Claude Sonnet 5.5 (`claude-sonnet-5-5`)
 for drafting, research and agents.
 
@@ -165,7 +167,8 @@ Each journey lists the steps, the screens involved and the feature ids that impl
 1. Visitor opens the app. Splash shows one line of value, "Plan a trip" (no account) and
    "Sign in". (F-ACC-1)
 2. Visitor taps "Plan a trip" and builds a guest trip stored on the device. (F-ACC-2)
-3. On the first server feature (save, share, AI, second device), "Save your trip" appears.
+3. On the first server feature (save, share, AI beyond the guest allowance, second device),
+   "Save your trip" appears.
    Visitor chooses Sign in with Apple, Google, or an email code. (F-ACC-3)
 4. Guest data is claimed into the account. A skippable profile asks for display name, home
    airport and currency, creating the "Me" traveler. (F-ACC-4)
@@ -250,15 +253,14 @@ Success: account exists, trip is saved, no data was lost, no paywall was shown.
 
 ### 3.10 Travel
 
-1. A "Today" view shows the current day's plan, local time, and next item. (F-TRV-1)
+1. During the trip dates the trip Overview opens on the "Happening now" state: local time, next
+   item, map, stay address and confirmation numbers. (F-TRV-1)
 2. The trip is readable offline (see section 6.2). (F-TRV-2)
 3. The trip's live calendar feed keeps the plan in the user's own calendar app. (F-CAL-1)
 
 ### 3.11 After the trip
 
-1. The day after the last trip date, a "How was the trip?" card appears, and after 14 days the
-   trip is offered for archive. (F-AFT-2)
-2. Export, archive or start the next trip from a past one (duplicate). (F-TRP-6)
+1. Export, archive or start the next trip from a past one (duplicate). (F-TRP-6)
 
 The flight delay prompt, memories and the "Year in travel" card: Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
 
@@ -303,7 +305,7 @@ starts the trip from checked facts. No paywall appears before the first list of 
 1. A visitor lands from search on a sample trip, a shared-trip page or a comparison page
    (`/vs/...`). (F-WEB-1 to F-WEB-3)
 2. They read it with no account and no app.
-3. "Copy this trip", "Import your trips" or "Plan a trip" opens the app or guest mode. No account
+3. "Use this plan", "Import your trips" or "Plan a trip" opens the app or guest mode. No account
    wall, no paywall. A friend's referral code can be applied at sign-in. (F-REF-1)
 
 ## 4. Feature catalogue
@@ -337,12 +339,16 @@ action code and price, or "none". Acceptance bullets are testable at API or UI l
 - Story: As a curious visitor, I want to start a trip before signing up, so that I see value
   first.
 - Acceptance:
-  - A guest can create one trip with destinations, itinerary items and map, stored on device.
-  - No `users` row exists until the guest uses a server feature; it is created with
-    `is_guest=true`.
-  - Guest AI, if used, draws from the `free` monthly allowance and requires device attestation.
+  - A guest can create one trip with destinations, itinerary items and map. Guest data is stored
+    on the device only.
+  - No `users` row exists until sign-in. A guest holds no token and makes no server write
+    except device attestation (`POST /devices/attest/challenge`, `POST /devices/attest`) and guest
+    AI spend (`POST /guest/ai/draft-day`); it otherwise calls only public read-only routes (for
+    example `GET /public/sample-trips`).
+  - Guest AI, if used, requires device attestation and draws from a small per-device allowance
+    (`guest_allowances`), which counts against the Free monthly allowance when the guest claims.
   - Guest cannot invite, present shared links, or buy.
-- Tier: pre-account. Credits: from the `free` allowance only.
+- Tier: pre-account. Credits: from the per-device guest allowance (`guest_allowances`) only.
 - Edge cases: clearing site data loses a guest trip (the Save prompt warns once after the third
   item); a guest on a second device sees nothing until sign-in.
 
@@ -352,10 +358,12 @@ action code and price, or "none". Acceptance bullets are testable at API or UI l
 - Acceptance:
   - The prompt appears on invite, share, second device, AI beyond the guest allowance, or
     export.
-  - On sign-in the guest trip is claimed into the account with one request; result shows counts.
+  - On sign-in the guest trip is claimed into the account with one request that carries the trip
+    JSON and a claim id (`POST /me/claim`); the result shows counts.
   - If the identity already exists with trips, user chooses "Merge" or "Keep separate" with
     counts shown.
-  - Claim is idempotent (double submit creates no duplicates).
+  - Claim is idempotent: the claim id is generated once per claim, so a double submit creates no
+    duplicates and returns the first result.
   - If the claim would exceed the tier's active trip limit, the extra trip is kept as archived,
     not dropped.
 - Tier: all. Credits: none.
@@ -1009,7 +1017,9 @@ Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
   - Monthly provider-spend ceilings and daily budgets are enforced on the server as in section
     1.4; the ledger fails closed if it cannot be read.
   - AI endpoints are limited to 10 per minute per account and 30 AI actions per hour.
-  - Trip Pass credits are spent before purchased credits.
+  - Trip Pass credits are a pool for the trip: every member who may start AI on it spends from
+    the pool, and they are spent before purchased credits.
+  - A global cap of $150 a day applies to all AI spend across every account.
   - The balance and history are visible in Settings; the client never decides balance.
 - Tier: all.
 
@@ -1307,10 +1317,10 @@ Global rules (each is a testable requirement):
 
 #### F-AFF-5 Other surfaces
 
-- Checklist "Get it" buttons (F-CHK-1), optional "Book the plan" slide (F-PRS-1), and a "Today"
-  card during the trip (F-TRV-1) follow the same global rules. Trip created, flight charts,
-  lodging import, the switching import, Verify this plan, evidence rechecks, the booked-fare alert,
-  the calendar feed, comparison and sample pages, the trust pages, the status page, agent pages,
+- Checklist "Get it" buttons (F-CHK-1), optional "Book the plan" slide (F-PRS-1), and a
+  "Happening now" card during the trip (F-TRV-1) follow the same global rules. Trip created,
+  flight charts, lodging import, the switching import, Verify this plan, evidence rechecks, the
+  booked-fare alert, the calendar feed, comparison and sample pages, the trust pages, the status page, agent pages,
   trips home and paywalls carry no affiliate UI.
 
 #### F-AFF-6 Launch partners
@@ -1460,6 +1470,8 @@ Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
   - Promo credits (the taster, referral credits from F-REF-1) carry their own expiry and are
     shown separately from purchased credits. Only purchased credits raise the provider-spend
     ceiling; promo, taster, referral and pass credits never do.
+  - Trip Pass credits belong to the trip, not to a person: any member who may start AI on that
+    trip spends from the pool.
   - Spend order: monthly allowance, then promo (the taster, then referral credits, oldest expiry
     first), then pass credits for that trip, then adjustments, then purchased credits (oldest
     expiry first).
@@ -1527,11 +1539,12 @@ paywall before first value, none beside an affiliate card.
 
 ### 4.17 Travel and after-trip (F-TRV, F-AFT)
 
-#### F-TRV-1 Today view
+#### F-TRV-1 Happening now
 
 - Story: As a traveler, I want today's plan front and center, so that I can just follow it.
-- Acceptance: during trip dates the trip opens on "Today" with local time, next item, map, stay
-  address and confirmation numbers; an optional "Today" partner card appears only if an
+- Acceptance: during trip dates the trip Overview opens on its "Happening now" state (not a
+  separate screen or tab) with local time, next item, map, stay address and confirmation numbers;
+  an optional partner card appears only if an
   unbooked eligible activity exists and never with urgency copy; no partner content offline.
 - Tier: all.
 
@@ -1558,8 +1571,7 @@ Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
 
 #### F-AFT-2 Wrap-up
 
-- Acceptance: "How was the trip?" card with a 1 to 5 rating and a note, no affiliate button; 14
-  days after the end the trip is offered for archive.
+Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
 
 ### 4.18 Switching import (F-IMP)
 
@@ -1579,7 +1591,11 @@ opt-in way to keep a calendar feed up to date (F-IMP-6).
     field (a TripIt or Tripsy iCal feed or a Google Calendar secret iCal address, `webcal://` or
     `https://`). A feed is read once, at import time, and the link is not stored, unless the person
     turns on "Keep checking this calendar" after the first import (F-IMP-6).
-  - Limits: file or feed up to 2 MB and 500 events. A link is fetched over https only, with a 15
+  - The raw file is never stored: it is parsed in memory and dropped, and only the normalized
+    preview is kept (24 hours). Limits follow the one table in
+    [04-api-spec.md](04-api-spec.md) section 5.26: file or feed up to 2 MB and 500 events, at most
+    3 AI calls (18 events) for descriptions, 20 previews a day, and for a feed 5 registrations a
+    day and 4 refreshes a day per import. A link is fetched over https only, with a 15
     second timeout, at most 3 redirects, and private and internal addresses refused; Airbnb, Vrbo
     and Booking.com hosts are refused and ask the person to upload a file. The server never follows
     links found inside events.
@@ -1595,7 +1611,7 @@ opt-in way to keep a calendar feed up to date (F-IMP-6).
     events become untimed items on that day.
   - Preview before saving: every event found is listed by day with type, title, time and place,
     each with a tick, an edit and "Change type", and a count ("18 found, 16 will be imported").
-    Nothing is saved until "Import".
+    Nothing is saved until "Import"; once confirmed, the import's status is `applied`.
   - Destination: a new trip (name, destinations and dates prefilled from the items) or "Import
     into this trip". Importing never changes trip dates while a flight is chosen (F-FLT-5); items
     outside those dates are kept as ideas.
@@ -1727,8 +1743,8 @@ opt-in way to keep a calendar feed up to date (F-IMP-6).
   the plan beside the rest of my life.
 - Acceptance:
   - The owner turns on "Calendar feed" in trip settings (off by default). It creates one feed per
-    trip at `https://hermi.world/cal/<token>.ics` with a random 128 bit token, stored encrypted so
-    the owner can copy it again. "Add to Apple Calendar" opens the `webcal://` form, "Copy link"
+    trip at `https://api.hermi.world/v1/calendar/<token>.ics` (the token is in the path, never in
+    a query string) with a random 128 bit token, stored encrypted so the owner can copy it again. "Add to Apple Calendar" opens the `webcal://` form, "Copy link"
     serves Google Calendar, Outlook and others with a one-line how-to for each, and "Make a new
     link" revokes the old link at once.
   - The feed is read-only iCalendar. Each itinerary item with a time is one event in the
@@ -1786,8 +1802,13 @@ Only the page behavior is specified here; hosting and SEO plumbing are in
   - Samples are owned by a Hermi system account, cannot be edited by visitors, contain no real
     people, and show every price and fact with a date and, for AI-found facts, the evidence label.
     A sample never presents a cached or stale price as current.
-  - "Copy this trip" duplicates the structure into the visitor's account or guest trip using the
-    F-TRP-6 rules (no fares, votes or notes); it works in guest mode.
+  - In the app, Discover is this sample trips gallery.
+  - A sample opens read-only. "Use this plan" copies it (days, items and saved places, never
+    flights, prices, votes or notes, F-TRP-6 rules) into a new trip in the visitor's account through
+    `POST /public/sample-trips/{slug}/copy` ([04-api-spec.md](04-api-spec.md) section 5.28). The
+    active-trip limit applies to "Use this plan" (402 `limit_reached`, which shows the `third_trip`
+    paywall on Free). A guest has no account: the app builds the local guest trip on the device
+    from `GET /public/sample-trips/{slug}` and makes no server write.
   - Sample pages are indexable, with title, description, canonical URL and preview image. Partner
     links, if any, follow F-AFF.
   - The gallery is a fixed, editorial list; there is no browsing of user trips (section 7).
@@ -1924,58 +1945,65 @@ the full ladder, including Family, Pro and Group Trip Pass, is in [../README.md]
 
 | Capability | free | plus | trip_pass |
 |---|---|---|---|
-| Active trips | 2 | unlimited (fair use 25) | the trip |
+| Active trips (`active_trips`; a pass sets `active_trips_bonus` 1) | 2 | unlimited (fair use 25) | the trip does not count toward the owner's limit |
 | Join others' trips | yes | yes | yes |
 | Archived trips: read and export | yes | yes | yes |
-| Travelers per trip | 2 | 8 | 8 |
-| Destinations per trip | 12 | 12 | 12 |
-| Invite collaborators | 1 per trip | 6 per trip | 6 |
+| Travelers per trip (`travelers_per_trip`) | 2 | 8 | 8 |
+| Destinations per trip (`destinations_per_trip`) | 12 | 12 | 12 |
+| Owner may invite (`can_invite`) | yes | yes | yes |
+| Invite collaborators (`collaborators`) | 1 per trip | 6 per trip | 6 |
 | Read-only share link and shared-trip page | yes, with footer | yes | yes |
 | Offline reading | yes | yes | yes |
-| Live calendar feed | yes | yes | yes |
-| Switching import (calendar file or feed, TripIt, Tripsy and Wanderlog entries) | yes | yes | yes |
+| Live calendar feed (`calendar_feed`) | yes | yes | yes |
+| Switching import (`imports`: calendar file or feed, TripIt, Tripsy and Wanderlog entries) | yes | yes | yes |
 | Google Maps list and pasted places import | yes | yes | yes |
-| Keep checking this calendar (feed polling every 6 hours, opt-in) | yes | yes | yes |
+| Keep checking this calendar (`calendar_polling`, every 6 hours, opt-in) | yes | yes | yes |
 | Import from pasted confirmations | 1 credit each | 1 credit each | 1 credit each |
 | Free Trip Pass after first qualifying import (3 or more items including a flight or a stay, verified email, no active Plus) | once per account | not applicable (has Plus) | not applicable |
-| Routes per trip (cached fares; live where allowed) | 1 | 5 | 3 |
-| Airports per side of a route | 2 | 4 | 4 |
-| Live-tracked routes (daily, within 120 days) | 0 | 3 | 2 (max 60 checks) |
+| Routes per trip (`routes_per_trip`; cached fares, live where allowed) | 1 | 5 | 3 |
+| Airports per side of a route (`airports_per_side`) | 2 | 4 | 4 |
+| Live-tracked routes (`live_routes`, daily) | 0 | 3 | 2 |
+| Live window (`live_window_days`) | 0 | 120 days before departure | 120 days before departure |
+| Live checks in total (`live_checks_max`) | not applicable | not applicable | 60 |
 | Refresh now (live peek) | 1 credit | 1 credit | 1 credit |
-| Price alerts | 1 cached | 3 live and cached | 2 |
+| Price alerts (`price_alerts`) | 1 cached | 3 live and cached | 2 |
+| Live alerts (`live_alerts`) | no | yes | yes |
 | Booked-fare drop alert | yes | yes | yes |
-| Saved stays per trip | 8 | unlimited (fair use 100) | 30 |
-| Lodging compare | 2 | 4 | 4 |
+| Saved stays per trip (`saved_lodging_per_trip`) | 8 | unlimited (fair use 100) | 30 |
+| Lodging compare (`lodging_compare`) | 2 | 4 | 4 |
 | Rental search | 1 credit | 1 credit | 1 credit |
-| Place searches per day (soft) | 30 | 100 | 100 |
+| Place searches per day cap (`places_searches_per_day`; cached results keep working) | 30 | 100 | 100 |
 | Itinerary, ideas, map | yes | yes | yes |
 | Presentation mode | yes, footer and watermark | yes | yes |
+| Hide the Made with Hermi footer and PDF watermark (`hide_presentation_footer`) | no | yes | yes |
 | Before-you-go checklist | yes | yes | yes |
-| After-trip wrap-up | yes | yes | yes |
 | Evidence labels on AI-found facts, "May be out of date" after 14 days | yes | yes | yes |
 | Evidence recheck (`explain`, 1) | credits | credits | credits |
-| Verify this plan: read the plan (1), check items (`verify_plan`, 1 per item) | credits; 5 items per run | credits; 12 items per run | credits; 12 items per run |
+| Verify this plan: read the plan (1), check items (`verify_plan`, 1 per item) | credits | credits | credits |
+| Plan items per Verify run (`verify_items_per_run`) | 5 | 12 | 12 |
 | How we earn, How billing works, status page, Android install guide | public | public | public |
 | Cancel subscription link (one tap) | not applicable | yes | not applicable (a pass never renews) |
 | Affiliate booking links | yes | yes | yes |
-| Monthly credits | 12 | 60 | 40 once |
+| Monthly credits (`monthly_credits` for tiers, `credits_granted` for the pass) | 12 | 60 | 40 once (a trip pool) |
 | `explain` (1), `packing_list` (1), `booking_import` (1) | credits | credits | credits |
 | `draft_day` (1), `draft_trip` (4) | credits | credits | credits |
 | `research` (8, 1 cached) | credits | credits | credits |
 | `agent_run` manual (40, 8 cached) | credits | credits | credits |
-| Deep agent run taster | one, lifetime | no | no |
+| Deep agent run taster (`taster_agent_runs`) | one, lifetime (stops at $0.80) | no | no |
 | Referral credits (F-REF-1): 20 each, 12 month expiry, 5 paid per 30 days and 10 per year for the referrer | yes | yes | yes |
 | Data export (JSON, ICS, PDF) | yes | yes | yes |
 | Delete account in app | yes | yes | yes |
-| Monthly provider-spend ceiling | $0.25 (plus taster) | $2.25 | $1.80 |
-| Daily provider-spend budget | $0.05 | $0.40 | $0.40 |
+| Monthly provider-spend ceiling (`monthly_ceiling_micros`) | $0.25 (plus taster) | $2.25 | $1.80 |
+| Daily provider-spend budget (`daily_ceiling_micros`) | $0.05 | $0.40 | $0.40 |
+| Global AI daily cap, all accounts together | $150 | $150 | $150 |
 
 Notes:
 
 - Credit packs (`credits_50`, `credits_150`, `credits_400`) can be bought on any tier and add to
   purchased credits valid 12 months.
 - Rules that override any cell: a trip's capabilities are the best of its owner's tier and any
-  pass on that trip; AI credits are charged to the person who starts the action; cached data
+  pass on that trip; AI credits are charged to the person who starts the action, except Trip Pass
+  credits, which are a trip pool that every member who may start AI on the trip spends from; cached data
   always keeps working when a ceiling hits.
 - Tiers that arrive later (Family, Pro, Group Trip Pass, advisor seats) are in the full ladder in
   [../README.md](../README.md). Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
@@ -2100,10 +2128,10 @@ Each line is a pointer only. These features are not specified, built or sold in 
 - Flight status, delay and gate alerts: Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
 - Pro tier and scheduled agent routines: Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
 - Concierge lane (host agency): Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
-- Direct affiliate programs (Expedia Group and Vrbo, Booking.com, Skyscanner, Airalo, GetYourGuide): Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
+- Direct affiliate programs (Expedia Group and Vrbo, Booking.com, Skyscanner, Airalo, GetYourGuide; Phase 1 uses Travelpayouts, the Viator partner API and Stay22): Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
 - Native Android app and web billing: Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
 - "Paste your group chat" to draft a plan, and repair-a-day when plans change: Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
-- After-trip flight compensation prompt, memories and "Year in travel" card: Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
+- After-trip pack (wrap-up with the "How was the trip?" card and the archive offer, flight compensation prompt, memories and "Year in travel" card): Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
 - Stripe group payments: Later: Phase 3, see [../phase-3-scale/README.md](../phase-3-scale/README.md).
 - Hermi for Advisors: Later: Phase 3, see [../phase-3-scale/README.md](../phase-3-scale/README.md).
 - Partner guides, printed trip books, in-app hotel booking (LiteAPI), white-label and API, card and loyalty offers: Later: Phase 3, see [../phase-3-scale/README.md](../phase-3-scale/README.md).
@@ -2124,7 +2152,8 @@ Each line is a pointer only. These features are not specified, built or sold in 
   for real-world costs.
 - Credit cards, VPNs and Amazon product data.
 - Apple Family Sharing, passwords, SMS sign-in, passkeys at launch.
-- Owner-funded shared credit pools on group trips (credits follow the acting user).
+- Owner-funded shared credit pools on group trips beyond the Trip Pass pool (otherwise credits follow
+  the acting user; see section 1.4).
 - Reading anyone's email or calendar account (no Gmail or Google Calendar sign-in, no OAuth to
   TripIt, Tripsy or Wanderlog, and no scraping of Google Maps lists). Phase 1 imports only files,
   feed links the user pastes, and text the user pastes. Also out: loyalty program tracking and visa application filing.

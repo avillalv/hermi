@@ -29,9 +29,12 @@ All tokens are CSS custom properties defined in `packages/tokens` (CSS and TS) a
 
 ### 2.1 Color: surfaces and ink
 
+The tables in 2.1 to 2.3 are machine-readable: one token per row, the token name in backticks in the first column, each color value in backticks. WF-005 parses them and compares them with `design/tokens.css`. Keep that shape.
+
 | Token | Light | Dark | Use |
 |---|---|---|---|
 | `--tp-paper` (`--background`) | `#FBF5EA` | `#0B1A2A` | Page ground, warm paper |
+| `--tp-ticket` | `#FBF5EA` | `#0B1A2A` | A named alias for the ticket surface; always equal to `--tp-paper` in both modes |
 | `--tp-sheet` (`--card`, `--popover`) | `#FFFDF8` | `#12263A` | Cards, tickets, sheets, inputs, popovers; a warm white |
 | `--tp-sunken` (`--secondary`, `--muted`, `--accent`) | `#F5ECDA` | `#1A3149` | Wells, chips, ticket stubs, hover fill, skeleton base |
 | `--tp-ink` (`--foreground`) | `#17324A` | `#E6F2FF` | Primary text, icons |
@@ -62,12 +65,37 @@ The light surfaces are warm (paper, sheet, sunken and rule), chosen in the 2026-
 | `--tp-route-a-ink` (new) | `#C4264D` | `#FF8FA5` | Pink when it is text or the only carrier of meaning |
 | `--tp-route-b` (new, replaces `--tp-violet` and `--tp-line-b`) | `#FFCB2E` | `#FFD45C` | Route yellow: traveler 2 and the right route of the logo. A decorative fill |
 | `--tp-route-b-ink` (new) | `#8A5A00` | `#FFD45C` | Yellow when it is text or the only carrier of meaning |
-| `--tp-traveler-1` to `--tp-traveler-8` (new) | `#FF5E7E`, `#FFCB2E`, `#2BBFAD`, `#6A45F2`, `#FF8A3D`, `#3DBE6B`, `#0B6BC0`, `#B92E86` | same | One color per person on a trip, in the order they joined: avatar fill, their route on the map and the timeline, their "added by" highlight. Initials on each use `--tp-traveler-ink-1` to `-8`: `#10283D`, `#17324A`, `#17324A`, `#FFFFFF`, `#17324A`, `#17324A`, `#FFFFFF`, `#FFFFFF` (all at least 5.1 to 1) |
+| `--tp-traveler-1` | `#FF5E7E` | `#FF5E7E` | One color per person on a trip, in the order they joined: avatar fill, their route on the map and the timeline, their "added by" highlight. Initials use `--tp-traveler-ink-1` to `-8` (at least 5.1 to 1 for all eight). |
+| `--tp-traveler-2` | `#FFCB2E` | `#FFCB2E` | Traveler color 2 |
+| `--tp-traveler-3` | `#2BBFAD` | `#2BBFAD` | Traveler color 3 |
+| `--tp-traveler-4` | `#6A45F2` | `#6A45F2` | Traveler color 4 |
+| `--tp-traveler-5` | `#FF8A3D` | `#FF8A3D` | Traveler color 5 |
+| `--tp-traveler-6` | `#3DBE6B` | `#3DBE6B` | Traveler color 6 |
+| `--tp-traveler-7` | `#0B6BC0` | `#0B6BC0` | Traveler color 7 |
+| `--tp-traveler-8` | `#B92E86` | `#B92E86` | Traveler color 8 |
+| `--tp-traveler-ink-1` | `#10283D` | `#10283D` | Initials on `--tp-traveler-1` |
+| `--tp-traveler-ink-2` | `#17324A` | `#17324A` | Initials on `--tp-traveler-2` |
+| `--tp-traveler-ink-3` | `#17324A` | `#17324A` | Initials on `--tp-traveler-3` |
+| `--tp-traveler-ink-4` | `#FFFFFF` | `#FFFFFF` | Initials on `--tp-traveler-4` |
+| `--tp-traveler-ink-5` | `#17324A` | `#17324A` | Initials on `--tp-traveler-5` |
+| `--tp-traveler-ink-6` | `#17324A` | `#17324A` | Initials on `--tp-traveler-6` |
+| `--tp-traveler-ink-7` | `#FFFFFF` | `#FFFFFF` | Initials on `--tp-traveler-7` |
+| `--tp-traveler-ink-8` | `#FFFFFF` | `#FFFFFF` | Initials on `--tp-traveler-8` |
 | `--viz-live` | `#00909a` | `#0f9aa2` | Chart series: live fare (Google Flights) |
 | `--viz-cached` | `#a86a12` | `#c2851f` | Chart series: cached fare (Aviasales) |
 | `--viz-agent` | `#5b47b0` | `#8a76e4` | Chart series: agent-found fare |
 | `--viz-google` | `#c24472` | `#d9598a` | Chart series: Google price history |
-| `--heat-1` to `--heat-5` | `#ceeff1`, `#93d9dc`, `#4fbec4`, `#009da3`, `#007980` | `#083a3d`, `#00565a`, `#007378`, `#00a0a6`, `#5ac8cd` | Date-grid price steps, one hue; the most prominent step is the cheapest. Text on each step uses `--heat-ink-1` to `--heat-ink-5` |
+| `--heat-1` | `#ceeff1` | `#083a3d` | Date-grid price steps, one hue; the most prominent step is the cheapest. Text on each step uses `--heat-ink-1` to `--heat-ink-5` |
+| `--heat-2` | `#93d9dc` | `#00565a` | Date-grid price step 2 |
+| `--heat-3` | `#4fbec4` | `#007378` | Date-grid price step 3 |
+| `--heat-4` | `#009da3` | `#00a0a6` | Date-grid price step 4 |
+| `--heat-5` | `#007980` | `#5ac8cd` | Date-grid price step 5 |
+| `--heat-ink-1` | `#17324A` | `#E6F2FF` | Text on `--heat-1` |
+| `--heat-ink-2` | `#17324A` | `#E6F2FF` | Text on `--heat-2` |
+| `--heat-ink-3` | `#17324A` | `#E6F2FF` | Text on `--heat-3` |
+| `--heat-ink-4` | `#0B1A2A` | `#0B1A2A` | Text on `--heat-4` |
+| `--heat-ink-5` | `#FFFFFF` | `#0B1A2A` | Text on `--heat-5` |
+| `--viz-band` | `#DCEFFF` | `#123A5C` | The typical-price band on the price chart; an alias of `--tp-brand-soft` |
 | `--cat-culture` | `#5b47b0` | `#a07fe0` | Plan blocks and pins: sights, museums |
 | `--cat-food` | `#e0621e` | `#d95926` | Food, nightlife |
 | `--cat-outdoors` | `#0f9f76` | `#1a9f71` | Parks, hikes, beaches |
@@ -107,12 +135,23 @@ The `--cat-*` tokens are color groups over the eight `itinerary_items.category` 
 | Route A ink on sunken (the "Added by" name on a stub) | 4.80 | 6.16 |
 | Route B ink on sunken | 5.05 | 9.39 |
 | `--tp-edge` on sunken (control borders on a stub) | 3.24 | 3.60 |
+| `--heat-ink-1` on `--heat-1` | 10.83 | 11.00 |
+| `--heat-ink-2` on `--heat-2` | 8.29 | 7.47 |
+| `--heat-ink-3` on `--heat-3` | 5.97 | 4.97 |
+| `--heat-ink-4` on `--heat-4` | 5.31 | 5.50 |
+| `--heat-ink-5` on `--heat-5` | 5.19 | 8.85 |
 
-The sunken rows were added with the warm surfaces, because tickets carry text and controls on `--tp-sunken` stubs. Every new color pair added later must be checked with the same formula and recorded here. Body text needs 4.5 to 1, large text and control boundaries 3 to 1. The logo's sky `#2AA5FF`, `--tp-route-a` and `--tp-route-b` are decorative fills and never carry text in a color of their own.
+The heat-ink rows are text on the date-grid steps. The sunken rows were added with the warm surfaces, because tickets carry text and controls on `--tp-sunken` stubs. Every new color pair added later must be checked with the same formula and recorded here. Body text needs 4.5 to 1, large text and control boundaries 3 to 1. The logo's sky `#2AA5FF`, `--tp-route-a` and `--tp-route-b` are decorative fills and never carry text in a color of their own.
 
 ### 2.4 Typography
 
-Three bundled families (`@fontsource-variable`, subset to Latin): **Fredoka** (display: rounded and friendly, used only for names, codes and page titles), **Atkinson Hyperlegible Next** (body and labels), **Atkinson Hyperlegible Mono** (numbers and data). Everything that is not a name, a code or a title is Atkinson Hyperlegible Next.
+Three bundled families (`@fontsource-variable`, subset to Latin): **Fredoka** (display: rounded and friendly, used only for names, codes and page titles), **Atkinson Hyperlegible Next** (body and labels), **Atkinson Hyperlegible Mono** (numbers and data). Everything that is not a name, a code or a title is Atkinson Hyperlegible Next. The app makes no request to Google Fonts (`googleapis` or `gstatic`); the fonts are the bundled OFL `@fontsource-variable` packages. CSS stacks, each beginning with the bundled variable family:
+
+| Token | Value |
+|---|---|
+| `--tp-font-display` | `'Fredoka Variable', 'Fredoka', 'Nunito', 'Arial Rounded MT Bold', system-ui, sans-serif` |
+| `--tp-font-body` | `'Atkinson Hyperlegible Next Variable', 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', sans-serif` |
+| `--tp-font-mono` | `'Atkinson Hyperlegible Mono Variable', 'Atkinson Hyperlegible Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` |
 
 | Role (Tailwind utility) | Family and axes | Size and line height | Use |
 |---|---|---|---|
@@ -202,7 +241,9 @@ Rules:
 
 ## 4. Component library
 
-Base: shadcn/ui on Radix, already in the Trip Planner's `frontend/src/components/ui/` and carried to `apps/web/src/components/ui/` (button, badge, card, dialog, alert-dialog, dropdown-menu, input, textarea, label, separator, sheet, skeleton, sonner, switch, tabs, tooltip). Additions are named in each entry. Conventions: every component supports light and dark through tokens, has a visible focus ring (`--ring`, 3 px at 50% plus a 1 px solid edge), has a minimum 44 pt hit area on touch, and never relies on hover for information.
+For how a component looks, `design/hermi.css` and the mockups in `design/screens/` win over the prose of sections 4 and 6; the token values in section 2 still win over both. A component block the kit lacks is added to `hermi.css` and `components.html` by the ticket that needs it, in the same pull request.
+
+Base: shadcn/ui on Radix, already in the Trip Planner's `frontend/src/components/ui/` and carried to `apps/web/src/components/ui/` (button, badge, card, dialog, alert-dialog, dropdown-menu, input, textarea, label, separator, sheet, skeleton, sonner, switch, tabs, tooltip). Additions are named in each entry. Conventions: every component supports light and dark through tokens, has a visible focus ring (`--ring`, a 3 px solid outline with a 2 px offset: `outline: 3px solid var(--ring); outline-offset: 2px`, as in `hermi.css`; a 50 percent ring such as shadcn's `ring/50` failed the 3 to 1 rule of section 9.1 and is not used), has a minimum 44 pt hit area on touch, and never relies on hover for information.
 
 State vocabulary used below: default, hover (web), pressed, focus, disabled (50% opacity, not removed from focus order when it explains itself through a tooltip or helper), loading, error, selected.
 
@@ -211,8 +252,8 @@ State vocabulary used below: default, hover (web), pressed, focus, disabled (50%
 | Variant | Look | Use |
 |---|---|---|
 | Primary (`default`) | `--primary` fill, `--primary-foreground` text | One per screen or sheet |
-| Secondary | `--secondary` fill | Supporting action beside a primary |
-| Outline | Border `--tp-edge`, transparent fill | Neutral action, "Not now" on paywalls |
+| Secondary | 1.5 px `--tp-edge` border, `--tp-sheet` fill (`.h-btn--secondary` in `hermi.css`, the kit wins for looks). Maps to the shadcn `outline` variant; the shadcn `secondary` variant is not used for buttons | Supporting action beside a primary |
+| Outline | Border `--tp-edge`, transparent fill. The shadcn `outline` variant with a transparent fill; no kit class yet (added to `hermi.css` with the ticket that needs it) | Neutral action, "Not now" on paywalls |
 | Ghost | No fill, `--muted` on hover and press | Toolbar and inline |
 | Destructive | `--destructive` at 10% fill, danger text | Delete, remove, leave |
 | Link | Brand text, underline on hover and always underlined in body copy | Inline navigation |
@@ -262,7 +303,7 @@ One per day in the Plan list. Header: "Day 3", date in mono, a one-line theme th
 
 ### 4.9 Place card
 
-Used in search, saved places, ideas and Discover. Photo 16:10 (or category icon tile when no photo), name, category chip, distance from the trip center, opening-hours status ("Open until 18:00"), rating when a licensed source provides it, a save heart, and an "Add to day" button. Attribution stays visible (Geoapify, Wikipedia). Variants: result row (72 px, thumbnail left), full card, compact pin popup (map). Sorted by relevance and distance only, and a sort label is always shown ("Sorted by distance"). No partner content in the list; "Tickets" or "Book a table" appears on the detail view only, through 4.13. States: loading skeleton, no photo, closed now, saved, added to Day 2.
+Used in search, saved places and ideas. Photo 16:10 (or category icon tile when no photo), name, category chip, distance from the trip center, opening-hours status ("Open until 18:00"), rating when a licensed source provides it, a save heart, and an "Add to day" button. Attribution stays visible (Geoapify, Wikipedia). Variants: result row (72 px, thumbnail left), full card, compact pin popup (map). Sorted by relevance and distance only, and a sort label is always shown ("Sorted by distance"). No partner content in the list; "Tickets" or "Book a table" appears on the detail view only, through 4.13. States: loading skeleton, no photo, closed now, saved, added to Day 2.
 
 ### 4.10 Lodging card with votes
 
@@ -383,7 +424,7 @@ Hermi
 |       +-- Agent runs (from Flights, Plan and the AI sheet; run detail)
 |       +-- Trip settings (members, AI on or off, Trip Pass status, calendar feed,
 |                          offline download, export, archive)
-+-- Discover (tab 2)  destination ideas, cheap fares from your airport
++-- Discover (tab 2)  sample trips to start from ("Use this plan")
 +-- Activity (tab 3)  alerts, changes by others, agent results, invites, referral rewards
 +-- Account (tab 4)  profile, subscription and credits (with Cancel subscription), invite friends,
                      import a trip, settings, how we earn, how billing works, service status,
@@ -458,7 +499,9 @@ The current repository routes (`/trips/:tripId/itinerary`, `/lodging`, `/agents`
 
 ## 6. Screens
 
-Every screen follows one template: **Purpose**, **Layout**, **Content**, **Interactions**, **States** (loading, empty, error, offline, no permission, limit reached where they apply), **Copy**, **Events** (analytics names, snake_case, properties in braces; `screen_viewed {screen}` fires on every screen and is not repeated; names and property values are the catalog in 10 section 4), **Accessibility**. Copy follows section 7. Credit prices and limits come from section 1.4 of [01-product-spec.md](01-product-spec.md).
+For how a component looks, `design/hermi.css` and the mockups in `design/screens/` win over the prose of sections 4 and 6; the token values in section 2 still win over both. A component block the kit lacks is added to `hermi.css` and `components.html` by the ticket that needs it, in the same pull request.
+
+Every screen follows one template: **Purpose**, **Layout**, **Content**, **Interactions**, **States** (loading, empty, error, offline, no permission, limit reached where they apply), **Copy**, **Events** (analytics names, snake_case, properties in braces; `screen_viewed {screen}` fires on every screen and is not repeated; names and property values are the catalog in 10 section 4), **Accessibility**. Copy follows section 7. Credit prices and limits come from section 1.4 of [01-product-spec.md](01-product-spec.md). Every state listed for a screen is built and has a component test; the offline and error states also have a Playwright test.
 
 ### 6.1 Splash and onboarding
 
@@ -497,9 +540,9 @@ Every screen follows one template: **Purpose**, **Layout**, **Content**, **Inter
 ### 6.2 Guest mode and save your trip
 
 **Purpose.** Let a guest build one trip on the device, then ask for an account only when there is something to keep, share or sync.
-**Layout.** A guest sees the normal app with a slim banner under the header: "Guest trip, saved on this phone" and a "Save" button. Tabs: Trips, Discover, Account are live; Activity shows a sign-in prompt.
-**Content.** Guest limits: one trip, destinations, plan items, maps, cached fares view, presentation. Anything that needs the server asks for sign-in: invite, sync to a second device, AI beyond the guest allowance, export, alerts, import, purchase.
-**Save sheet (bottom sheet, triggered by any of the above).** Title "Save your trip". Body "Create a free account so your trip is safe and you can share it. Nothing you built will be lost." Buttons in this order: Continue with Apple (black, per Apple HIG), Continue with Google, Continue with email, then "Not now" as a text button. After success the guest trip is claimed into the account (merge screen if the identity already has trips: "You already have 2 trips. Add this one too?" with counts).
+**Layout.** A guest sees the normal app with a slim banner under the header: "Guest trip, saved on this phone" and a "Save" button. Tabs: Trips, Discover, Account are live; Activity shows a sign-in prompt. Discover works for a guest: "Use this plan" builds the local guest trip on the device from the sample, with no server write (6.23).
+**Content.** Guest data stays on the device until sign-in. Guest limits: one trip, destinations, plan items, maps, cached fares view, presentation. Guest AI needs device attestation and draws from a small device allowance. Anything that needs the server asks for sign-in: invite, sync to a second device, AI beyond the guest allowance, export, alerts, import, purchase.
+**Save sheet (bottom sheet, triggered by any of the above).** Title "Save your trip". Body "Create a free account so your trip is safe and you can share it. Nothing you built will be lost." Buttons in this order: Continue with Apple (black, per Apple HIG), Continue with Google, Continue with email, then "Not now" as a text button. "Save your trip" sends the trip JSON with a claim id. After success the guest trip is claimed into the account (merge screen if the identity already has trips: "You already have 2 trips. Add this one too?" with counts).
 **Interactions.** The banner "Save" opens the sheet. Dismissing the sheet mutes the prompt for that trigger for 7 days, but the banner remains (it is not a paywall).
 **States.** Offline: sign-in buttons disabled with "Connect to the internet to create your account. Your trip stays on this phone." Error on claim: "We could not move your trip into your account. It is still on this phone. Try again." with Retry. Limit: a second guest trip shows "Guests can plan one trip. Create a free account to add more."
 **Events.** `guest_trip_created`, `save_prompt_shown {trigger}`, `save_prompt_dismissed {trigger}`, `guest_claimed {trip_count_bucket}`.
@@ -509,7 +552,7 @@ Every screen follows one template: **Purpose**, **Layout**, **Content**, **Inter
 
 **Purpose.** Create or restore an account with Sign in with Apple, Google or an email code.
 **Layout.** Sheet or full screen: lockup, title "Sign in to Hermi", three buttons stacked (Apple, Google, email), a legal line. Email path: one screen with an email field ("Email") and "Send code"; next screen six digit code field (one field, `autocomplete="one-time-code"`, numeric keyboard), "Resend code in 30 s", and a "Use a different email" link.
-**Interactions.** Apple returns the identity token; "Hide My Email" relay is accepted and shown as the email. The code field auto-submits at six digits. Three wrong codes show a gentle warning; five invalidate the code. Passwords do not exist.
+**Interactions.** Apple returns the identity token; "Hide My Email" relay is accepted and shown as the email. The code field auto-submits at six digits. Three wrong codes show a gentle warning; five invalidate the code. Passwords do not exist. A guest trip stays on the device until sign-in, then "Save your trip" sends it with its claim id (6.2).
 **States.** Loading: button spinners. Error (wrong code): "That code is not right. Check the email we sent and try again." Expired: "That code expired. Send a new one." Rate limited: "Too many tries. Wait 10 minutes, then send a new code." Offline: "You are offline. Connect to sign in." Account pending deletion: "Your account is scheduled for deletion on 14 Nov. Restore it to keep your trips." with "Restore account".
 **Copy.** Email helper "We will send a six digit code. No password needed." Under the buttons, a text link "Have a friend's code?" opens a one-field sheet (6.37).
 **Events.** `signup_started {method}`, `signup_completed {method, from_invite, was_guest}` (new account) or `sign_in_completed {method}` (existing account), `sign_in_failed {method, reason}`.
@@ -598,12 +641,13 @@ Every screen follows one template: **Purpose**, **Layout**, **Content**, **Inter
 The mockup supersedes this wireframe's band layout.
 
 **Layout.** The trip opens on the map header (4.22) with the trip's routes, and the hero pass (destination, dates, airport codes, travelers, status) sits at the top of the sheet. Below: a "Next steps" card (up to three suggestions, derived from missing data: dates, flight, stay, first day), then summary cards for each section, then Before you go, cost so far (from chosen flight and booked stays), Notes and evidence, AI activity (runs and credits used on this trip).
+**Happening now.** "Today" is a state of the Overview, not a screen or a tab. During the trip dates the Overview opens on a "Happening now" card above Next steps: local time at the destination, the next item, the map, the stay address and confirmation numbers. The optional partner card keeps the no-urgency rule of F-TRV-1. Loading: a card skeleton. Empty: "Nothing planned for today", [Plan today]. Error: "We could not load today. Pull down to try again." with block-level retry. The after-trip wrap-up is not in Phase 1 (Phase 2 after-trip pack).
 **Content.** A quiet "Places to stay in Lisbon" partner card appears only when dates exist, collapses after the first view, and follows 4.13 (one per screen view). Destination facts (local time, currency, a Wikipedia summary with attribution) are in a collapsed card.
 **Interactions.** Every summary card opens its section. "Invite" avatar button opens the invite flow (6.8). The "..." menu: Ask (6.15), Share, Calendar feed (6.31), Import into this trip (6.30), Verify a plan (6.38), Plan checks, Trip settings, Export, Archive, Delete. The hero pass shows the sync indicator (4.21, 6.33) under the destination name. Changes by others show a brand dot on the section and a "Sam updated Stays" line.
 **States.** Loading: skeleton header and five cards. Empty (no data yet): only "Next steps". Error: block-level retry per card. Offline: "Saved offline, updated 2 h ago" chip. No permission (viewer): Next steps hidden, summary cards read-only. Limit reached: a limited trip (Plus lapsed, pass expired) shows a banner "This trip is limited. Extra travelers are now viewers. Renew to restore editing." with the free actions visible (read, export).
 **Copy.** Empty next step "Pick your dates". Banner as above.
 **Events.** `trip_overview_viewed`, `next_step_tapped {step}`, `section_opened {section}`.
-**Accessibility.** The header reads as one heading plus a description; cards are links with the state in their name ("Stays, 2 of 3 voted"); the section strip is a `tablist`.
+**Accessibility.** The header reads as one heading plus a description; cards are links with the state in their name ("Stays, 2 of 3 voted"); the section strip is a `nav` with `aria-current="page"` on the current section.
 
 ### 6.8 Invite flow
 
@@ -712,7 +756,7 @@ The mockup supersedes this wireframe's band layout.
 **States.** Loading: day card skeletons. Empty trip: "Nothing planned yet", "Add a place, or ask for a draft to start from.", [Add a place] [Draft the trip, 4 credits]. Empty day: "Free day". Error: "We could not load your plan. Pull down to try again." Offline: readable, edits to notes and checkmarks queue, itinerary structure edits show the read-only banner "Offline. You can read your plan and check things off. Reconnect to rearrange." Conflict: 409 sheet with both versions and "Keep mine" or "Use theirs". No permission: viewers cannot edit. Limit reached: none on the plan itself (the calendar is never gated).
 **Copy.** Conflict "Sam changed this while you were editing."
 **Events.** `plan_viewed {mode}`, `itinerary_item_moved {method}`, `itinerary_item_deleted`, `edit_conflict_shown {resolution}`.
-**Accessibility.** Drag has full keyboard and VoiceOver alternatives (Move up, Move down, Move to day); timeline blocks have text labels with time and duration; the day chip strip is a `tablist`.
+**Accessibility.** Drag has full keyboard and VoiceOver alternatives (Move up, Move down, Move to day); timeline blocks have text labels with time and duration; the day chip strip is a `tablist` with `aria-selected` on the current day (a real tab widget).
 
 ### 6.13 Add item
 
@@ -738,7 +782,7 @@ The mockup supersedes this wireframe's band layout.
 **Mockup:** [screens/08-ai-actions.html](design/screens/08-ai-actions.html) <img src="design/png/08-ai-actions.png" width="260" alt="The AI actions sheet: a credit balance, and action rows each with a one-line description and a credit cost chip">
 
 **Purpose.** One sheet for every AI action, with the price up front.
-**Layout.** The AI sheet is a bottom sheet that opens from the "Plan with AI" entry on Overview and from an "Ask" button (sparkle glyph replaced by a plain "Ask" label) in the trip menu. Header: title, balance pill ("27 credits"), trip AI toggle state. Body: action rows, each with a one-line description and a credit cost chip:
+**Layout.** The AI sheet is a bottom sheet that opens from the "Plan with AI" entry on Overview and from an "Ask" button (sparkle glyph replaced by a plain "Ask" label) in the trip menu. Header: title, balance pill ("27 credits"), trip AI toggle state. The balance pill and each cost chip show which pool pays: "Your credits", or "Trip Pass credits" when the trip's Trip Pass pool pays (pass credits are a trip pool). Body: action rows, each with a one-line description and a credit cost chip:
 
 | Action | Credits | Where else it appears |
 |---|---|---|
@@ -818,7 +862,7 @@ The mockup supersedes this wireframe's band layout.
 
 **Purpose.** Walk the group through the plan on a phone, a TV or AirPlay, and print or share it.
 **Layout.** Outside the app shell, full screen, `deck-*` type utilities so text scales by container size. Slides: Title (destination, dates, travelers, route pattern), one per Destination, Flights per route, Stays shortlist, one per Day (map plus items), and Closing "Trip at a glance" (existing slide kinds). An optional last slide "Book the plan" lists partner links with the disclosure line, off by default for the owner to turn on. Chrome (hidden after 3 s of no input): close, slide counter, overview grid, share, print.
-**Interactions.** Phones in portrait: swipe up and down between slides in a story layout, tall slides scroll. Landscape and iPad: swipe or arrow keys, tap right or left third. Overview grid shows thumbnails. Screen stays awake (wake lock). Share creates a read-only link with redaction switches (hide addresses, prices, notes and traveler names, which show as "Traveler 1"; all hidden by default; the link expires after 90 days unless the owner picks another length up to a year) and a switch "Let search engines list this page" (off by default, see 6.34). Print or PDF one slide per 16:9 page, links live, checklist without partner buttons. Free shares carry a small "Made with Hermi" footer and the PDF a footer mark; paid tiers do not.
+**Interactions.** Phones in portrait: swipe up and down between slides in a story layout, tall slides scroll. Web and iPad (later): swipe or arrow keys, tap right or left third. Overview grid shows thumbnails. Screen stays awake (wake lock). Share creates a read-only link with redaction switches (hide addresses, prices, notes and traveler names, which show as "Traveler 1"; all hidden by default; the link expires after 90 days unless the owner picks another length up to a year) and a switch "Let search engines list this page" (off by default, see 6.34). Print or PDF one slide per 16:9 page, links live, checklist without partner buttons. Free shares carry a small "Made with Hermi" footer and the PDF a footer mark; paid tiers do not.
 **No partner content during playback.** No cards, no logos, no interstitials on any normal slide.
 **States.** Loading: title slide appears first, others stream in. Empty trip: "There is nothing to present yet. Add a day to your plan." Error: "We could not build the presentation. Try again." Offline: works from the offline copy, map slides use the static route plot. No permission: viewers can present. Limit: none (the footer is the only difference).
 **Copy.** Footer "Made with Hermi".
@@ -854,12 +898,13 @@ Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
 
 ### 6.23 Discover
 
-**Purpose.** Ideas and useful numbers for where to go, with no paid placements.
-**Layout.** Large title "Discover", a search field, and sections: **Cheap fares from your airport** (cached fares by destination, sorted by price, with source and age), **Destinations** (Wikipedia summary, photo, best months, local currency), **Saved places**. A chip row filters (Beach, City, Mountains, Food).
-**Content.** Every list states its sort. Fares are cached (Aviasales) and labeled. No partner cards. A destination page has "Start a trip here" and, when dates exist, the one quiet "Places to stay" card per 4.13.
-**States.** Loading: card skeletons. Empty: "Add your home airport to see fares from there.", [Add home airport]. Error: "We could not load ideas. Pull down to try again." Offline: saved destinations only. Limit: none.
-**Events.** `discover_viewed`, `destination_opened {country_code}`, `trip_started_from_discover`.
-**Accessibility.** Cards are links with price and age in the name; sort control is a labeled menu.
+**Purpose.** Real example trips to start from, with no paid placements.
+**Layout.** Large title "Discover", a grid of sample trip cards (cover, destination, length in days, who it suits) and a chip row (Beach, City, Mountains, Food) that filters the grid (`?tag=`). The data is `GET /public/sample-trips` (04 section 5.28) from the `sample_trips` table: `suits` is the who-it-suits line and `tags` feed the filters. A sticky bottom button "Use this plan" shows on an opened sample.
+**Content.** The gallery is a fixed list written by the Hermi team. No partner cards, no search, no feed. Prices and facts in a sample are dated (6.35).
+**Interactions.** Tap a card to open the sample read-only (the layout of 6.35). "Use this plan" (the one label on the gallery and on the public sample page) calls `POST /public/sample-trips/{slug}/copy` (04 section 5.28: days, items and saved places, never flights or prices; the body's `start_date` is optional) and opens the new trip. A guest has no account: the app builds the local guest trip on the device from `GET /public/sample-trips/{slug}` and makes no server write.
+**States.** Loading: card skeletons. Empty: "No examples yet", [Try again]. Error: "We could not load examples. Pull down to try again." Offline: samples already opened. Limit: via the copy action, the active-trip limit returns 402 `limit_reached` and shows the `third_trip` paywall on Free (6.27). A guest who already has a guest trip sees the 6.2 limit.
+**Events.** `discover_viewed`, `sample_trip_opened {slug}`, `sample_trip_copied {slug, was_guest}`.
+**Accessibility.** Cards are single links with destination, length in days and who it suits in the name; filter chips are toggle buttons with a pressed state.
 
 ### 6.24 Activity
 
@@ -907,7 +952,7 @@ Later: Phase 2, see [../phase-2-growth/README.md](../phase-2-growth/README.md).
 +------------------------------+
 ```
 
-**Content.** Current plan, renewal date and price in the store currency. "Cancel subscription" is a first-level row on the plan card, never inside a menu: one tap opens the App Store's own subscription sheet for this plan, where Apple asks for the final confirm, with no survey or offer before it; once cancelled the row reads "Your plan ends on 14 Mar". "Change plan" opens the same sheet for switching between monthly and annual. On the web app the rows read "Change plan in the iOS app" and "Cancel in the iOS app" and open the App Store's subscription page; nothing can be bought on the web. "How billing works" opens the plain billing page (6.40). Credit balance split into monthly (do not roll over), promo (the taster and referral credits, each with an expiry) and purchased (12 months, spent last) with expiry dates and a ledger link ("History": date, action, credits, refund marks). Trip Pass list with status and binding ("Not applied yet. Choose a trip"); a pass from a first import shows "Included with your first import". **Compare plans** shows the tier table below in plain numbers. Packs: 50, 150, 400 credits at $2.99, $6.99, $14.99 with the per-credit price as a fact and the expiry sentence "Bought credits last 12 months."
+**Content.** Current plan, renewal date and price in the store currency. "Cancel subscription" is a first-level row on the plan card, never inside a menu: one tap opens the App Store's own subscription sheet for this plan, where Apple asks for the final confirm, with no survey or offer before it; once cancelled the row reads "Your plan ends on 14 Mar". "Change plan" opens the same sheet for switching between monthly and annual. On the web app the rows read "Change plan in the iOS app" and "Cancel in the iOS app" and open the App Store's subscription page; nothing can be bought on the web. "How billing works" opens the plain billing page (6.40). Credit balance split into monthly (do not roll over), promo (the taster and referral credits, each with an expiry) and purchased (12 months, spent last) with expiry dates and a ledger link ("History": date, action, credits, refund marks). The balance shows which pool pays: your credits, or the trip's Trip Pass pool, listed as "Trip Pass credits, Lisbon" (pass credits are a trip pool, not part of your balance). Trip Pass list with status and binding ("Not applied yet. Choose a trip"); a pass from a first import shows "Included with your first import". **Compare plans** shows the tier table below in plain numbers. Packs: 50, 150, 400 credits at $2.99, $6.99, $14.99 with the per-credit price as a fact and the expiry sentence "Bought credits last 12 months."
 
 | | Free | Plus | Trip Pass |
 |---|---|---|---|
@@ -954,6 +999,7 @@ There is **no paywall** after an affiliate booking (only the soft "Plan your day
 ### 6.28 Export and delete account
 
 **Export.** Account, Export my data. Explains "We will email you a link to a zip with your trips as JSON, plus a readable PDF per trip. The link works for 7 days." Re-authentication (Apple, Google or code), a single [Export my data] button, then a progress row ("Preparing, usually under a day") and a notification when ready. Per-trip export (JSON, ICS, PDF) is also in Trip settings and is free on every tier. Limit: one export a day ("You asked for an export today. The link was sent to a***@gmail.com."). Error: "We could not start your export. Try again." Events: `export_requested`, `export_ready`.
+**Delete my AI history.** Account, Privacy, "Delete my AI history" row. It opens a confirm sheet ("Delete your AI history? This removes your past AI questions and answers, and the notes the AI added to your trips. Your plans, stays and bookings stay.", [Delete history] and [Cancel]) and then a success toast "AI history deleted". It calls `DELETE /me/ai-history`.
 **Delete account.** Account, Delete account (in app, no email or web only path). A full screen with a plain list of effects:
 
 ```
@@ -1089,7 +1135,7 @@ Step 3, done:
 ```
 
 **Content.** Step 1 lists entries named for each app (plain text, no logos): TripIt, Tripsy, Wanderlog, Google Calendar, Google Maps list and "Something else". Choosing one opens the matching method with two or three steps for getting the data out of that app, checked against that app's own help pages before launch; where an app has no export we say so. The methods are: "Choose a calendar file" (the file picker for .ics files), "Paste a calendar link" (one field that accepts `webcal://` and `https://` links), "Paste booking emails" (a text area for up to 10 texts, each with a credit cost chip, 4.11, and the balance), "Choose a Maps export" (Takeout CSV, GeoJSON or KML, up to 200 places) and "Paste places" (one per line). The Google Maps entry says "We cannot open a Google Maps list link. Export the list, or paste the place names." A pasted Google Maps list link shows the same line with two export steps and "Keep this link as a note". A line under the rows says "We never ask for a password." Step 2 for places shows the matched place (name, address, small map) with "Not the right place" and untick; places import as ideas with no day.Step 2 lists everything found by day: a tick, a type icon with a text label (Flight, Stay, Activity, Other, never color alone), the title, time and place, and a "Change type" menu on each row. A large calendar adds a date range and type chips with "Select all in range". A destination row reads "Import to: New trip Lisbon, March" with "Change" to pick an existing trip. A sticky primary button reads "Import 16 items". Step 3 shows a Done ticket stub, the counts, the reward card when one was earned (the Trip Pass text below), for a calendar link the switch "Keep checking this calendar every 6 hours" (off by default, never turned on for the person, with the line "You confirm every change. Nothing is applied on its own."), and the buttons "Open trip", "Turn on calendar feed" (6.31) and "Import more". When changes arrive later, a notification and an Activity item open a "Calendar changed" sheet that lists each new, changed (before and after) and removed event with a tick and "Apply 3 changes"; removed events are listed but never deleted for the person, and "Not now" leaves the sheet for later.
-**Interactions.** Choosing a file or sending a link or text starts reading at once and moves to step 2. Unticking rows changes the count. Pasted emails are read one at a time, each charged after the confirm; a text with no booking in it is refunded and says so. "Import" saves everything ticked; Back changes nothing. Imported booked flights offer the booked-fare watch (6.32) on the new trip. A guest who taps Import sees the Save your trip sheet first (6.2).
+**Interactions.** Choosing a file or sending a link or text starts reading at once and moves to step 2. The file is read and discarded, never stored. After "Import" the import's status is "applied". Unticking rows changes the count. Pasted emails are read one at a time, each charged after the confirm; a text with no booking in it is refunded and says so. "Import" saves everything ticked; Back changes nothing. Imported booked flights offer the booked-fare watch (6.32) on the new trip. A guest who taps Import sees the Save your trip sheet first (6.2).
 **States.** Loading: skeleton rows under "Reading your file", one row per pasted email as it finishes. Empty: "We did not find any trips or bookings in that file.", "Try another file, or paste a booking email.", [Paste a booking email]. Error: unreadable file "We could not read that file. Check that it is a calendar (.ics) file and try again."; too large "That file is too large. Export a shorter date range and try again."; over 500 events "That calendar has more than 500 events. Choose a date range."; blocked host "We do not open links from Airbnb, Vrbo or Booking.com. Download the calendar and upload the file instead."; link failed "We could not read that link. Check that it is the full link, or upload the file instead." Offline: "Connect to import. Nothing was changed." No permission: viewers cannot import into a trip; editors and owners can. Google Maps link "We cannot open Google Maps links. Export your list, or paste the place names."; more than 200 places "We imported the first 200 places."; polling stopped "We could not reach your calendar three times, so we stopped checking. Turn it back on any time."; Limit: text over 12,000 characters "That is too long. Paste one email at a time."; no credits for a pasted email opens `out_of_credits_research` (6.27) while the file and link routes stay free.
 **Copy.** Above the button "Nothing is saved until you tap Import." Reward card "Your first import includes a Trip Pass for Lisbon: live fare checks, up to 6 collaborators and 40 credits until 4 Dec." The card appears only when the pass will be granted (3 or more items including a flight or a stay, a verified email, no active pass on the trip and no active Plus), never for a places-only import, and never as a paywall. No third-party logos are used.
 **Events.** `import_started {method: ics_file|ics_feed|pasted|maps_file|places, source_app: tripit|tripsy|wanderlog|google_calendar|google_maps|other|unknown}`, `import_previewed {method, item_count_bucket}`, `import_completed {method, saved_count_bucket, reward_granted}`, `import_failed {method, reason}`, `calendar_polling_enabled`, `calendar_changes_found {change_count_bucket}`, `calendar_changes_applied {applied_count_bucket}`.
@@ -1110,7 +1156,8 @@ Step 3, done:
 | Outlook.                     |
 |                              |
 | Feed                    [on] |
-| hermi.world/cal/7Kq2...ics   |
+| api.hermi.world/v1/calendar/ |
+| 7Kq2...ics                   |
 | [ Add to Apple Calendar  ]   |
 | [ Copy link              ]   |
 | Include stay addresses [off] |
@@ -1127,7 +1174,7 @@ Step 3, done:
 +------------------------------+
 ```
 
-**Content.** Turning the feed on creates the link and shows it. Under the buttons a one-line how-to for Google Calendar ("In Google Calendar, choose Other calendars, From URL, and paste the link") and Outlook. The two warnings are fixed copy: "Changes show up on your calendar app's schedule, often within an hour and sometimes up to a day." and "Anyone with this link can see your trip's schedule." No prices, private notes, confirmation numbers, traveler names or partner links are in the feed.
+**Content.** Turning the feed on creates the link and shows it. The URL is `https://api.hermi.world/v1/calendar/<token>.ics`, with the token in the path (04 section 5.29). Under the buttons a one-line how-to for Google Calendar ("In Google Calendar, choose Other calendars, From URL, and paste the link") and Outlook. The two warnings are fixed copy: "Changes show up on your calendar app's schedule, often within an hour and sometimes up to a day." and "Anyone with this link can see your trip's schedule." No prices, private notes, confirmation numbers, traveler names or partner links are in the feed.
 **Interactions.** "Add to Apple Calendar" opens the `webcal://` link. "Copy link" copies and shows a toast. "Make a new link" asks for confirmation ("The old link stops working right away.") and replaces it. "Turn off" revokes the link after a confirm.
 **States.** Loading: skeleton switch and link. Empty: the off state. Error: "We could not create the link. Try again." Offline: "Connect to set up a calendar feed." No permission: only the owner sees the row; editors and viewers do not. Limit: none; one feed per trip.
 **Copy.** Switch label "Calendar feed", helper "Show this trip in Apple Calendar, Google Calendar or Outlook."
@@ -1251,12 +1298,12 @@ Second, the "Your booked fare" block on the chosen-flight card and the route car
 ### 6.35 Sample trips (public)
 
 **Purpose.** Show a finished plan so a visitor understands Hermi, with no account.
-**Layout.** The marketing shell. `/samples` is a grid of 4 to 6 trip cards (4.4, with a "Sample" chip instead of status) in one or two columns by width, with a line "Trips written by the Hermi team. Prices and facts are dated." `/samples/:slug` is the shared-trip page (6.34) with a "Sample trip" banner, a stay shortlist with hearts, the checklist, a fare chart labeled "Sample data, dated 12 Sep", and a sticky "Copy this trip" button.
+**Layout.** The marketing shell. `/samples` is a grid of 4 to 6 trip cards (4.4, with a "Sample" chip instead of status) in one or two columns by width, with a line "Trips written by the Hermi team. Prices and facts are dated." `/samples/:slug` is the shared-trip page (6.34) with a "Sample trip" banner, a stay shortlist with hearts, the checklist, a fare chart labeled "Sample data, dated 12 Sep", and a sticky "Use this plan" button.
 **Content.** Every price and fact carries a date, and AI-found facts carry the evidence label. Nothing is presented as a current price. The gallery is a fixed list; there is no search, no feed and no user trips.
-**Interactions.** "Copy this trip" duplicates the structure (destinations, plan, stays without votes, checklist) into the visitor's account or a guest trip; a guest lands in the app in guest mode with no sign-in wall. "Plan a trip" opens Create trip.
+**Interactions.** "Use this plan" calls `POST /public/sample-trips/{slug}/copy` (04 section 5.28) and copies days, items and saved places, never flights or prices, into the visitor's account, or builds a local guest trip from `GET /public/sample-trips/{slug}` with no server write; a guest lands in the app in guest mode with no sign-in wall. "Plan a trip" opens Create trip.
 **States.** Loading: card or page skeletons. Empty: not applicable, the list is fixed. Error: "We could not load this sample. Try again." Offline: browser page. Limit: a guest who already has a guest trip sees "Guests can plan one trip. Create a free account to add more." (6.2).
 **Copy.** Banner "Sample trip. Prices and facts are dated and may have changed."
-**Events.** `public_page_viewed {page: sample, slug}`, `sample_trip_copied {slug, was_guest}`, `public_cta_tapped {page, cta}`.
+**Events.** `public_page_viewed {page: sample, slug}`, `sample_trip_opened {slug}`, `sample_trip_copied {slug, was_guest}`, `public_cta_tapped {page, cta}`.
 **Accessibility.** As 6.34; cards are single links with destination, length and "Sample" in the name.
 
 ### 6.36 Comparison pages (public)
@@ -1559,6 +1606,7 @@ An error message has three parts, in order: what happened, why if known, and how
 ### 7.4 Commission disclosure wording
 
 - The sentence, exact and fixed: **"We earn a commission if you book here."** It appears beside every partner button (4.13), in the Before you go rows, in present mode's optional last slide, in printed PDFs, and in email where a partner link appears.
+- The disclosure text in force when a PDF or an email is created is snapshotted into it, so an exported copy keeps the wording it carried.
 - UK and EU storefronts add an "Ad" tag before the eyebrow. Partner-mandated text (for example Booking.com) is added after our sentence.
 - Sort statements: "Sorted by price, lowest first", "Sorted by distance", "Sorted by hearts". Never "recommended" or "top picks" for anything that can carry a commission.
 - Neutral links: "We never change your links." on import, and "Open" on a saved item opens the pasted URL unchanged.
@@ -1650,13 +1698,14 @@ Body text 4.5 to 1, large text and UI boundaries 3 to 1 (measured table in 2.3).
 
 ### 9.2 Structure, keyboard and focus
 
-One `h1` per screen. Landmarks: header, nav, main. Section strips are `tablist`. Every interactive element is reachable by keyboard on web in a logical order, with visible focus. Sheets trap focus, restore it on close, close on Escape. No keyboard traps, no timing limits except session expiry (with a warning). Drag and drop has non-drag alternatives (WCAG 2.5.7). Targets are at least 24 by 24 CSS px on web (2.5.8) and 44 by 44 pt on touch. Consistent help: a Help link in the same place on every screen's overflow menu (3.2.6). Redundant entry is avoided: trip dates and travelers are prefilled from the trip (3.3.7). Authentication has no cognitive test and supports paste in the code field (3.3.8).
+One `h1` per screen. Landmarks: header, nav, main. The section strip is a `nav` element with `aria-current="page"` on the current section, not a `tablist`; `aria-selected` is kept only for true tab widgets such as segmented controls (9.3). Every interactive element is reachable by keyboard on web in a logical order, with visible focus. Sheets trap focus, restore it on close, close on Escape. No keyboard traps, no timing limits except session expiry (with a warning). Drag and drop has non-drag alternatives (WCAG 2.5.7). Targets are at least 24 by 24 CSS px on web (2.5.8) and 44 by 44 pt on touch. Consistent help: a Help link in the same place on every screen's overflow menu (3.2.6). Redundant entry is avoided: trip dates and travelers are prefilled from the trip (3.3.7). Authentication has no cognitive test and supports paste in the code field (3.3.8).
 
 ### 9.3 VoiceOver and Dynamic Type
 
 - Every icon button has an `aria-label` that names the action and object ("Remove Bairro Alto from Day 2"). Decorative route patterns and icons are hidden.
-- Custom controls expose roles and states (`aria-pressed` for votes, `aria-expanded` for day cards, `aria-selected` for tabs, `aria-current="step"` in the run timeline).
+- Custom controls expose roles and states (`aria-pressed` for votes, `aria-expanded` for day cards, `aria-selected` for true tab widgets such as segmented controls, `aria-current="step"` in the run timeline).
 - Dynamic content uses live regions: toasts (`status` or `alert`), run progress (polite), credit balance changes (polite). Loading states expose `aria-busy`.
+- Fixed-height shapes such as ticket stubs use `min-height` and grow with text. Playwright runs the main screens at 310 percent text zoom.
 - Rotor and headings: each day card is a heading; each list has an accessible count ("Stays, 4 items").
 - Reading order matches visual order. Price, age and source are read in one phrase ("412 dollars, cached, checked 3 hours ago"). Verdict chips are read as a word plus the place ("Confirmed, Time Out Market"); the sync indicator announces state changes only.
 - **Dynamic Type:** all text is `rem`. The native shell reads the system size through `@capacitor/text-zoom` and applies it to the root font size, supporting up to Accessibility XXXL (about 310%). Layouts reflow rather than clip: the section strip scrolls, the tab bar labels stay (icons stay 22 px, labels wrap to two lines then truncate only at the largest sizes with the accessible name intact), cards stack their metadata, tables scroll horizontally with a sticky label column, buttons grow in height. Test each screen at default, Large and the largest accessibility size.
@@ -1676,11 +1725,11 @@ Automated: `@axe-core/playwright` in the e2e suite on every screen in light and 
 |---|---|---|
 | Phone | 0 to 479 px | One column, bottom tabs, sheets, 16 px gutter, full-width primary buttons |
 | Large phone | 480 to 767 px | Same, cards up to 560 px centered, two-up chips |
-| Tablet | 768 to 1023 px | Icon rail (72 px), two-column grids (trips, stays), right panel as overlay, dialogs centered |
-| Laptop | 1024 to 1439 px | Full sidebar (248 px), content 720 to 1120 px, persistent right rail for AI and evidence |
+| Tablet | 768 to 1199 px | Icon rail (72 px), two-column grids (trips, stays), right panel as overlay, dialogs centered |
+| Laptop | 1200 to 1439 px | Full sidebar (248 px, starts at 1200 px), content 720 to 1120 px, persistent right rail for AI and evidence |
 | Desktop | 1440 px and up | Same as laptop, content capped at 1120 px, presentation and map can go full width |
 
-Rules: design mobile first; navigation switches at 768 px; safe areas through `env(safe-area-inset-*)`; `viewport-fit=cover`; inputs 16 px; landscape phone hides the tab bar labels and keeps icons; iPad runs the tablet layout (iPhone only in version 1, iPad later). Container queries drive the deck and dense cards so a component adapts to its container, not the window. Tables become stacked cards under 480 px except the compare table, which scrolls horizontally.
+Rules: design mobile first; navigation switches at 768 px; safe areas through `env(safe-area-inset-*)`; `viewport-fit=cover`; inputs 16 px; the iOS app is locked to portrait on phones in version 1 (set in the Capacitor config), and landscape applies to the web and to iPad later; iPad runs the tablet layout (iPhone only in version 1, iPad later). Container queries drive the deck and dense cards so a component adapts to its container, not the window. Tables become stacked cards under 480 px except the compare table, which scrolls horizontally.
 
 ## 11. Haptics
 
