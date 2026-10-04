@@ -1,5 +1,6 @@
 # WF-008. Optional local services plus the API image the CI smoke test runs.
-# Throwaway development passwords only. Run: docker compose -f infra/docker/compose.yml up --build
+# Throwaway development passwords only. The api uses the roles from infra/db/bootstrap.sql, so run
+# that first (the CI smoke test does). Run: docker compose -f infra/docker/compose.yml up --build
 name: hermi
 services:
   postgres:
@@ -44,6 +45,6 @@ services:
       EMAIL_BACKEND: console
       STORAGE_BACKEND: local
       SCHEDULER_ENABLED: "false"
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/hermi
-      MIGRATION_DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/hermi
+      DATABASE_URL: postgresql+psycopg://hermi_api_login:ci-throwaway@postgres:5432/hermi
+      MIGRATION_DATABASE_URL: postgresql+psycopg://hermi_migrate_login:ci-throwaway@postgres:5432/hermi
     ports: ["8100:8100"]
