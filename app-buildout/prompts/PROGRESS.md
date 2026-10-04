@@ -40,10 +40,10 @@ Same status values as above.
 
 | # | Prompt | Tickets | Status |
 |---|---|---|---|
-| 01 | [Repository foundation, CI and landing page](01-repo-foundation.md) | WF-001, WF-002, WF-003, WF-004, WF-006, WF-007, WF-008, WF-010 | Not started |
+| 01 | [Repository foundation, CI and landing page](01-repo-foundation.md) | WF-001, WF-003, WF-004, WF-006, WF-007, WF-008, WF-010, WF-002 | Not started |
 | 02 | [Port reusable code from the old Trip Planner](02-port-reusable-modules.md) | WF-005 | Not started |
 | 03 | [Staging and production environments](03-deploy-environments.md) | WF-009 | Not started |
-| 04 | [Database foundation and schemas](04-database-foundation.md) | WF-011, WF-012, WF-020, WF-021, WF-022 | Not started |
+| 04 | [Database foundation and schemas](04-database-foundation.md) | WF-011, WF-012, WF-022, WF-021, WF-020 | Not started |
 | 05 | [Sign-in, tenancy and row-level security](05-auth-and-tenancy.md) | WF-013, WF-014, WF-015, WF-016 | Not started |
 | 06 | [Web app platform, sign-in and trips](06-web-app-and-trips.md) | WF-017, WF-130, WF-018, WF-019 | Not started |
 | 07 | [Entitlements, travelers, invites and roles](07-entitlements-and-collaboration.md) | WF-023, WF-024, WF-025, WF-026, WF-027, WF-028 | Not started |

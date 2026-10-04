@@ -1,6 +1,6 @@
 # Prompt 26: Admin support, user actions, flags and health
 
-Phase 1 build, step 26 of 28. Follow `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (branch, models, checks, PR, merge, progress).
+Phase 1 build, step 26 of 28. Follow `app-buildout/prompts/AUTOPILOT.md` and `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (the driver merges).
 
 ## Goal
 
@@ -37,4 +37,4 @@ Add these to `app-buildout/prompts/HUMAN_TASKS.md` (do not block on them; use fa
 - `npm run lint` and `npm test` pass locally and in CI (and `npm run gen:api` is committed when routes changed, and the e2e smoke test passes when a user flow changed).
 - No secrets, no em dashes in UI copy, no fetching of Airbnb, Vrbo or Booking.com pages.
 - `PROGRESS.md` and `HUMAN_TASKS.md` are updated.
-- The pull request `Phase 1 / P26: Admin support, user actions, flags and health` is merged into `main`.
+- The pull request `Phase 1 / P26: Admin support, user actions, flags and health` is ready with the `e2e` label and the `PROGRESS.md` row says Done; the driver merges it after `ci` passes.

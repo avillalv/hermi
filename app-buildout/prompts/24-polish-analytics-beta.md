@@ -1,6 +1,6 @@
 # Prompt 24: Performance polish, analytics, status, tests and TestFlight
 
-Phase 1 build, step 24 of 28. Follow `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (branch, models, checks, PR, merge, progress).
+Phase 1 build, step 24 of 28. Follow `app-buildout/prompts/AUTOPILOT.md` and `app-buildout/prompts/00-orchestrator.md` for how to run this prompt (the driver merges).
 
 ## Goal
 
@@ -24,13 +24,15 @@ Each ticket's description, dependencies, acceptance criteria, files and tests ar
 
 - `app-buildout/prompts/PROGRESS.md` (what is already built, decisions made)
 - `app-buildout/phase-1-launch/10-quality-security-launch.md`
-- `app-buildout/phase-1-launch/05-ui-ux-spec.md`
+- `app-buildout/phase-1-launch/05-ui-ux-spec.md` (sections 4.16 to 4.18, 6.3, 6.6, 6.27, 6.30, 6.33 and 6.41)
 - `app-buildout/phase-1-launch/09-build-roadmap.md` (month 5 exit)
 - `app-buildout/phase-1-launch/design/` (the whole kit, starting with its README.md; compare each built screen with its PNG in `app-buildout/phase-1-launch/design/png/`)
 
 ## Notes
 
 - Performance targets and crash-free targets are in 10; measure them, do not assume them.
+- Skip Xcode and pod steps locally; iOS builds and TestFlight uploads run on GitHub macOS runners (`knowledge/ios-builds-on-ci.md`).
+- Owner verification pending: WF-100 (stopping the worker in staging raises a page within 5 minutes, and the status page is live outside Render and Cloudflare Pages), WF-101 (a tagged build reaches TestFlight and crash reports are symbolicated), WF-102 (the sandbox purchase scenarios run on a device) and WF-103 (the beta with real testers and the Month 5 gate review).
 
 ## Owner-only steps
 
@@ -44,4 +46,4 @@ Add these to `app-buildout/prompts/HUMAN_TASKS.md` (do not block on them; use fa
 - `npm run lint` and `npm test` pass locally and in CI (and `npm run gen:api` is committed when routes changed, and the e2e smoke test passes when a user flow changed).
 - No secrets, no em dashes in UI copy, no fetching of Airbnb, Vrbo or Booking.com pages.
 - `PROGRESS.md` and `HUMAN_TASKS.md` are updated.
-- The pull request `Phase 1 / P24: Performance polish, analytics, status, tests and TestFlight` is merged into `main`.
+- The pull request `Phase 1 / P24: Performance polish, analytics, status, tests and TestFlight` is ready with the `e2e` label and the `PROGRESS.md` row says Done; the driver merges it after `ci` passes.
