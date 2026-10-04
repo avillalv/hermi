@@ -12,7 +12,7 @@ The build's memory. Every autopilot session updates this file in its pull reques
 4. WF-022.1 `0005_ai` (5.6, the section 9 partition functions and first partitions, Procrastinate's schema from the installed library's SQL, the `job_heartbeats` view).
 5. WF-022.2 `0006_billing_credits` (5.7, 5.8: append-only `credit_ledger` trigger, credit functions) with `modules/billing/models.py`. Tests: uniqueness of store transaction id and webhook event id, one active pass per trip, ledger rejects `UPDATE` and `DELETE`.
 6. WF-022.3 `0007_imports_referrals` and `0008_affiliate` (5.9, 5.10, materialized views) with `modules/affiliate/models.py`.
-7. WF-021.1 `0009_flights` (5.11, 5.12) with `modules/flights/models.py`.
+7. WF-021.1 `0009_flights` (5.11, 5.12).
 8. WF-021.2 `0010_itinerary_lodging` and `0011_checklist_notes` (5.13 to 5.15) with `modules/{itinerary,places,lodging,trips}/models.py`. Foreign key and cascade tests.
 9. WF-020.1 `0012_admin_privacy` and `0013_notifications_samples` (5.16 to 5.20, append-only `audit_log` trigger) with `modules/{admin,notifications}/models.py`. Trigger test.
 10. WF-020.2 `0014_rls` (all of section 6, the section 8 retention and purge functions, the section 9 maintenance functions, `trip_member_profiles`, the `SECURITY DEFINER` ownership loop, `SELECT` on `alembic_version` for the app login so `/health/ready` reads it). The 03 section 6.5 grants-and-RLS test as `hermi_api_login`.
