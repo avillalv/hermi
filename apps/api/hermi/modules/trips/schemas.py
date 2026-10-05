@@ -209,3 +209,19 @@ class DestinationPatch(BaseModel):
 
 class DestinationOrder(BaseModel):
     ids: list[uuid.UUID] = Field(max_length=12)
+
+
+class Capabilities(BaseModel):
+    """04 section 2.3. Computed per trip by trips.service.trip_capabilities; every number comes from the merged plan limits."""
+
+    effective_tier: Literal["free", "plus", "trip_pass"]
+    source: Literal["owner_tier", "trip_pass"]
+    can_invite: bool
+    collaborators_used: int
+    max_collaborators: int
+    live_routes_max: int
+    live_routes_used: int
+    live_checks_left: int | None
+    agent_enabled: bool
+    limited: bool
+    pass_expires_at: datetime | None

@@ -2919,6 +2919,7 @@ Walked route by route from `04-api-spec.md` section 5 and the jobs it names. "RL
 | `POST /trips/{id}/ai/*`, `agent-runs`, `notes/{id}/recheck`, `items/{id}/recheck`, `flights/live-search`, `lodging/rental-search`, `imports/paste` | `reserve_credits()`, `settle_credits()`; insert `runs` (queued) and `provider_calls`; defer the job | Definer for credits; RLS for `runs`; direct insert grant for `provider_calls`; `procrastinate_defer_jobs_v1` for the job |
 | `POST /agent-runs/{id}/cancel`, `POST /ai/jobs/{id}/cancel` | `runs.cancel_requested` (column grant); credits through `settle_credits()` | RLS, Definer |
 | AI spend ceiling check on every AI route | `my_provider_spend_micros()` reads `provider_calls` | Definer |
+| Trip capabilities and plan-limit checks for a trip | `trip_effective_limits(trip)` (7.1) reads the owner's `entitlements`, `plans` and `trip_passes` | Definer (row-level security hides the owner's entitlement from invitees) |
 | `POST /reports` | `file_content_report()`: inserts `content_reports`, expires the cached answer, counts distinct reporters and sets `shared_research_cache.flagged_at` at three | Definer |
 | `POST /shared/{token}/report` | `content_reports` with `reporter_user_id` null | SystemSession (`share_report`) |
 | `POST /purchases/sync`, `/purchases/restore`, `/credits/packs/claim`, `/me/passes/{id}/bind` and `/move` | `subscriptions`, `entitlements`, `store_transactions`, `trip_passes`, `credit_grants`, `credit_ledger` (the same code as the webhook) | SystemSession (`billing_sync`), after the route checks ownership |
@@ -3359,6 +3360,8 @@ FROM (
    GROUP BY l.key
 ) m;
 ```
+
+The API calls this query as the `SECURITY DEFINER` function `trip_effective_limits(p_trip uuid)` (migration `0017_trip_effective_limits`), which returns `(sources text[], limits jsonb)`. It is owned by `hermi_definer`, has a pinned `search_path`, is executable by `hermi_app` only (not `PUBLIC`, not the worker) and answers only for trips in `visible_trip_ids()`; for any other trip it returns no rows. It exists because row-level security hides the owner's `entitlements` row from invitees, who must still get the owner's tier on that trip.
 
 The owner-tier limit `credits_*` and the ceilings are not used for trip features; credits and ceilings belong to the acting user (7.2 and 7.4). When the owner's tier lapses or the pass expires, the query simply returns the Free limits: data is never deleted, and members beyond the collaborator limit are treated as viewers by the API.
 
@@ -3850,6 +3853,8 @@ Practical rules for the revisions: functions, triggers, partitions, policies and
 | `0013_notifications_samples` | `notifications`, `sample_trips`, `plan_verifications`, `plan_verification_items` | 0004, 0005, 0010 |
 | `0014_rls` | Helper functions, `trip_member_profiles`, `purge_trash`, `retention_sweep`, `maintain_partitions`, `drop_old_log_partitions`, `partition_default_rows`, policies for every table, grants and `SECURITY DEFINER` changes (section 6). Any table added after this revision must include its own `GRANT`, `ENABLE ROW LEVEL SECURITY` and policies in the same migration; the test in 6.5 fails otherwise | all tables exist |
 | `0015_seed` | Seed data (section 11), idempotent `INSERT ... ON CONFLICT DO NOTHING` | 0014 |
+| `0016_bootstrap_subject` | `bootstrap_user` writes `auth_identities.provider_subject`; `resolve_identity` | 0015 |
+| `0017_trip_effective_limits` | `trip_effective_limits(uuid)`, the 7.1 merge as a definer function | 0016 |
 
 Airports and FX are loaded by jobs, not by a migration: `hermi seed-airports` reads the OurAirports CSV and `hermi refresh-fx` pulls Frankfurter. CI runs `npm run db:init`, then the full chain on an empty database as `hermi_migrate_login`, runs the tenant-isolation tests and the role checks as `hermi_api_login` (never as the owner), then runs `alembic downgrade base` and `upgrade head` once to prove the chain is reversible in a scratch database (production never downgrades).
 

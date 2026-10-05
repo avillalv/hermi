@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from hermi.deps import CurrentUser, DbSession, TripAccess, require_trip
 from hermi.errors import ApiError, NotFound
+from hermi.modules.billing import service as billing
 from hermi.modules.trips import repo
 from hermi.modules.trips.schemas import (
     DestinationIn,
@@ -62,21 +63,7 @@ def _invalid(field: str, message: str) -> ApiError:
 
 
 def _check_trip_limit(session: Session, user_id: uuid.UUID) -> None:
-    limit = repo.active_trip_limit(session, user_id)
-    if repo.count_active_owned(session, user_id) >= limit:
-        raise ApiError(
-            402,
-            "limit_reached",
-            f"You have {limit} active trips. Archive one to make room, or upgrade.",
-            extra={
-                "paywall": {
-                    "trigger": "third_trip",
-                    "reason": "trip_limit",
-                    "offer_url": "/v1/paywall/offer?reason=trip_limit",
-                    "free_path": "Archive a trip or join trips other people plan",
-                }
-            },
-        )
+    billing.require_active_trip_slot(session, user_id)
 
 
 def _my_travelers(session: Session, user_id: uuid.UUID, asked: list[uuid.UUID] | None) -> list[uuid.UUID]:
