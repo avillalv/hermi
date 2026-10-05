@@ -10,7 +10,7 @@ const day = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", t
 export const shortDay = (iso: string) => day.format(new Date(`${iso}T00:00:00Z`))
 
 /** Daily minimum across sources, oldest first. */
-function daily(h: PriceHistory) {
+export function daily(h: PriceHistory) {
   const m = new Map<string, number>()
   for (const p of h.points) m.set(p.day, Math.min(m.get(p.day) ?? Infinity, p.price.amount_minor))
   return [...m].sort(([a], [b]) => a.localeCompare(b)).map(([d, minor]) => ({ day: d, minor }))

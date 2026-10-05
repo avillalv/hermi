@@ -227,3 +227,13 @@ def test_stranger_gets_404_on_reads(client, session, path):
     h = _user(client)
     trip, _, _ = _seed(client, session, h)
     assert client.get(f"/v1/trips/{trip}/{path}", headers=_user(client)).status_code == 404
+
+
+def test_fare_carries_a_plain_airline_search_link(client, session):
+    h = _user(client)
+    _, _, items = _seed(client, session, h)
+    for f in items:
+        url = f["airline_search_url"]
+        assert url.startswith("https://www.google.com/travel/flights?q=")
+        assert f["origin"] in url and f["destination"] in url
+        assert not any(w in url.lower() for w in ("marker", "airbnb", "vrbo", "booking.com", "aviasales", "travelpayouts"))

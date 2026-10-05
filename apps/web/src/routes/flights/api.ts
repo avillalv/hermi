@@ -17,6 +17,7 @@ export type Route = {
   return_to: string | null
   adults: number
   children: number
+  cabin?: string
   mode: "cached" | "live"
   version: number
   last_checked_at: string | null
@@ -36,6 +37,11 @@ export type Fare = {
   stops_back: number | null
   duration_out_min: number | null
   depart_at_local: string | null
+  passengers?: number
+  source_url: string | null
+  airline_search_url?: string | null
+  hidden?: boolean
+  suspect?: boolean
   observed_at: string
   age_label: string
 }
@@ -76,7 +82,7 @@ function useRead<T>(queryKey: unknown[], path: string, enabled = true, query?: R
 
 export const useRoutes = (id: string, on: boolean) => useRead<Route[]>(key(id, "routes"), `${base(id)}/routes`, on)
 export const useSummary = (id: string, on: boolean) => useRead<RouteSummary[]>(key(id, "summary"), `${base(id)}/flights/summary`, on)
-export const useHistory = (id: string, route: string) => useRead<PriceHistory>(key(id, route, "history"), `${base(id)}/routes/${route}/price-history`)
+export const useHistory = (id: string, route: string, on = true) => useRead<PriceHistory>(key(id, route, "history"), `${base(id)}/routes/${route}/price-history`, on)
 export const useGrid = (id: string, route: string, on: boolean) => useRead<GridCell[]>(key(id, route, "grid"), `${base(id)}/routes/${route}/date-grid`, on)
 export const useOptions = (id: string, route: string, sort: FareSort, on: boolean) =>
   useRead<Fare[]>(key(id, route, "options", sort), `${base(id)}/flights/best`, on, { route_id: route, sort, limit: "20" })
@@ -107,7 +113,12 @@ export const addRoute = async (id: string, body: RouteIn) => {
   if (made.ok) void refreshRoute(id, undefined)
   return made
 }
-export const chooseFare = (id: string, route: string, fare: string) => write(id, () => api.put(`${base(id)}/routes/${route}/choice`, { fare_id: fare }))
+/** `paid` or `booked_at` also marks the flight booked (the API treats either as a booking). */
+export const chooseFare = (id: string, route: string, fare: string, booking?: { paid?: Money; booked_at?: string }) =>
+  write(id, () => api.put(`${base(id)}/routes/${route}/choice`, { fare_id: fare, ...booking }))
+/** One fare: the route's fare list is cheapest first, so the detail screen finds its fare in the first 100 (no single-fare read exists yet). */
+export const useRouteFares = (id: string, route: string, on: boolean) =>
+  useRead<{ items: Fare[] }>(key(id, route, "fares"), `${base(id)}/routes/${route}/fares`, on, { limit: "100" })
 /** Cached refresh: free, never spends credits (01 section 5.8). */
 export const refreshRoute = (id: string, route?: string) => write(id, () => api.post(`${base(id)}/flights/refresh`, route ? { route_ids: [route] } : {}))
 

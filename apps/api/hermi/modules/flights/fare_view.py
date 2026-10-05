@@ -2,6 +2,7 @@
 """One trip fare as the API shows it: the shared SELECT over `trip_fare_links` and its observation, and the row to `Fare` mapping."""
 
 from datetime import UTC, datetime
+from urllib.parse import quote
 
 from hermi.modules.flights.schemas import Fare, Money
 
@@ -20,12 +21,18 @@ def age_label(observed_at: datetime, confidence: str, now: datetime | None = Non
     return f"{confidence} {age}"
 
 
+def search_url(origin: str, destination: str, depart, back) -> str:
+    """A plain Google Flights search for the same airports and dates: no partner, no marker, never a rental site. The server does not fetch it; the traveler opens it."""
+    q = f"Flights from {origin} to {destination} on {depart.isoformat()}" + (f" through {back.isoformat()}" if back else "")
+    return f"https://www.google.com/travel/flights?q={quote(q)}"
+
+
 def fare_of(r) -> Fare:
     return Fare(
         id=r["id"], route_id=r["route_id"], source=r["source"], confidence=r["confidence"], origin=r["origin"], destination=r["destination"],
         depart_date=r["depart_date"], return_date=r["return_date"], price=Money(amount_minor=r["price_total_minor"], currency=r["currency"]),
         passengers=r["adults"] + r["children"], airlines=r["airlines"], stops_out=r["stops_out"], stops_back=r["stops_back"],
         duration_out_min=r["duration_out_min"], duration_back_min=r["duration_back_min"], depart_at_local=r["depart_at_local"],
-        flight_numbers=r["flight_numbers"], source_url=r["source_url"], observed_at=r["observed_at"],
+        flight_numbers=r["flight_numbers"], airline_search_url=search_url(r["origin"], r["destination"], r["depart_date"], r["return_date"]), source_url=r["source_url"], observed_at=r["observed_at"],
         age_label=age_label(r["observed_at"], r["confidence"]), suspect=r["suspect"], hidden=r["hidden"],
     )

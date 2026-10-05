@@ -30,11 +30,16 @@ function FareChip({ fare, lowest }: { fare: Fare; lowest?: boolean }) {
   const stale = Date.now() - Date.parse(fare.observed_at) > STALE_MS
   const age = ageOf(fare)
   const kind = tagOf(fare)
-  // shortcut: the fare detail screen (6.10) is a later step, so a tap only records the event.
+  const nav = useNavigate()
+  const { id = "" } = useParams()
   return (
     <>
       {lowest && <span className="h-label">{t("flights.lowest")}</span>}
-      <button type="button" className={`flights__chip${stale ? " flights__chip--stale" : ""}`} onClick={() => track("fare_chip_tapped", { source: kind })}>
+      <button type="button" className={`flights__chip${stale ? " flights__chip--stale" : ""}`} onClick={() => {
+          track("fare_chip_tapped", { source: kind })
+          nav(`/trips/${id}/flights/${fare.route_id}/fares/${fare.id}`, { state: { fare } })
+        }}
+      >
         <span className="h-mono flights__code">{fare.destination}</span>
         <span className="h-mono">{formatMoney(fare.price.amount_minor, fare.price.currency)}</span>
         <span className={`flights__tag flights__tag--${kind}`}>{cap(kind)}</span>
