@@ -23,5 +23,5 @@
     "evals": "node scripts/stub.mjs evals WF-057",
     "smoke:live": "node scripts/stub.mjs smoke:live"
   },
-  "devDependencies": { "js-yaml": "^4.3.2" }
+  "devDependencies": { "js-yaml": "^5.4.2" }
 }
