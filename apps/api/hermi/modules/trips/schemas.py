@@ -64,7 +64,8 @@ class ActivityOut(BaseModel):
 
 
 class DestinationIn(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
+    id: uuid.UUID | None = None  # PATCH /trips/{id}: an existing destination of the trip to keep and update
+    name: str = Field(min_length=1, max_length=120)
     region: str | None = Field(default=None, max_length=200)
     country: str | None = Field(default=None, max_length=200)
     country_code: str | None = Field(default=None, pattern=r"^[A-Za-z]{2}$")
@@ -104,7 +105,7 @@ class TripCreate(BaseModel):
 
 
 class Trip(BaseModel):
-    """The first slice of 04 `Trip`: GET one and the rest of the fields arrive with WF-019.1."""
+    # shortcut: the 04 `Trip` read model without cover, counts and capabilities, which arrive with the screens that show them.
 
     id: uuid.UUID
     version: int
@@ -141,3 +142,70 @@ class TripPage(BaseModel):
     items: list[TripSummary]
     next_cursor: str | None
     has_more: bool
+
+
+# --- WF-019.1: PATCH, duplicate and destinations (04 sections 5.4 and 5.5) ----------------------------------------
+
+
+class TripUpdate(BaseModel):
+    """Partial: only the fields sent change. `status`, `ai_enabled` and `editors_can_invite` are owner only."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    start_date: date | None = None
+    end_date: date | None = None
+    home_currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
+    notes: str | None = Field(default=None, max_length=10000)
+    destinations: list[DestinationIn] | None = Field(default=None, max_length=12)
+    traveler_ids: list[uuid.UUID] | None = Field(default=None, max_length=20)
+    status: Literal["planning", "booked", "done", "archived"] | None = None
+    ai_enabled: bool | None = None
+    editors_can_invite: bool | None = None
+    version: int | None = None  # or If-Match
+
+    @field_validator("name")
+    @classmethod
+    def _trim(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            raise ValueError("Give your trip a name.")
+        return v
+
+    @model_validator(mode="after")
+    def _not_null(self) -> "TripUpdate":
+        for f in ("name", "home_currency", "notes", "status", "ai_enabled", "editors_can_invite"):
+            if f in self.model_fields_set and getattr(self, f) is None:
+                raise ValueError(f"{f} cannot be empty.")
+        return self
+
+
+class TripDuplicate(BaseModel):
+    """Both fields optional. With a start date the copy keeps the source length; without one it has no dates."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    start_date: date | None = None
+
+
+class DestinationPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    region: str | None = Field(default=None, max_length=200)
+    country: str | None = Field(default=None, max_length=200)
+    country_code: str | None = Field(default=None, pattern=r"^[A-Za-z]{2}$")
+    kind: str | None = Field(default=None, max_length=50)
+    lat: float | None = Field(default=None, ge=-90, le=90)
+    lon: float | None = Field(default=None, ge=-180, le=180)
+    timezone: str | None = Field(default=None, max_length=64)
+    bbox: list[float] | None = Field(default=None, min_length=4, max_length=4)
+    geoapify_place_id: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def _not_null(self) -> "DestinationPatch":
+        for f in ("name", "lat", "lon"):
+            if f in self.model_fields_set and getattr(self, f) is None:
+                raise ValueError(f"{f} cannot be empty.")
+        return self
+
+
+class DestinationOrder(BaseModel):
+    ids: list[uuid.UUID] = Field(max_length=12)

@@ -4,7 +4,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select, text
+from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
 import hermi.modules.auth.models  # noqa: F401  (registers `users` for the foreign keys)
@@ -13,13 +13,19 @@ from hermi.modules.trips.models import Trip, TripDestination
 
 
 def get_trip_with_member(
-    session: Session, trip_id: uuid.UUID, user_id: uuid.UUID
+    session: Session, trip_id: uuid.UUID, user_id: uuid.UUID, *, trashed: bool = False
 ) -> tuple[Trip, TripMember] | None:
-    """The trip and the user's membership row, or None when not a member or the trip is in trash."""
+    """The trip and the user's membership row, or None when not a member or the trip is in trash.
+
+    trashed=True looks only at trips in the trash (restore) instead of only at live ones."""
     row = session.execute(
         select(Trip, TripMember)
         .join(TripMember, TripMember.trip_id == Trip.id)
-        .where(Trip.id == trip_id, TripMember.user_id == user_id, Trip.deleted_at.is_(None))
+        .where(
+            Trip.id == trip_id,
+            TripMember.user_id == user_id,
+            Trip.deleted_at.is_not(None) if trashed else Trip.deleted_at.is_(None),
+        )
     ).first()
     return (row[0], row[1]) if row else None
 
@@ -112,3 +118,111 @@ def list_summaries(session: Session, user_id: uuid.UUID, *, limit: int, after: t
         args["at"], args["id"] = after
     sql += " ORDER BY t.updated_at DESC, t.id DESC LIMIT :n"
     return list(session.execute(text(sql), args).mappings())
+
+
+# --- WF-019.1 ---------------------------------------------------------------------------------------------------------
+
+
+def update_trip(session: Session, trip: Trip, version: int, values: dict) -> bool:
+    """Writes `values` (never empty, so the version trigger always bumps) when the row is still at `version`.
+    False means someone else got there first (409)."""
+    done = session.execute(
+        update(Trip).where(Trip.id == trip.id, Trip.version == version).values(**values).returning(Trip.id),
+        execution_options={"synchronize_session": False},
+    ).first()
+    session.refresh(trip)
+    return done is not None
+
+
+def sync_my_travelers(session: Session, trip_id: uuid.UUID, user_id: uuid.UUID, people: list[uuid.UUID]) -> None:
+    """Replaces the travelers the caller owns on the trip; travelers other members added stay."""
+    session.execute(
+        text("DELETE FROM trip_people WHERE trip_id = :t AND person_id IN (SELECT id FROM people WHERE owner_user_id = :u)"),
+        {"t": trip_id, "u": user_id},
+    )
+    for pid in people:
+        session.add(TripPerson(trip_id=trip_id, person_id=pid, added_by=user_id))
+    session.flush()
+
+
+def replace_destinations(session: Session, trip_id: uuid.UUID, items: list[dict]) -> bool:
+    """Makes the trip's destinations `items`, in that order. An item with an `id` updates that row; one without is new;
+    rows not named are removed. False when an id is not a destination of this trip."""
+    have = {d.id: d for d in destinations_of(session, trip_id)}
+    named = [i["id"] for i in items if i.get("id") is not None]
+    if len(named) != len(set(named)) or any(i not in have for i in named):
+        return False
+    keep = {i["id"] for i in items if i.get("id") is not None}
+    for gone in set(have) - keep:
+        session.delete(have[gone])
+    session.flush()
+    for pos, i in enumerate(items):
+        fields = {k: v for k, v in i.items() if k != "id"}
+        if i.get("id") is None:
+            session.add(TripDestination(trip_id=trip_id, position=pos, **fields))
+        else:
+            row = have[i["id"]]
+            for k in ("region", "country", "country_code", "kind", "timezone", "bbox", "geoapify_place_id"):
+                setattr(row, k, fields.get(k))  # a full replace: a field left out is cleared
+            row.name, row.lat, row.lon, row.position = fields["name"], fields["lat"], fields["lon"], pos
+    session.flush()
+    return True
+
+
+def get_destination(session: Session, trip_id: uuid.UUID, destination_id: uuid.UUID) -> TripDestination | None:
+    return session.scalars(
+        select(TripDestination).where(TripDestination.trip_id == trip_id, TripDestination.id == destination_id)
+    ).first()
+
+
+def add_destination(session: Session, trip_id: uuid.UUID, values: dict) -> TripDestination:
+    """Appends at the end. The caller has checked the cap of 12."""
+    pos = session.execute(
+        text("SELECT coalesce(max(position) + 1, 0) FROM trip_destinations WHERE trip_id = :t"), {"t": trip_id}
+    ).scalar_one()
+    row = TripDestination(trip_id=trip_id, position=pos, **values)
+    session.add(row)
+    session.flush()
+    session.refresh(row)
+    return row
+
+
+def remove_destination(session: Session, row: TripDestination) -> None:
+    """Deletes it and closes the gap; days that pointed at it fall back to null by the foreign key."""
+    trip_id = row.trip_id
+    session.delete(row)
+    session.flush()
+    for pos, d in enumerate(destinations_of(session, trip_id)):
+        d.position = pos
+    session.flush()
+
+
+def order_destinations(session: Session, trip_id: uuid.UUID, ids: list[uuid.UUID]) -> bool:
+    have = {d.id: d for d in destinations_of(session, trip_id)}
+    if len(ids) != len(have) or set(ids) != set(have):
+        return False
+    for pos, i in enumerate(ids):
+        have[i].position = pos
+    session.flush()
+    return True
+
+
+def trash_trip(session: Session, trip_id: uuid.UUID) -> None:
+    """Soft delete (04 5.4): revokes invites and share links and disables the calendar feed token.
+    shortcut: active agent runs are not cancelled here (the agent module owns `runs`); wire it when WF-050 lands."""
+    session.execute(update(Trip).where(Trip.id == trip_id).values(deleted_at=text("now()"), calendar_token_hash=None))
+    for table in ("trip_invites", "trip_share_links"):
+        session.execute(text(f"UPDATE {table} SET revoked_at = now() WHERE trip_id = :t AND revoked_at IS NULL"), {"t": trip_id})
+
+
+def restore_trip(session: Session, trip: Trip) -> None:
+    session.execute(update(Trip).where(Trip.id == trip.id).values(deleted_at=None))
+    session.refresh(trip)
+
+
+def in_trash_window(session: Session, trip_id: uuid.UUID) -> bool:
+    return bool(
+        session.execute(
+            text("SELECT deleted_at > now() - interval '30 days' FROM trips WHERE id = :t"), {"t": trip_id}
+        ).scalar()
+    )
