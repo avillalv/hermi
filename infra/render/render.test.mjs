@@ -81,3 +81,15 @@ test("staging and production are separate", () => {
 test("deploys are never automatic (the workflows promote an image digest)", () => {
   for (const s of services) assert.equal(s.autoDeploy, false, s.name);
 });
+
+// WF-039: the backup scripts and runbook exist and the blueprint documents the backup settings.
+test("backups: scripts, runbook and blueprint notes are in place", () => {
+  const text = readFileSync(new URL("./render.yaml", import.meta.url), "utf8");
+  assert.match(text, /point-in-time recovery: on, 7 days/);
+  assert.match(text, /daily snapshots: on/);
+  assert.match(text, /backup-dump\.sh/);
+  assert.match(text, /restore-drill\.sh/);
+  for (const f of ["../scripts/backup-dump.sh", "../scripts/restore-drill.sh", "../../docs/runbooks/restore.md"]) {
+    assert.ok(readFileSync(new URL(f, import.meta.url), "utf8").length > 0, f);
+  }
+});

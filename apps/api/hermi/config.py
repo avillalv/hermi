@@ -154,6 +154,7 @@ class Settings(BaseSettings):
     r2_bucket_uploads: str | None = None
     r2_bucket_exports: str | None = None
     r2_bucket_backups: str | None = None
+    backup_encryption_key: SecretStr | None = None  # env contract only, Python never reads it
     sentry_dsn: str | None = None
     sentry_auth_token: SecretStr | None = None
     posthog_key: str | None = None

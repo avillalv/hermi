@@ -147,6 +147,7 @@ Map tiles come from OpenFreeMap and need no key.
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | R2 S3 credentials | Production only | Local storage | Cloudflare dashboard, R2, API tokens. R2 needs a card on file |
 | `R2_BUCKET_UPLOADS`, `R2_BUCKET_EXPORTS`, `R2_BUCKET_BACKUPS` | Bucket names | Production only | Local storage | Create them in R2 (`hermi-uploads` and so on) |
 | `R2_ENDPOINT_URL` | S3 endpoint of the R2 account. New | Production only | Local storage | `https://<account id>.r2.cloudflarestorage.com` |
+| `BACKUP_ENCRYPTION_KEY` | Passphrase for the weekly dump (`infra/scripts/backup-dump.sh`, `restore-drill.sh`). Held outside Render, in a password manager. The dump job's `R2_*` values are the second Cloudflare account's. WF-039 | Not needed (`restore-drill.sh --local` makes a throwaway key) | The dump job refuses to run | `openssl rand -base64 32`, stored in the password manager and in the backup job's environment only |
 
 ## Apple and iOS
 
