@@ -1,7 +1,6 @@
 # WF-007. Playwright smoke set on pull requests labeled `e2e` and on main. Not part of the `ci`
 # aggregator (it is label-gated); the autopilot adds the label at ship time.
-# shortcut: until WF-130 lands Playwright, `npm run test:e2e:smoke` is the fetch-based smoke test
-# against the dev servers. Swap the browser install and command here then.
+# `npm run test:e2e:smoke` runs the fetch checks, then the Playwright smoke project, against the dev servers started below.
 name: e2e
 
 on:
