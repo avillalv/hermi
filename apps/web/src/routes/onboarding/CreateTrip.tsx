@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router"
 import { Btn, Icon, Sprite, TextField } from "../../components/kit"
 import { parseDate } from "../../lib/dates"
 import { t } from "../../lib/i18n"
+import { track } from "../../lib/track"
 import { useOnline } from "../../lib/useOnline"
 import { api } from "../auth/api"
 import { useAuth } from "../auth/authStore"
@@ -98,7 +99,10 @@ export function CreateTrip() {
       ...(hasDates ? { start_date: start, end_date: end } : {}),
       ...(picked ? { destinations: [picked] } : {}),
     })
-    if (r.ok) return nav("/", { replace: true }) // shortcut: opens Trips until Trip overview (WF-020) exists
+    if (r.ok) {
+      track("trip_created", { source: "blank", destination_count: picked ? 1 : 0, has_dates: !!hasDates })
+      return nav("/", { replace: true }) // shortcut: opens Trips until Trip overview (WF-020) exists
+    }
     setBusy(false)
     // shortcut: an inline sentence for the Free trip limit. WF-064 replaces it with the third_trip paywall sheet (05 6.27), with "Archive a trip" first.
     setError(t(r.reason === "limit" ? "createTrip.limit" : "createTrip.failed"))

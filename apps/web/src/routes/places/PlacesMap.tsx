@@ -36,7 +36,7 @@ export function PlacesMap({ items, days, online }: { items: Item[]; days: Number
   const target = shown.find((p) => p.id === selected) ?? shown[0]
   const wantMap = online && all.length > 0
 
-  useEffect(() => track("map_opened"), [])
+  useEffect(() => void track("map_opened"), [])
   useEffect(() => {
     if (!wantMap || !host.current) return
     let dead = false

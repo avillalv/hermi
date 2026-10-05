@@ -6,7 +6,7 @@ import { Skeleton } from "../../components/Skeleton"
 import { Btn, DayChip, DayChips, Icon, SegItem, SegmentedControl, TextField } from "../../components/kit"
 import { t } from "../../lib/i18n"
 import { formatTimeRange } from "../../lib/itinerary-time"
-import { track } from "../../lib/track"
+import { track, firstItem } from "../../lib/track"
 import { useOnline } from "../../lib/useOnline"
 import { AppShell } from "../../shell/AppShell"
 import { useAuth } from "../auth/authStore"
@@ -198,6 +198,7 @@ function AddItem({ tripId, days, start, canWrite, onClose, onAdded }: { tripId: 
     setBusy(false)
     if (!r.ok) return setFailed(r.reason === "forbidden" ? "forbidden" : "failed")
     track("itinerary_item_added", { category, source: "manual" })
+    firstItem()
     onAdded(day, title.trim())
   }
   return (
@@ -243,7 +244,7 @@ export function Plan() {
   const [busy, setBusy] = useState(false)
   const [conflict, setConflict] = useState<Conflict | null>(null)
   const [note, setNote] = useState<{ kind: "ok" | "error"; text: string } | null>(null)
-  useEffect(() => track("plan_viewed", { mode: view }), [view])
+  useEffect(() => void track("plan_viewed", { mode: view }), [view])
   if (!token) return <Navigate to="/welcome" replace />
 
   const canEdit = !!trip.data && trip.data.my_role !== "viewer"

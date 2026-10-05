@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
+import { setAnalyticsUser } from "../../lib/analytics"
 import { env } from "../../lib/env"
 import { queryClient } from "../../lib/queryClient"
 import { ApiError } from "../../lib/api/client"
@@ -69,6 +70,8 @@ export function useMe(token: string | null, enabled: boolean) {
       queryFn: async () => {
         const r = await fetch(`${env.apiBaseUrl}/v1/me`, { headers: { Authorization: `Bearer ${token}` }, credentials: "omit" })
         if (r.ok) {
+          const body = (await r.json().catch(() => null)) as { id?: unknown } | null
+          if (typeof body?.id === "string") setAnalyticsUser(body.id)
           markOnboarded()
           return true
         }

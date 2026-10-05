@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { mockApi, reset, type Handler } from "../onboarding/testing"
+import { __resetAnalytics } from "../../lib/analytics"
 import { AddActivity } from "./AddActivity"
 
 const DAYS = [{ day: "2027-05-01", n: 1 }, { day: "2027-05-02", n: 2 }]
@@ -194,4 +195,25 @@ test("a viewer cannot add: the Add button is disabled", async () => {
   search()
   fireEvent.click(await screen.findByRole("option", { name: /Belem Tower/ }))
   expect(await screen.findByRole("button", { name: "Add Belem Tower to Day 2" })).toBeDisabled()
+})
+
+test("two place adds fire itinerary_item_added each time and first_itinerary_item_added once", async () => {
+  localStorage.clear()
+  __resetAnalytics()
+  const seen: string[] = []
+  const on = (e: Event) => seen.push((e as CustomEvent).detail.event)
+  window.addEventListener("hermi:event", on)
+  const f = mockApi(api())
+  const { onAdded } = open()
+  search()
+  fireEvent.click(await screen.findByRole("option", { name: /Belem Tower/ }))
+  const add = await screen.findByRole("button", { name: /^Add Belem Tower to/ })
+  fireEvent.click(add)
+  await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(1))
+  fireEvent.click(screen.getByRole("button", { name: /^Add Belem Tower to/ }))
+  await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(2))
+  expect(f.mock.calls.filter(([u, i]) => String(u).endsWith("/trips/t1/items") && (i as RequestInit | undefined)?.method === "POST")).toHaveLength(2)
+  expect(seen.filter((n) => n === "itinerary_item_added")).toHaveLength(2)
+  expect(seen.filter((n) => n === "first_itinerary_item_added")).toHaveLength(1)
+  window.removeEventListener("hermi:event", on)
 })

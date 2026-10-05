@@ -89,7 +89,7 @@ export function Members({ trip }: { trip: Trip & { editors_can_invite?: boolean 
                     <span className="h-chip">{t(`group.role.${m.role}`)}</span>
                   )}
                   {owner && m.role !== "owner" && (
-                    <Btn variant="text" mod={["sm"]} disabled={!online} aria-label={t("group.removeMember", { name })} onClick={() => void act(() => removeMember(trip.id, m.user_id)).then((ok) => ok && track("member_removed"))}>
+                    <Btn variant="text" mod={["sm"]} disabled={!online} aria-label={t("group.removeMember", { name })} onClick={() => void act(() => removeMember(trip.id, m.user_id))}>
                       <Icon name="x" size={18} />
                     </Btn>
                   )}

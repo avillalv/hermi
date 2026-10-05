@@ -1,7 +1,7 @@
 import { useRef, useState } from "react"
 import { Btn, Icon, LinkBtn, TextField } from "../../components/kit"
 import { t } from "../../lib/i18n"
-import { track } from "../../lib/track"
+import { track, firstItem } from "../../lib/track"
 import { createItem } from "../itinerary/api"
 import { dayText, IDEAS } from "../itinerary/meta"
 import { Modal } from "../itinerary/Modal"
@@ -65,6 +65,7 @@ function Detail({ c, p, onBack }: { c: Candidate; p: Props; onBack: () => void }
     setBusy(false)
     if (!r.ok) return setNote({ kind: "error", text: t(r.reason === "forbidden" ? "places.forbidden" : "places.addFailed") })
     track("itinerary_item_added", { category: c.category, source: "place_search" })
+    firstItem()
     p.onAdded(day, c.name)
   }
   const save = async () => {

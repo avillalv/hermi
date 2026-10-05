@@ -22,7 +22,7 @@ import { PriceChart } from "./PriceChart"
 import "./flights.css"
 
 /** 05 4.5 source tags are Live, Cached, Agent and Google history; an indicative fare is an agent one. */
-export const tagOf = (f: Fare) => (f.confidence === "indicative" ? "agent" : f.confidence)
+export const tagOf = (f: Fare) => (f.confidence === "indicative" ? "agent" : f.confidence) as "live" | "cached" | "agent" | "google"
 export const ageOf = (f: Fare) => (f.age_label.startsWith(f.confidence) ? f.age_label.slice(f.confidence.length).trim() : f.age_label)
 const STALE_MS = 24 * 3600_000
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)

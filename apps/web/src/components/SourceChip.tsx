@@ -15,7 +15,7 @@ const host = (url: string) => {
     return url
   }
 }
-const bucket = (days: number) => (days < 30 ? "14_30" : days < 90 ? "30_90" : "90_plus")
+const bucket = (days: number) => (days <= 30 ? "15_to_30" : "over_30")
 
 /**
  * 05 6.18 evidence label: "Found on [site], checked [date]", linked to the source. A source older than 14 days

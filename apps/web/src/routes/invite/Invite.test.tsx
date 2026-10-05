@@ -244,13 +244,13 @@ test("landing load error offers retry, and offline disables Join", async () => {
 })
 
 // --- review round 1 ---
-test("a role change says so politely, and a removal fires member_removed", async () => {
-  mockApi(api())
+test("a role change says so politely, and a removal is sent", async () => {
+  const f = mockApi(api())
   open()
   fireEvent.change(await screen.findByLabelText("Role for Sam"), { target: { value: "viewer" } })
   expect(await screen.findByRole("status")).toHaveTextContent("Sam is now a viewer")
   fireEvent.click(screen.getByRole("button", { name: "Remove member Sam" }))
-  await waitFor(() => expect(events).toContain("member_removed"))
+  await waitFor(() => expect(f.mock.calls.some(([u, i]) => String(u).includes("/members/") && (i as RequestInit | undefined)?.method === "DELETE")).toBe(true))
 })
 
 test("the owner can make an editor the owner", async () => {

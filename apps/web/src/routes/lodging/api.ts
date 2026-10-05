@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { queryClient } from "../../lib/queryClient"
+import { setAnalyticsUser } from "../../lib/analytics"
 import { ApiError } from "../../lib/api/client"
 import { api } from "../auth/api"
 
@@ -58,6 +59,7 @@ export const useMe = (on: boolean) =>
       queryFn: async () => {
         const r = await api.get<{ id: string }>("/v1/me")
         if (r.error !== undefined || !r.data) throw new ApiError(r)
+        setAnalyticsUser(r.data.id)
         return r.data
       },
     },
