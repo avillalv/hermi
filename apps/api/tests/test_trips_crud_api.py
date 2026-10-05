@@ -338,3 +338,19 @@ def test_patch_with_a_repeated_destination_id_is_422(client, world):
     d = t["destinations"][0]["id"]
     r = client.patch(f"/v1/trips/{t['id']}", json={"destinations": [{"id": d, **LISBON}, {"id": d, **LISBON}]}, headers=_ifm(h, t))
     assert r.status_code == 422
+
+
+def test_patch_destination_keeps_fields_the_client_did_not_send(client, world, system_conn):
+    h = world["o"]
+    rich = {**PORTO, "kind": "city", "bbox": [-8.7, 41.1, -8.5, 41.2], "geoapify_place_id": "gp-1", "timezone": "Europe/Lisbon"}
+    t = _trip(client, h, destinations=[rich])
+    did = t["destinations"][0]["id"]
+    body = {"destinations": [{"id": did, "name": "Oporto", "lat": 41.15, "lon": -8.61}]}
+    r = client.patch(f"/v1/trips/{t['id']}", json=body, headers=_ifm(h, t))
+    assert r.status_code == 200, r.text
+    row = system_conn.execute("SELECT name, kind, bbox, geoapify_place_id, timezone, country FROM trip_destinations WHERE id = %s", (did,)).fetchone()
+    assert row[0] == "Oporto" and row[1] == "city" and list(row[2]) == [-8.7, 41.1, -8.5, 41.2] and row[3:] == ("gp-1", "Europe/Lisbon", "Portugal")
+    # An explicit null still clears.
+    t = client.get(f"/v1/trips/{t['id']}", headers=h).json()
+    client.patch(f"/v1/trips/{t['id']}", json={"destinations": [{"id": did, "name": "Oporto", "lat": 41.15, "lon": -8.61, "timezone": None}]}, headers=_ifm(h, t))
+    assert system_conn.execute("SELECT timezone, kind FROM trip_destinations WHERE id = %s", (did,)).fetchone() == (None, "city")

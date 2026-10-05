@@ -70,3 +70,17 @@ describe('shell nav', () => {
     expect(within(strip).getByRole('link', { name: 'B' })).toHaveAttribute('aria-current', 'page')
   })
 })
+
+describe('trip switcher', () => {
+  it('lists the five most recent trips and All trips in the sidebar, and marks the open one', async () => {
+    const items = Array.from({ length: 7 }, (_, i) => ({ id: `t${i}`, name: `Trip ${i}`, status: 'planning', start_date: null, end_date: null, destinations_label: '', member_count: 1, my_role: 'owner' }))
+    vi.stubGlobal('fetch', async (u: string) => (String(u).endsWith('/v1/trips') ? Response.json({ items, next_cursor: null, has_more: false }) : new Response('{}', { status: 404 })))
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: true, media: q, addEventListener() {}, removeEventListener() {} }))
+    at('/trips/t1')
+    const nav = await screen.findByRole('navigation', { name: 'Trip switcher' })
+    expect(within(nav).getAllByRole('link')).toHaveLength(6)
+    expect(within(nav).getByRole('link', { name: 'All trips' })).toHaveAttribute('href', '/')
+    expect(within(nav).getByRole('link', { name: 'Trip 1' })).toHaveAttribute('aria-current', 'page')
+    expect(within(nav).queryByText('Trip 5')).not.toBeInTheDocument()
+  })
+})

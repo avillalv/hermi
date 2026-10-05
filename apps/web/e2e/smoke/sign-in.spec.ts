@@ -128,3 +128,49 @@ test("new user creates a first trip in three steps", async ({ page }) => {
   await page.getByRole("button", { name: "Create trip" }).click();
   await expect(page.getByText(name)).toBeVisible();
 });
+
+// WF-019.3, smoke flow 26 (01 section 3.11): archive a trip, then duplicate it into a new trip that appears in Trips.
+test("owner archives a trip, then duplicates it into a new trip in Trips", async ({ page }) => {
+  const name = `Porto ${Date.now()}`;
+  const full = `${name}, March`; // the wizard appends the start month to the name
+  await page.goto("/sign-in");
+  await page.getByRole("button", { name: "Plus user" }).click();
+  await page.getByRole("link", { name: "New trip" }).last().click();
+  await page.getByLabel("Search a city or country").fill(name);
+  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByLabel("Start date").fill("2020-03-12"); // a past trip
+  await page.getByLabel("End date").fill("2020-03-19");
+  await page.getByRole("button", { name: "Next" }).click();
+  await page.getByRole("button", { name: "Create trip" }).click();
+  await page.getByRole("button", { name: `Actions for ${full}` }).click();
+  await page.getByRole("button", { name: "Archive" }).click();
+  await expect(page.getByRole("status")).toHaveText(`Archived ${full}.`);
+  await page.getByRole("button", { name: "Duplicate" }).click();
+  await expect(page.getByRole("link", { name: new RegExp(`^${full} \\(copy\\)`) })).toBeVisible();
+});
+
+test("a failed trip action shows an error", async ({ page }) => {
+  await page.route("**/v1/trips", (r) =>
+    r.fulfill({ json: { items: [{ id: "t1", version: 1, name: "Lisbon", status: "planning", start_date: null, end_date: null, destinations_label: "", member_count: 1, my_role: "owner" }], next_cursor: null, has_more: false } }),
+  );
+  await page.route("**/v1/trips/t1/duplicate", (r) => r.fulfill({ status: 500, json: {} }));
+  await page.addInitScript(() => sessionStorage.setItem("hermi.auth", JSON.stringify({ token: "dev-free", persona: "free" })));
+  await page.goto("/");
+  await page.getByRole("button", { name: "Actions for Lisbon" }).click();
+  await page.getByRole("button", { name: "Duplicate" }).click();
+  await expect(page.getByRole("alert")).toHaveText("That did not work. Try again.");
+});
+
+test("the sidebar trip switcher shows at 1280 px and not at 390 px", async ({ page }) => {
+  await page.route("**/v1/trips", (r) =>
+    r.fulfill({ json: { items: [{ id: "t1", version: 1, name: "Lisbon", status: "planning", start_date: null, end_date: null, destinations_label: "", member_count: 1, my_role: "owner" }], next_cursor: null, has_more: false } }),
+  );
+  await page.addInitScript(() => sessionStorage.setItem("hermi.auth", JSON.stringify({ token: "dev-free", persona: "free" })));
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Trip switcher" });
+  await expect(nav).toBeVisible();
+  await expect(nav.getByRole("link", { name: "All trips" })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(nav).toBeHidden();
+});

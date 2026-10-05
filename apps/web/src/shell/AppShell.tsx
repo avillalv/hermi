@@ -1,6 +1,9 @@
-import type { ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useSyncExternalStore, type ReactNode } from 'react'
+import { Link, useMatch, useNavigate } from 'react-router'
 import { Icon, Logo, SectionTabs, Sprite, TabBar, cx, type SectionTab, type TabItem } from '../components/kit'
+import { t } from '../lib/i18n'
+import { useAuth } from '../routes/auth/authStore'
+import { useTrips } from '../routes/onboarding/trips'
 import './shell.css'
 
 export const TABS = [
@@ -16,6 +19,35 @@ export type Strip = { label: string; active: string; items: SectionTab[] }
  * DL section 3: a sticky strip, the sheet scrolling under it, the floating tab bar under 768 px, the 72 px icon rail
  * at 768 to 1199 px and the 248 px sidebar from 1200 px (05 5.3). `strip` is the optional section strip of a screen.
  */
+/** 05 5.3 sidebar trip switcher: the five most recent trips and All trips. The list is the one Trips home loads, so it costs no extra call. */
+const SIDEBAR = '(min-width: 1200px)'
+const sidebarOn = (cb: () => void) => {
+  const m = window.matchMedia?.(SIDEBAR)
+  m?.addEventListener('change', cb)
+  return () => m?.removeEventListener('change', cb)
+}
+
+function TripSwitcher() {
+  const { token } = useAuth()
+  // Only the 1200 px sidebar shows it, so narrower screens skip the list (and its call) altogether.
+  const wide = useSyncExternalStore(sidebarOn, () => !!window.matchMedia?.(SIDEBAR).matches)
+  const trips = useTrips(!!token && wide)
+  const open = useMatch('/trips/:id/*')?.params.id
+  if (!wide || !trips.data?.length) return null
+  return (
+    <nav className="shell-trips" aria-label={t('trips.switcher')}>
+      {trips.data.slice(0, 5).map((tr) => (
+        <Link key={tr.id} to={`/trips/${tr.id}`} className="shell-trip" aria-current={tr.id === open ? 'page' : undefined}>
+          {tr.name}
+        </Link>
+      ))}
+      <Link to="/" className="shell-trip shell-trip--all">
+        {t('trips.allTrips')}
+      </Link>
+    </nav>
+  )
+}
+
 export function AppShell({ active, strip, children }: { active: string; strip?: Strip; children: ReactNode }) {
   const navigate = useNavigate()
   const items: TabItem[] = TABS.map((t) => ({
@@ -43,7 +75,7 @@ export function AppShell({ active, strip, children }: { active: string; strip?: 
             </Link>
           ))}
         </nav>
-        <div className="shell-trips">Recent trips will show here.</div>
+        <TripSwitcher />
       </aside>
       <div className="shell-main">
         {strip && <SectionTabs className={cx('shell-strip')} items={strip.items} active={strip.active} label={strip.label} />}

@@ -162,9 +162,9 @@ def replace_destinations(session: Session, trip_id: uuid.UUID, items: list[dict]
             session.add(TripDestination(trip_id=trip_id, position=pos, **fields))
         else:
             row = have[i["id"]]
-            for k in ("region", "country", "country_code", "kind", "timezone", "bbox", "geoapify_place_id"):
-                setattr(row, k, fields.get(k))  # a full replace: a field left out is cleared
-            row.name, row.lat, row.lon, row.position = fields["name"], fields["lat"], fields["lon"], pos
+            for k, v in fields.items():
+                setattr(row, k, v)  # only the fields the client sent change; a field left out keeps its value, an explicit null clears it
+            row.position = pos
     session.flush()
     return True
 

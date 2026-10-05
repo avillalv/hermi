@@ -82,7 +82,22 @@
     "nights": "Nights",
     "travelers": "Travelers",
     "cardLabel": "{name}, {when}, {count} travelers, {status}",
-    "cardLabelOne": "{name}, {when}, 1 traveler, {status}"
+    "cardLabelOne": "{name}, {when}, 1 traveler, {status}",
+    "actionsFor": "Actions for {name}",
+    "edit": "Edit trip",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "duplicate": "Duplicate",
+    "trash": "Move to trash",
+    "undo": "Undo",
+    "actionFailed": "That did not work. Try again.",
+    "noticeArchived": "Archived {name}.",
+    "noticeUnarchived": "Moved {name} back to your trips.",
+    "noticeCopied": "Copied as {name}.",
+    "noticeTrashed": "Moved {name} to trash. You can restore it for 30 days.",
+    "noticeRestored": "Restored {name}.",
+    "switcher": "Trip switcher",
+    "allTrips": "All trips"
   },
   "createTrip": {
     "title": "New trip",
@@ -130,6 +145,24 @@
     "nowTitle": "Happening now",
     "nowLocalTime": "Local time in {place}",
     "nowEmpty": "Nothing planned for today",
-    "nowPlan": "Plan today"
+    "nowPlan": "Plan today",
+    "actions": "Trip actions",
+    "timezone": "Time zone"
+  },
+  "editTrip": {
+    "title": "Edit trip",
+    "back": "Back to trip",
+    "save": "Save",
+    "currency": "Currency",
+    "addDestination": "Add a destination",
+    "remove": "Remove {name}",
+    "datesBoth": "Add both dates, or clear both.",
+    "conflict": "This trip changed elsewhere. Reload and try again.",
+    "failed": "We could not save your changes. Try again.",
+    "offline": "You are offline. Connect to save your changes.",
+    "viewerOnly": "Only the owner and editors can change this trip.",
+    "searchError": "We could not search places right now. Try again in a moment.",
+    "reload": "Reload",
+    "attribution": "Places by Geoapify, with OpenStreetMap data."
   }
 }

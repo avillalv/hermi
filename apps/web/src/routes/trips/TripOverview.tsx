@@ -1,4 +1,5 @@
-import { Link, Navigate, useParams } from "react-router"
+import { useState } from "react"
+import { Link, Navigate, useNavigate, useParams } from "react-router"
 import { Icon, StatusStub, TicketStub, TripTicket, Field } from "../../components/kit"
 import { timingLabel, tripTiming } from "../../lib/dates"
 import { t } from "../../lib/i18n"
@@ -7,6 +8,7 @@ import { AppShell } from "../../shell/AppShell"
 import { useAuth } from "../auth/authStore"
 import { NotFound, useTrip, type Trip } from "./api"
 import { nights, tripStatus, when } from "./TripCard"
+import { NoticeBar, TripActions, type Notice } from "./TripActions"
 import "./trips.css"
 
 /** Local time at a destination from its IANA zone, or null when it has none or the zone is unknown. */
@@ -78,6 +80,7 @@ function NextSteps({ trip }: { trip: Trip }) {
 function Hero({ trip }: { trip: Trip }) {
   const s = tripStatus(trip)
   const n = nights(trip)
+  const zones = [...new Set(trip.destinations.map((d) => d.timezone).filter((z): z is string => !!z))]
   return (
     <TripTicket mod={["sky"]}>
       <div className="h-ticket__head h-ticket__head--sky">
@@ -89,6 +92,11 @@ function Hero({ trip }: { trip: Trip }) {
           <Field label={t("overview.destinations")} text>
             {trip.destinations.length ? trip.destinations.map((d) => d.name).join(", ") : t("overview.noDestination")}
           </Field>
+          {zones.length > 0 && (
+            <Field label={t("overview.timezone")} text>
+              {zones.join(", ")}
+            </Field>
+          )}
         </dl>
       </div>
       <div className="h-ticket__body">
@@ -114,6 +122,8 @@ export function TripOverview() {
   const { id } = useParams()
   const online = useOnline()
   const q = useTrip(id, !!token)
+  const nav = useNavigate()
+  const [notice, setNotice] = useState<Notice | null>(null)
   if (!token) return <Navigate to="/welcome" replace />
   const trip = q.data
   return (
@@ -154,7 +164,14 @@ export function TripOverview() {
         )}
         {trip && (
           <>
+            <NoticeBar notice={notice} onChange={setNotice} />
             <Hero trip={trip} />
+            <TripActions
+              trip={trip}
+              role={trip.my_role}
+              label={t("overview.actions")}
+              notify={(n) => (n.kind === "trashed" ? nav("/", { state: { trashed: { id: n.id, name: trip.name } } }) : setNotice(n))}
+            />
             {tripStatus(trip).now && <HappeningNow trip={trip} />}
             {trip.my_role !== "viewer" && <NextSteps trip={trip} />}
           </>

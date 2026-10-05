@@ -1,4 +1,5 @@
-import { Link, Navigate } from "react-router"
+import { useEffect, useState } from "react"
+import { Link, Navigate, useLocation, useNavigate } from "react-router"
 import { Icon, RoutePattern } from "../../components/kit"
 import { t } from "../../lib/i18n"
 import { useOnline } from "../../lib/useOnline"
@@ -6,6 +7,7 @@ import { AppShell } from "../../shell/AppShell"
 import { useAuth } from "../auth/authStore"
 import { isOnboarded, useMe, useTrips, type TripSummary } from "../onboarding/trips"
 import { TripCard, tripStatus } from "./TripCard"
+import { NoticeBar, TripActions, type Notice } from "./TripActions"
 import "./trips.css"
 
 const SECTIONS = [
@@ -33,12 +35,20 @@ const byDate = (key: Key) => (a: TripSummary, b: TripSummary) => {
 export const group = (trips: TripSummary[]) =>
   SECTIONS.map((s) => ({ ...s, trips: trips.filter((tr) => bucket(tr) === s.key).sort(byDate(s.key)) })).filter((s) => s.trips.length > 0)
 
-/** 05 6.5: sections of trip cards, and the loading, empty, error and offline states. Swipe actions and the "+" menu come with WF-019.3. */
+/** 05 6.5: sections of trip cards, and the loading, empty, error and offline states. Per-card actions are a button, the tap alternative to swipe and long press. The "+" menu and the limit line come with the paywall and import tickets. */
 export function TripsHome() {
   const { token, persona } = useAuth()
+  // Arriving from a trip that was just moved to trash (Overview) shows the same Undo line.
+  const arrived = (useLocation().state as { trashed?: { id: string; name: string } } | null)?.trashed
+  const nav = useNavigate()
+  const [notice, setNotice] = useState<Notice | null>(arrived ? { kind: "trashed", id: arrived.id, text: t("trips.noticeTrashed", { name: arrived.name }) } : null)
   const online = useOnline()
   // Dev personas are bootstrapped by the API. A real sign-in is checked once with GET /me: an existing user goes
   // straight to Trips, a new one goes through the age gate and profile first.
+  // Read once, then clear it from history so a reload or Back does not show the Undo line again.
+  useEffect(() => {
+    if (arrived) nav(".", { replace: true, state: null })
+  }, [arrived, nav])
   const check = !!token && !persona && !isOnboarded()
   const me = useMe(token, check)
   const ready = !check || me.data === true
@@ -62,6 +72,7 @@ export function TripsHome() {
           {t("trips.offline")}
         </p>
       )}
+      <NoticeBar notice={notice} onChange={setNotice} />
       {(check ? me.isPending : trips.isPending) && (
         <>
           <p className="h-soft" aria-live="polite">
@@ -102,8 +113,9 @@ export function TripsHome() {
           </h2>
           <ul className="trips__list">
             {s.trips.map((tr) => (
-              <li key={tr.id}>
+              <li key={tr.id} className="trips__item">
                 <TripCard trip={tr} />
+                <TripActions trip={tr} role={tr.my_role} label={t("trips.actionsFor", { name: tr.name })} notify={setNotice} />
               </li>
             ))}
           </ul>

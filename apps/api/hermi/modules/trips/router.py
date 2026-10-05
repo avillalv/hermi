@@ -167,7 +167,7 @@ def update_trip(
         raise version_conflict(_full(session, trip, access.role).model_dump(mode="json"))
     # shortcut: changing dates does not re-derive itinerary_days yet; the itinerary module (WF-032) owns days and hooks in here.
     if body.destinations is not None and not repo.replace_destinations(
-        session, trip.id, [d.model_dump(exclude_none=True) for d in body.destinations]
+        session, trip.id, [d.model_dump(exclude_unset=True) for d in body.destinations]
     ):
         raise _invalid("destinations", "One of the destinations is not part of this trip.")
     if people is not None:

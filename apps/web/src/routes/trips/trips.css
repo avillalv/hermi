@@ -10,3 +10,12 @@
 .overview__back { align-self: flex-start; }
 .overview__row { display: flex; align-items: center; gap: var(--tp-space-3); }
 .overview__lead { display: block; padding: var(--tp-space-3) var(--tp-space-4) var(--tp-space-2); }
+.edit { display: flex; flex-direction: column; gap: var(--tp-space-4); }
+.edit__group { display: flex; flex-direction: column; gap: var(--tp-space-2); }
+.edit__dests { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.edit__dest { display: flex; align-items: center; gap: var(--tp-space-2); min-height: 44px; }
+.edit__dest-text { display: flex; flex: 1; flex-direction: column; }
+.place { display: flex; flex-direction: column; gap: var(--tp-space-2); }
+.actions__panel { margin-top: var(--tp-space-2); }
+.actions__panel .h-listcard__row { width: 100%; box-sizing: border-box; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+.trips__item { display: flex; flex-direction: column; }

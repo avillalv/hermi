@@ -6,6 +6,7 @@ import { api } from "../auth/api"
 // shortcut: hand-written shapes from 04 section 5.4. `npm run gen:api` is still a stub script (no OpenAPI client yet); switch to the generated types when it lands.
 export type TripSummary = {
   id: string
+  version?: number
   name: string
   status: "planning" | "booked" | "done" | "archived"
   start_date: string | null
@@ -14,7 +15,7 @@ export type TripSummary = {
   member_count: number
   my_role: "owner" | "editor" | "viewer"
 }
-export type DestinationIn = { name: string; region?: string | null; country?: string | null; country_code?: string | null; lat: number; lon: number }
+export type DestinationIn = { name: string; region?: string | null; country?: string | null; country_code?: string | null; lat: number; lon: number; timezone?: string | null }
 export type TripCreate = { name: string; start_date?: string; end_date?: string; destinations?: DestinationIn[] }
 
 export const TRIPS_KEY = ["trips"]

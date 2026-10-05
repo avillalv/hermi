@@ -20,6 +20,7 @@ POLICY: dict[str, str] = {
     "POST /v1/waitlist": "public",
     "POST /v1/me/bootstrap": "user_scoped",
     "GET /v1/me": "user_scoped",
+    "GET /v1/geo/destinations": "user_scoped",
     "GET /v1/trips": "user_scoped",
     "POST /v1/trips": "user_scoped",
     "GET /v1/trips/{trip_id}": "tenant",
