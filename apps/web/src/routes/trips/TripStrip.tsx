@@ -14,6 +14,7 @@ export function tripStrip(nav: ReturnType<typeof useNavigate>, id: string, activ
   return {
     label: t("group.section"),
     active,
+    tripId: id,
     items: [
       { key: "overview", label: t("group.overview"), href: base, onClick: go(base) },
       { key: "flights", label: t("flights.tab"), href: `${base}/flights`, onClick: go(`${base}/flights`) },

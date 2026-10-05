@@ -1,5 +1,6 @@
 import { useSyncExternalStore, type ReactNode } from 'react'
 import { Link, useMatch, useNavigate } from 'react-router'
+import { SyncIndicator } from '../components/sync-indicator/SyncIndicator'
 import { Icon, Logo, SectionTabs, Sprite, TabBar, cx, type SectionTab, type TabItem } from '../components/kit'
 import { t } from '../lib/i18n'
 import { useAuth } from '../routes/auth/authStore'
@@ -13,7 +14,8 @@ export const TABS = [
   { key: 'account', label: 'Account', icon: 'circle-user', href: '/account' },
 ] as const
 
-export type Strip = { label: string; active: string; items: SectionTab[] }
+/** `tripId` marks a trip section: the sync indicator chip (05 4.21) sits above the strip, except on Overview, whose hero pass carries its own. */
+export type Strip = { label: string; active: string; items: SectionTab[]; tripId?: string }
 
 /**
  * DL section 3: a sticky strip, the sheet scrolling under it, the floating tab bar under 768 px, the 72 px icon rail
@@ -78,6 +80,7 @@ export function AppShell({ active, strip, children }: { active: string; strip?: 
         <TripSwitcher />
       </aside>
       <div className="shell-main">
+        {strip?.tripId && strip.active !== 'overview' && <SyncIndicator tripId={strip.tripId} />}
         {strip && <SectionTabs className={cx('shell-strip')} items={strip.items} active={strip.active} label={strip.label} />}
         <main className="shell-sheet">{children}</main>
       </div>

@@ -1,0 +1,16 @@
+/* Sync indicator (05 4.21, DL section 11): one line of text plus an icon, never colour alone. Tokens only. */
+.sync { display: inline-flex; align-items: center; gap: var(--tp-space-1); min-height: 44px; padding: 0 var(--tp-space-2); border: 0; background: none; color: inherit; font: 600 0.8125rem/1.3 var(--tp-font-body); cursor: pointer; }
+.sync:focus-visible { outline: 3px solid var(--tp-brand); outline-offset: 2px; }
+.sync--chip { justify-content: center; min-height: 44px; border: 1px solid var(--tp-rule); border-radius: 12px; background: var(--tp-sheet); color: var(--tp-ink); }
+.sync--line { color: var(--tp-sky-ink); padding-left: 0; }
+.sync__retry { text-decoration: underline; }
+.sync--warn { color: var(--tp-warning-ink); }
+.sync__icon { flex: none; }
+.sync__icon--spin { animation: sync-spin 1s linear infinite; }
+.sync__live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.sync-wrap { position: relative; display: flex; justify-content: center; align-items: center; gap: var(--tp-space-2); }
+.sync-wrap--line { justify-content: flex-start; }
+.sync__body { margin: 0; color: var(--tp-ink-soft); font: var(--tp-type-body); }
+.sync__actions { display: flex; flex-direction: column; gap: var(--tp-space-2); }
+@keyframes sync-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sync__icon--spin { animation: none; } }

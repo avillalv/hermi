@@ -1,6 +1,7 @@
 import { fireEvent, screen, within } from "@testing-library/react"
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { mockApi, reset, show } from "../onboarding/testing"
+vi.mock("../../components/sync-indicator/SyncIndicator", () => ({ SyncIndicator: () => null }))
 import { TripOverview } from "./TripOverview"
 
 const tokyo = { id: "d1", position: 0, name: "Tokyo", region: null, country: "Japan", timezone: "Asia/Tokyo" }

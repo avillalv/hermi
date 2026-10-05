@@ -126,6 +126,26 @@
     "offline": "You are offline. Connect to create your trip.",
     "datesBoth": "Add both dates, or choose that you do not have dates yet."
   },
+  "sync": {
+    "synced": "Synced {ago}",
+    "agoSec": "{n} s ago",
+    "agoMin": "{n} min ago",
+    "syncedAt": "Synced at {time}",
+    "syncedLive": "Synced",
+    "syncing": "Syncing",
+    "offline": "Offline",
+    "offlineOne": "Offline, 1 edit waiting",
+    "offlineMany": "Offline, {n} edits waiting",
+    "failing": "Could not sync, retrying",
+    "tryNow": "Try now",
+    "conflict": {
+      "title": "This trip changed elsewhere",
+      "body": "Someone saved a different version while you were editing. Keep your changes, or use theirs.",
+      "keepMine": "Keep mine",
+      "useTheirs": "Use theirs",
+      "failed": "We could not save your changes. Check your connection and try again."
+    }
+  },
   "overview": {
     "back": "Trips",
     "sections": "Trip sections",

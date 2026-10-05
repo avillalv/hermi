@@ -6,6 +6,7 @@ import { Icon, StatusStub, TicketStub, TripTicket, Field } from "../../component
 import { timingLabel, tripTiming } from "../../lib/dates"
 import { t } from "../../lib/i18n"
 import { useOnline } from "../../lib/useOnline"
+import { SyncIndicator } from "../../components/sync-indicator/SyncIndicator"
 import { AppShell } from "../../shell/AppShell"
 import { useAuth } from "../auth/authStore"
 import { useTrip, type Trip } from "./api"
@@ -101,6 +102,7 @@ function Hero({ trip }: { trip: Trip }) {
             </Field>
           )}
         </dl>
+        <SyncIndicator tripId={trip.id} variant="line" />
       </div>
       <div className="h-ticket__body">
         {n !== null && (
