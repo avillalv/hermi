@@ -5,6 +5,7 @@ import { SignIn } from "../routes/auth/SignIn";
 import { InviteLanding } from "../routes/invite/InviteLanding";
 import { CreateTrip } from "../routes/onboarding/CreateTrip";
 import { Onboarding } from "../routes/onboarding/Onboarding";
+import { Flights } from "../routes/flights/Flights";
 import { TripGroup } from "../routes/trips/TripGroup";
 import { TripEdit } from "../routes/trips/TripEdit";
 import { TripOverview } from "../routes/trips/TripOverview";
@@ -32,6 +33,7 @@ export function AppRoutes() {
       <Route path="/invite/:token" element={<InviteLanding />} />
       <Route path="/trips/new" element={<CreateTrip />} />
       <Route path="/trips/:id/edit" element={<TripEdit />} />
+      <Route path="/trips/:id/flights" element={<Flights />} />
       <Route path="/trips/:id/group" element={<TripGroup />} />
       <Route path="/trips/:id" element={<TripOverview />} />
       <Route path="/" element={<TripsHome />} />
