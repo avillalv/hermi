@@ -8,6 +8,7 @@ WORKDIR /src
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
 COPY packages packages
+COPY locales locales
 RUN npm ci
 COPY apps/web apps/web
 RUN npm run build --workspace apps/web
