@@ -371,6 +371,9 @@ jobs:
       - run: uv sync --all-packages --frozen
       - run: npm run lint
       - run: npm test
+        env:
+          # No PostgreSQL 18 service on Windows runners: the database tests skip here and run in api-tests on Linux.
+          HERMI_TESTS_WITHOUT_DB: "1"
 
   ci:
     name: ci
