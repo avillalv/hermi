@@ -1,0 +1,26 @@
+/* Stays (WF-034.3, 05 6.11 and 4.10). Tokens only; the ticket, vote chip, stay price block, segmented control, buttons and inputs come from the kit (hermi.css). */
+.stays__skel { min-height: 8rem; border-radius: var(--radius-xl); background: var(--tp-sunken); }
+.stays__item { display: flex; flex-direction: column; gap: var(--tp-space-1); }
+.stays__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-space-2); }
+.stays__pick { display: inline-flex; align-items: center; gap: var(--tp-space-2); min-height: 44px; font: 600 0.875rem/1.2 var(--tp-font-body); }
+.stays__pick input { width: 1.5rem; height: 1.5rem; accent-color: var(--tp-brand); }
+.stays__tally { flex-direction: row; align-items: center; gap: 4px; white-space: nowrap; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; min-height: 44px; justify-content: center; }
+.stays__tally:focus-visible { outline: 3px solid var(--tp-brand); outline-offset: 2px; }
+.stays__names { margin: 0; padding: 0 var(--tp-space-2); }
+.stays__sort { display: flex; align-items: center; gap: var(--tp-space-2); font: 600 0.8125rem/1.3 var(--tp-font-body); }
+.h-row--sort { height: auto; min-height: 40px; align-items: flex-start; }
+.stays__sort select { width: auto; border: 0; background: none; color: var(--tp-brand); font: 600 0.875rem/1 var(--tp-font-body); }
+.stays__item .h-stub { align-self: flex-start; }
+/* Another traveler's heart is a status, not a control: it reads like a pressed chip but takes no taps. */
+.stays__vote[data-on="true"] { border-color: var(--tp-brand); background: var(--tp-brand-soft); }
+.stays__vote[data-on="true"] .h-vote__heart { fill: var(--h-vote-color); stroke: var(--tp-ink); }
+.stays__bar { position: sticky; bottom: var(--tp-space-4); display: flex; justify-content: center; }
+.stays__compare { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.stays__scroll { overflow-x: auto; }
+.stays__table { border-collapse: separate; border-spacing: 0; font: 400 0.8125rem/1.3 var(--tp-font-body); }
+.stays__table th, .stays__table td { min-width: 7rem; padding: var(--tp-space-2) var(--tp-space-3); border-bottom: 1px solid var(--tp-rule); text-align: left; vertical-align: top; }
+.stays__table th[scope="row"] { position: sticky; left: 0; z-index: 1; background: var(--tp-paper); font-weight: 600; }
+.stays__table td .h-chip { margin-left: var(--tp-space-2); }
+/* Differences get a pattern and a word, never color alone. */
+.stays__best { background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--tp-brand-soft) 6px 8px); border-bottom: 2px dashed var(--tp-brand); }
+.stays__bookmarklet { display: flex; flex-direction: column; align-items: flex-start; gap: var(--tp-space-2); margin-top: var(--tp-space-4); padding: var(--tp-space-4); }

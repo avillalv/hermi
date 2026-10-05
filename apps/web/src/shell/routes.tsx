@@ -5,6 +5,7 @@ import { SignIn } from "../routes/auth/SignIn";
 import { InviteLanding } from "../routes/invite/InviteLanding";
 import { CreateTrip } from "../routes/onboarding/CreateTrip";
 import { Onboarding } from "../routes/onboarding/Onboarding";
+import { Stays } from "../routes/lodging/Stays";
 import { Plan } from "../routes/itinerary/Plan";
 import { Flights } from "../routes/flights/Flights";
 import { FareDetail } from "../routes/flights/FareDetail";
@@ -37,6 +38,7 @@ export function AppRoutes() {
       <Route path="/trips/:id/edit" element={<TripEdit />} />
       <Route path="/trips/:id/flights" element={<Flights />} />
       <Route path="/trips/:id/flights/:routeId/fares/:fareId" element={<FareDetail />} />
+      <Route path="/trips/:id/stays" element={<Stays />} />
       <Route path="/trips/:id/plan" element={<Plan />} />
       <Route path="/trips/:id/group" element={<TripGroup />} />
       <Route path="/trips/:id" element={<TripOverview />} />
