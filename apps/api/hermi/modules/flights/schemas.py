@@ -186,3 +186,30 @@ class BookedIn(BaseModel):
     booked: bool
     paid: MoneyIn | None = None
     booked_at: AwareDatetime | None = None
+
+
+class Notify(BaseModel):
+    push: bool
+    email: bool
+
+
+class PriceAlertIn(BaseModel):
+    target_price: MoneyIn
+    notify: Notify = Notify(push=True, email=False)
+    active: bool = True
+
+
+class PriceAlertPatch(BaseModel):
+    target_price: MoneyIn | None = None
+    notify: Notify | None = None
+    active: bool | None = None
+
+
+class PriceAlert(BaseModel):
+    id: uuid.UUID
+    route_id: uuid.UUID
+    target_price: Money
+    notify: Notify
+    active: bool
+    last_notified_at: datetime | None
+    last_notified_price: Money | None
