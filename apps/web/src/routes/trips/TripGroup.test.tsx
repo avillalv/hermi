@@ -26,8 +26,10 @@ afterEach(() => {
 test("loading shows skeleton rows, then each traveler is one labeled group", async () => {
   mockApi(() => new Promise(() => {}) as never)
   const { container, unmount } = open()
-  expect(container.querySelectorAll(".trips__skel").length).toBeGreaterThanOrEqual(2)
+  expect(await screen.findByRole("status", { name: "Loading" })).toBeInTheDocument()
+  expect(container.querySelectorAll(".state-skel--line").length).toBeGreaterThanOrEqual(2)
   unmount()
+  reset("free")
   mockApi(withTrip(trip({ travelers: [{ ...ana, linked_user_id: "u9" }, sam] })))
   open()
   expect(await screen.findByRole("group", { name: "Ana, home airport LIS" })).toBeInTheDocument()

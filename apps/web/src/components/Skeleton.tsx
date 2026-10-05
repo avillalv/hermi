@@ -1,9 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react"
+import { Fragment, useEffect, useState, type ReactNode } from "react"
 import { t } from "../lib/i18n"
 import { ErrorState } from "./ErrorState"
 import "./states.css"
 
-export type SkeletonShape = "lines" | "block" | "tripCard" | "dayCard"
+export type SkeletonShape = "lines" | "block" | "tripCard" | "dayCard" | "routeCard" | "stayCard" | "overview"
 
 const Lines = ({ n }: { n: number }) => (
   <>
@@ -23,6 +23,31 @@ const SHAPES: Record<SkeletonShape, () => ReactNode> = {
       <span className="state-skel state-skel--stub" />
     </div>
   ),
+  // Trip overview (05 6.7): the header pass, then five cards.
+  overview: () => (
+    <>
+      <span className="state-skel state-skel--block" />
+      {Array.from({ length: 5 }, (_, i) => (
+        <div key={i} className="state-card"><div className="state-card__main"><Lines n={2} /></div></div>
+      ))}
+    </>
+  ),
+  // Stays card: a photo block, lines and a price stub.
+  stayCard: () => (
+    <div className="state-card">
+      <span className="state-skel state-skel--photo" />
+      <div className="state-card__main"><Lines n={3} /></div>
+      <span className="state-skel state-skel--stub" />
+    </div>
+  ),
+  // Flights route card: a title, a chip row and the chart frame with its axes.
+  routeCard: () => (
+    <div className="state-card state-card--day state-card--route">
+      <span className="state-skel state-skel--line" />
+      <span className="state-skel state-skel--chips" />
+      <span className="state-skel state-skel--block state-skel--chart" />
+    </div>
+  ),
   // Day card: a heading line and three rows.
   dayCard: () => (
     <div className="state-card state-card--day">
@@ -38,11 +63,14 @@ const SHAPES: Record<SkeletonShape, () => ReactNode> = {
  */
 export function Skeleton({
   shape,
+  count = 1,
   delayMs = 150,
   timeoutMs = 8000,
   onRetry,
 }: {
   shape: SkeletonShape
+  /** Repeats the shape inside the one status region. */
+  count?: number
   delayMs?: number
   timeoutMs?: number
   onRetry?: () => void
@@ -60,7 +88,7 @@ export function Skeleton({
   if (phase === "wait") return null
   return (
     <div role="status" aria-label={t("states.loading")} aria-busy="true" className="state-skel-wrap">
-      {SHAPES[shape]()}
+      {Array.from({ length: count }, (_, i) => <Fragment key={i}>{SHAPES[shape]()}</Fragment>)}
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { queryClient } from "../../lib/queryClient"
+import { ApiError } from "../../lib/api/client"
 import { api } from "../auth/api"
 
 // shortcut: hand-written from apps/api/hermi/modules/flights/schemas.py until `npm run gen:api` is real.
@@ -72,7 +73,7 @@ function useRead<T>(queryKey: unknown[], path: string, enabled = true, query?: R
       retry: 1,
       queryFn: async () => {
         const r = await api.get<T>(path, { query })
-        if (r.error !== undefined || r.data === undefined) throw new Error(`flights ${r.response.status}`)
+        if (r.error !== undefined || r.data === undefined) throw new ApiError(r)
         return r.data
       },
     },
@@ -134,7 +135,7 @@ export const useEntitlements = (on: boolean) =>
       enabled: on,
       queryFn: async () => {
         const r = await api.get<{ tier?: string; limits: { airports_per_side?: number } }>("/v1/me/entitlements")
-        if (r.error !== undefined || !r.data) throw new Error("entitlements")
+        if (r.error !== undefined || !r.data) throw new ApiError(r)
         return r.data
       },
     },

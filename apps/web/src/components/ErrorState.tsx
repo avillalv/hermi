@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router"
-import type { ErrorKind } from "../lib/api/client"
+import { errorKind, type ErrorKind } from "../lib/api/client"
 import { t } from "../lib/i18n"
 import "./states.css"
 import { Btn, Icon, LinkBtn } from "./kit"
@@ -65,4 +65,10 @@ export function ErrorState({
       </div>
     </section>
   )
+}
+
+/** The error state for a failed query: maps the thrown error with `errorKind`. A not found answer has no retry. */
+export function QueryError({ error, onRetry, message, fullScreen }: { error: unknown; onRetry: () => void; /** The screen's own 05 sentence; used only for a server error. */ message?: string; fullScreen?: boolean }) {
+  const info = errorKind(error)
+  return <ErrorState {...info} message={info.kind === "server" ? message : undefined} onRetry={info.kind === "notFound" ? undefined : onRetry} fullScreen={fullScreen} />
 }

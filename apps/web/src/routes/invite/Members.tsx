@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router"
+import { QueryError } from "../../components/ErrorState"
+import { Skeleton } from "../../components/Skeleton"
 import { Btn, Icon } from "../../components/kit"
 import { t } from "../../lib/i18n"
 import { track } from "../../lib/track"
@@ -45,21 +47,8 @@ export function Members({ trip }: { trip: Trip & { editors_can_invite?: boolean 
       <h2 className="h-label h-listcard__title" id="group-members">
         {t("group.membersTitle")}
       </h2>
-      {members.isPending && (
-        <>
-          <p className="h-soft" aria-live="polite">{t("group.membersLoading")}</p>
-          {[0, 1].map((i) => <div key={i} className="trips__skel group__skel" aria-hidden="true" />)}
-        </>
-      )}
-      {members.isError && (
-        <div className="h-listcard__row">
-          <p role="alert" className="h-input__error trips__note">
-            <Icon name="circle-alert" size={16} />
-            {t("group.membersError")}
-          </p>
-          <Btn variant="secondary" onClick={() => void members.refetch()}>{t("trips.retry")}</Btn>
-        </div>
-      )}
+      {members.isPending && <Skeleton shape="lines" onRetry={() => void members.refetch()} />}
+      {members.isError && <QueryError error={members.error} message={t("group.membersError")} onRetry={() => void members.refetch()} />}
       {owner && trip.limited && (
         <p role="status" className="h-soft trips__note">
           {t("group.limitedBanner")}

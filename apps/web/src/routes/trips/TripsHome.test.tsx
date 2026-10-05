@@ -14,14 +14,13 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-test("loading shows a status, then the empty state with a New trip link", async () => {
+test("the empty state with a New trip link", async () => {
   mockApi((u) => (u.endsWith("/v1/trips") ? page([]) : undefined))
   show(<TripsHome />, "/")
   expect(screen.getByRole("heading", { level: 1, name: "Trips" })).toBeInTheDocument()
-  expect(screen.getByText("Loading your trips")).toBeInTheDocument()
   expect(await screen.findByRole("heading", { name: "No trips yet" })).toBeInTheDocument()
   expect(screen.getByText("Start with a place and a few dates. You can change everything later.")).toBeInTheDocument()
-  fireEvent.click(screen.getAllByRole("link", { name: "New trip" })[0])
+  fireEvent.click(screen.getByRole("button", { name: "New trip" }))
   await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/trips/new"))
 })
 
@@ -116,8 +115,9 @@ test("an existing real-provider user (GET /me is 200) stays on Trips and is not 
   expect(sessionStorage.getItem(ONBOARDED_KEY)).toBe("1")
 })
 
-test("loading shows three skeleton cards", () => {
+test("loading shows a trip card skeleton", async () => {
   mockApi(() => new Promise(() => {}) as never)
   const { container } = show(<TripsHome />, "/")
-  expect(container.querySelectorAll(".trips__skel")).toHaveLength(3)
+  expect(await screen.findByRole("status", { name: "Loading" })).toBeInTheDocument()
+  expect(container.querySelectorAll(".state-card")).toHaveLength(3)
 })

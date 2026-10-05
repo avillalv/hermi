@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { queryClient } from "../../lib/queryClient"
+import { ApiError } from "../../lib/api/client"
 import { api } from "../auth/api"
 
 // shortcut: hand-written from apps/api/hermi/modules/trips/notes.py until `npm run gen:api` is real (it is a stub today).
@@ -37,7 +38,7 @@ export const useNotes = (id: string, on: boolean) =>
       queryFn: async () => {
         // shortcut: one page of up to 200 notes (the API maximum); a trip with more shows only the newest 200. Upgrade: follow next_cursor when a trip passes that.
         const r = await api.get<NotePage>(`${trip(id)}/notes`, { query: { limit: 200 } })
-        if (r.error !== undefined || !r.data) throw new Error(`notes ${r.response.status}`)
+        if (r.error !== undefined || !r.data) throw new ApiError(r)
         return r.data
       },
     },
@@ -52,7 +53,7 @@ export const useEvidence = (noteId: string, on: boolean) =>
       retry: 1,
       queryFn: async () => {
         const r = await api.get<Evidence>(`/v1/notes/${encodeURIComponent(noteId)}/evidence`)
-        if (r.error !== undefined || !r.data) throw new Error(`evidence ${r.response.status}`)
+        if (r.error !== undefined || !r.data) throw new ApiError(r)
         return r.data
       },
     },

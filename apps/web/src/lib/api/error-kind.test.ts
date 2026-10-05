@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { errorKind } from "./client"
+import { ApiError, errorKind } from "./client"
 
 const res = (status: number, headers: Record<string, string> = {}) => new Response(null, { status, headers })
 const r = (status: number, error?: unknown, headers?: Record<string, string>) => ({ error, response: res(status, headers) })
@@ -55,5 +55,12 @@ describe("errorKind", () => {
   })
   it("treats a thrown non-network value as a server error", () => {
     expect(errorKind(new Error("boom")).kind).toBe("server")
+  })
+})
+
+describe("errorKind with a thrown ApiError", () => {
+  it("maps the wrapped result", () => {
+    expect(errorKind(new ApiError(r(401) as never), true).kind).toBe("unauthorized")
+    expect(errorKind(new ApiError(r(429, undefined, { "Retry-After": "7" }) as never), true)).toMatchObject({ kind: "rateLimited", retryAfter: 7 })
   })
 })

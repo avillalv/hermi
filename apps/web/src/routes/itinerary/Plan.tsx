@@ -1,5 +1,8 @@
 import { Fragment, useEffect, useState, type DragEvent, type KeyboardEvent } from "react"
 import { Navigate, useNavigate, useParams } from "react-router"
+import { EmptyState } from "../../components/EmptyState"
+import { QueryError } from "../../components/ErrorState"
+import { Skeleton } from "../../components/Skeleton"
 import { Btn, DayChip, DayChips, Icon, SegItem, SegmentedControl, TextField } from "../../components/kit"
 import { t } from "../../lib/i18n"
 import { formatTimeRange } from "../../lib/itinerary-time"
@@ -7,7 +10,7 @@ import { track } from "../../lib/track"
 import { useOnline } from "../../lib/useOnline"
 import { AppShell } from "../../shell/AppShell"
 import { useAuth } from "../auth/authStore"
-import { NotFound, useTrip } from "../trips/api"
+import { useTrip } from "../trips/api"
 import { tripStrip } from "../trips/TripStrip"
 import "../trips/trips.css"
 import { CATEGORIES, createItem, downloadIcs, moveItem, updateItem, useDays, useItems, type Category, type Item } from "./api"
@@ -309,6 +312,7 @@ export function Plan() {
   const failed = (days.isError && !days.data) || (items.isError && !items.data) || trip.isError
   const pending = !failed && (days.isPending || items.isPending || trip.isPending)
   const empty = !failed && !pending && all.length === 0
+  const retry = () => void Promise.all([days.refetch(), items.refetch(), trip.refetch()])
   const chips = [
     ...numbered.map((d) => ({ key: d.day, label: `D${d.n}`, aria: t("plan.dayChip", { n: d.n, date: dayText(d.day) }), to: d.day as string | null })),
     ...(view === "days" ? [{ key: IDEAS, label: t("plan.ideas"), aria: t("plan.ideasAria"), to: null as string | null }] : []),
@@ -362,31 +366,15 @@ export function Plan() {
             {note.text}
           </p>
         )}
-        {pending && (
-          <>
-            <p className="h-soft" aria-live="polite">{t("plan.loading")}</p>
-            <div className="plan__skel" aria-hidden="true" />
-            <div className="plan__skel" aria-hidden="true" />
-            <div className="plan__skel" aria-hidden="true" />
-          </>
-        )}
-        {failed && (
-          <div className="trips__stack">
-            <p role="alert" className="h-input__error trips__note">
-              <Icon name="circle-alert" size={16} />
-              {trip.error instanceof NotFound ? t("overview.notFound") : t("plan.error")}
-            </p>
-            {!(trip.error instanceof NotFound) && (
-              <Btn variant="secondary" onClick={() => void Promise.all([days.refetch(), items.refetch(), trip.refetch()])}>{t("trips.retry")}</Btn>
-            )}
-          </div>
-        )}
+        {pending && <Skeleton shape="dayCard" count={3} onRetry={retry} />}
+        {failed && <QueryError error={trip.error ?? days.error ?? items.error} message={t("plan.error")} onRetry={retry} />}
         {empty && (
-          <div className="trips__empty">
-            <strong>{t("plan.emptyTripTitle")}</strong>
-            <span className="h-soft">{t("plan.emptyTripBody")}</span>
-            {canEdit && <Btn variant="primary" disabled={!online} onClick={() => setAdding("search")}>{t("plan.addFirst")}</Btn>}
-          </div>
+          <EmptyState
+            icon="compass"
+            title={t("plan.emptyTripTitle")}
+            body={t("plan.emptyTripBody")}
+            action={canEdit && online ? { label: t("plan.addFirst"), onClick: () => setAdding("search") } : undefined}
+          />
         )}
         {!failed && !pending && !empty && view === "map" && <PlacesMap items={all} days={numbered} online={online} />}
         {!failed && !pending && !empty && view !== "map" && (

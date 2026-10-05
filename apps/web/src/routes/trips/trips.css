@@ -22,7 +22,6 @@
 .group__row { display: flex; flex: 1; align-items: center; min-width: 0; gap: var(--tp-space-2); }
 .group__airport { color: var(--tp-ink-soft); }
 .group__empty { flex-direction: column; align-items: flex-start; }
-.group__skel { min-height: 56px; }
 .group__form, .group__choose { display: flex; flex-direction: column; gap: var(--tp-space-3); padding: var(--tp-space-3) var(--tp-space-4); }
 .group__choose { flex-direction: row; flex-wrap: wrap; }
 .group__colors { display: flex; flex-wrap: wrap; gap: var(--tp-space-2); }

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { env } from "../../lib/env"
 import { queryClient } from "../../lib/queryClient"
+import { ApiError } from "../../lib/api/client"
 import { api } from "../auth/api"
 import { authStore } from "../auth/authStore"
 
@@ -52,7 +53,7 @@ export const useDays = (id: string, on: boolean) =>
       refetchInterval: POLL_MS,
       queryFn: async () => {
         const r = await api.get<Day[]>(`${base(id)}/days`)
-        if (r.error !== undefined || !r.data) throw new Error(`days ${r.response.status}`)
+        if (r.error !== undefined || !r.data) throw new ApiError(r)
         return r.data
       },
     },
@@ -74,7 +75,7 @@ export const useItems = (id: string, on: boolean) =>
         let cursor: string | undefined
         for (let n = 0; n < MAX_PAGES; n++) {
           const r = await api.get<{ items: Item[]; next_cursor: string | null; has_more: boolean }>(`${base(id)}/items`, { query: { limit: PAGE, cursor } })
-          if (r.error !== undefined || !r.data) throw new Error(`items ${r.response.status}`)
+          if (r.error !== undefined || !r.data) throw new ApiError(r)
           all.push(...r.data.items)
           if (!r.data.has_more || !r.data.next_cursor) break
           cursor = r.data.next_cursor

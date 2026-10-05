@@ -60,11 +60,11 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-test("loading shows skeleton rows", () => {
+test("loading shows day card skeletons", async () => {
   mockApi(() => new Promise(() => {}) as never)
   const { container } = open()
-  expect(container.querySelectorAll(".plan__skel").length).toBeGreaterThanOrEqual(2)
-  expect(screen.getByText("Loading your plan")).toBeInTheDocument()
+  expect(await screen.findByRole("status", { name: "Loading" })).toBeInTheDocument()
+  expect(container.querySelectorAll(".state-card--day")).toHaveLength(3)
 })
 
 test("error: a failed load shows the message and a retry", async () => {
@@ -80,6 +80,14 @@ test("empty trip says nothing is planned and offers Add a place", async () => {
   expect(await screen.findByText("Nothing planned yet")).toBeInTheDocument()
   expect(screen.getByText("Add a place to start.")).toBeInTheDocument()
   expect(screen.getByRole("button", { name: "Add a place" })).toBeEnabled()
+})
+
+test("empty trip offline has no Add a place action", async () => {
+  vi.spyOn(navigator, "onLine", "get").mockReturnValue(false)
+  mockApi(api({ days: [], items: [], trip: { start_date: null, end_date: null } }))
+  open()
+  expect(await screen.findByText("Nothing planned yet")).toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: "Add a place" })).not.toBeInTheDocument()
 })
 
 test("day strip is a tablist; the first day shows its stops on the kit timeline and an empty day says Free day", async () => {

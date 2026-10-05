@@ -19,6 +19,13 @@ export type ApiResult<T = unknown> = {
   response: Response
 }
 
+/** Thrown by a query function so the screen can map the failure with `errorKind`. */
+export class ApiError extends Error {
+  constructor(readonly result: ApiResult) {
+    super(`api ${result.response.status}`)
+  }
+}
+
 export type ApiClientOptions = {
   baseUrl?: string
   auth: AuthHooks
@@ -107,6 +114,7 @@ export type ErrorInfo = { kind: ErrorKind; requestId?: string; /** Seconds from 
  */
 export function errorKind(failure: unknown, online: boolean = typeof navigator === "undefined" || navigator.onLine): ErrorInfo {
   if (!online) return { kind: "offline" }
+  if (failure instanceof ApiError) failure = failure.result
   if (!(typeof failure === "object" && failure && "response" in failure)) {
     // fetch rejects with a TypeError when the network fails.
     return { kind: failure instanceof TypeError ? "offline" : "server" }

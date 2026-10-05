@@ -16,6 +16,9 @@
 .state-skel--line { height: 14px; }
 .state-skel--line:last-child { width: 60%; }
 .state-skel--block { height: 120px; }
+.state-skel--photo { flex: none; width: 64px; height: 64px; border-radius: 12px; }
+.state-skel--chips { height: 28px; width: 70%; border-radius: var(--radius-lg); }
+.state-skel--chart { border-left: 2px solid var(--tp-rule); border-bottom: 2px solid var(--tp-rule); }
 .state-skel--stub { width: 72px; align-self: stretch; }
 .state-card { display: flex; gap: var(--tp-space-3); padding: var(--tp-space-4); border: 1px solid var(--tp-rule); border-radius: var(--radius-lg); background: var(--tp-ticket); }
 .state-card__main { flex: 1; display: flex; flex-direction: column; gap: var(--tp-space-2); }

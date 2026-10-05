@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react"
 import { Link, Navigate, useLocation, useNavigate } from "react-router"
-import { Icon, RoutePattern } from "../../components/kit"
+import { EmptyState } from "../../components/EmptyState"
+import { QueryError } from "../../components/ErrorState"
+import { Skeleton } from "../../components/Skeleton"
+import { Icon } from "../../components/kit"
 import { t } from "../../lib/i18n"
 import { useOnline } from "../../lib/useOnline"
 import { AppShell } from "../../shell/AppShell"
@@ -53,6 +56,7 @@ export function TripsHome() {
   const me = useMe(token, check)
   const ready = !check || me.data === true
   const trips = useTrips(!!token && ready)
+  const retry = () => void (me.isError ? me.refetch() : trips.refetch())
   if (!token) return <Navigate to="/welcome" replace />
   if (check && me.data === false) return <Navigate to="/onboarding" replace />
 
@@ -73,38 +77,15 @@ export function TripsHome() {
         </p>
       )}
       <NoticeBar notice={notice} onChange={setNotice} />
-      {(check ? me.isPending : trips.isPending) && (
-        <>
-          <p className="h-soft" aria-live="polite">
-            {t("trips.loading")}
-          </p>
-          <div className="trips__list trips__section">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="trips__skel" aria-hidden="true" />
-            ))}
-          </div>
-        </>
-      )}
-      {(trips.isError || me.isError) && (
-        <div className="trips__stack">
-          <p role="alert" className="h-input__error trips__note">
-            <Icon name="circle-alert" size={16} />
-            {t("trips.error")}
-          </p>
-          <button type="button" className="h-btn h-btn--secondary" onClick={() => void (me.isError ? me.refetch() : trips.refetch())}>
-            {t("trips.retry")}
-          </button>
-        </div>
-      )}
+      {(check ? me.isPending : trips.isPending) && <Skeleton shape="tripCard" count={3} onRetry={retry} />}
+      {(trips.isError || me.isError) && <QueryError error={me.isError ? me.error : trips.error} message={t("trips.error")} onRetry={retry} />}
       {trips.data?.length === 0 && (
-        <section className="trips__empty">
-          <RoutePattern a="M10 70 C60 10 120 10 170 50" b="M10 90 C70 40 130 60 170 50" viewBox="0 0 180 100" className="trips__route" />
-          <h2 className="h-heading">{t("trips.emptyTitle")}</h2>
-          <p className="h-soft">{t("trips.emptyBody")}</p>
-          <Link to="/trips/new" className="h-btn h-btn--primary">
-            {t("trips.newTrip")}
-          </Link>
-        </section>
+        <EmptyState
+          icon="luggage"
+          title={t("trips.emptyTitle")}
+          body={t("trips.emptyBody")}
+          action={{ label: t("trips.newTrip"), onClick: () => nav("/trips/new") }}
+        />
       )}
       {group(trips.data ?? []).map((s) => (
         <section key={s.key} className="trips__section" aria-labelledby={`trips-${s.key}`}>

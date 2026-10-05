@@ -33,16 +33,25 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-test("loading shows row skeletons", () => {
+test("loading shows line skeletons", async () => {
   mockApi(() => new Promise(() => {}) as never)
   const { container } = open()
-  expect(container.querySelectorAll(".notes__skel")).toHaveLength(3)
+  expect(await screen.findByRole("status", { name: "Loading" })).toBeInTheDocument()
+  expect(container.querySelectorAll(".state-skel--line")).toHaveLength(3)
 })
 
-test("error shows the pull-down message", async () => {
+test("error shows the server message", async () => {
   mockApi(() => new Response("{}", { status: 500 }))
   open()
   expect(await screen.findByRole("alert", {}, { timeout: 3000 })).toHaveTextContent("We could not load notes. Pull down to try again.")
+})
+
+test("empty offline has no Add a note action", async () => {
+  vi.spyOn(navigator, "onLine", "get").mockReturnValue(false)
+  mockApi(api("owner", []))
+  open()
+  expect(await screen.findByText("No notes yet")).toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: "Add a note" })).not.toBeInTheDocument()
 })
 
 test("empty shows the copy and an Add a note button", async () => {

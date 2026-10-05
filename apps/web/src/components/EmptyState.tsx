@@ -12,7 +12,8 @@ export function EmptyState({
   icon: string
   title: string
   body: string
-  action: { label: string; onClick: () => void }
+  /** Left out when the person cannot act, such as a viewer on a trip. */
+  action?: { label: string; onClick: () => void }
   link?: { label: string; href: string }
 }) {
   return (
@@ -29,7 +30,7 @@ export function EmptyState({
       <h2 className="h-heading">{title}</h2>
       <p className="state__body">{body}</p>
       <div className="state__actions">
-        <Btn variant="primary" onClick={action.onClick}>{action.label}</Btn>
+        {action && <Btn variant="primary" onClick={action.onClick}>{action.label}</Btn>}
         {link && <a className="state__link" href={link.href}>{link.label}</a>}
       </div>
     </section>

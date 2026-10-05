@@ -1,5 +1,4 @@
 /* Stays (WF-034.3, 05 6.11 and 4.10). Tokens only; the ticket, vote chip, stay price block, segmented control, buttons and inputs come from the kit (hermi.css). */
-.stays__skel { min-height: 8rem; border-radius: var(--radius-xl); background: var(--tp-sunken); }
 .stays__item { display: flex; flex-direction: column; gap: var(--tp-space-1); }
 .stays__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-space-2); }
 .stays__pick { display: inline-flex; align-items: center; gap: var(--tp-space-2); min-height: 44px; font: 600 0.875rem/1.2 var(--tp-font-body); }

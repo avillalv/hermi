@@ -1,5 +1,8 @@
 import { useState } from "react"
 import { Navigate, useNavigate, useParams } from "react-router"
+import { EmptyState } from "../../components/EmptyState"
+import { QueryError } from "../../components/ErrorState"
+import { Skeleton } from "../../components/Skeleton"
 import { Btn, Icon, SegItem, SegmentedControl } from "../../components/kit"
 import { formatDateRange } from "../../lib/dates"
 import { t } from "../../lib/i18n"
@@ -8,7 +11,7 @@ import { track } from "../../lib/track"
 import { useOnline } from "../../lib/useOnline"
 import { AppShell } from "../../shell/AppShell"
 import { useAuth } from "../auth/authStore"
-import { NotFound, useTrip } from "../trips/api"
+import { useTrip } from "../trips/api"
 import { tripStrip } from "../trips/TripStrip"
 import "../trips/trips.css"
 import { AddRoute } from "./AddRoute"
@@ -184,6 +187,7 @@ export function Flights() {
   const canEdit = !!trip.data && trip.data.my_role !== "viewer"
   const failed = (routes.isError && !routes.data) || trip.isError
   const pending = !failed && (routes.isPending || trip.isPending)
+  const retry = () => void Promise.all([routes.refetch(), trip.refetch(), sums.refetch()])
   return (
     <AppShell active="trips" strip={tripStrip(nav, id, "flights")}>
       <div className="overview">
@@ -203,40 +207,18 @@ export function Flights() {
           )}
         </div>
         {adding && <AddRoute tripId={id} start={trip.data?.start_date ?? null} end={trip.data?.end_date ?? null} maxPerSide={perSide} onClose={() => setAdding(false)} />}
-        {pending && (
-          <>
-            <p className="h-soft" aria-live="polite">
-              {t("flights.loading")}
-            </p>
-            <div className="flights__skel" aria-hidden="true">
-              <div className="flights__chartskel" />
-            </div>
-          </>
-        )}
-        {failed && (
-          <div className="trips__stack">
-            <p role="alert" className="h-input__error trips__note">
-              <Icon name="circle-alert" size={16} />
-              {trip.error instanceof NotFound ? t("overview.notFound") : t("flights.error")}
-            </p>
-            {!(trip.error instanceof NotFound) && (
-              <Btn variant="secondary" onClick={() => void Promise.all([routes.refetch(), trip.refetch(), sums.refetch()])}>
-                {t("trips.retry")}
-              </Btn>
-            )}
-          </div>
-        )}
+        {pending && <Skeleton shape="routeCard" onRetry={retry} />}
+        {failed && <QueryError error={trip.error ?? routes.error} message={t("flights.error")} onRetry={retry} />}
         {routes.data?.length === 0 && !adding && (
-          <div className="trips__empty">
-            <strong>{t("flights.emptyTitle")}</strong>
-            <span className="h-soft">{t("flights.emptyBody")}</span>
-            {canEdit && (
-              <Btn variant="primary" disabled={!online} onClick={() => setAdding(true)}>
-                {t("flights.addFirst")}
-              </Btn>
-            )}
-            {trip.data && !canEdit && <span className="h-soft">{t("flights.viewerNote")}</span>}
-          </div>
+          <>
+            <EmptyState
+              icon="globe"
+              title={t("flights.emptyTitle")}
+              body={t("flights.emptyBody")}
+              action={canEdit && online ? { label: t("flights.addFirst"), onClick: () => setAdding(true) } : undefined}
+            />
+            {trip.data && !canEdit && <p className="h-soft">{t("flights.viewerNote")}</p>}
+          </>
         )}
         {trip.data && routes.data?.map((r) => <RouteCard key={r.id} tripId={id} route={r} sum={sums.data?.find((s) => s.route_id === r.id)} canEdit={canEdit} online={online} home={trip.data.home_currency} />)}
         {canEdit && !!routes.data?.length && <AlertList tripId={id} routes={routes.data} name={routeName} />}

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { queryClient } from "../../lib/queryClient"
+import { ApiError } from "../../lib/api/client"
 import { api } from "../auth/api"
 import type { Category } from "../itinerary/api"
 
@@ -57,7 +58,7 @@ export const usePlaceDetails = (id: string | null) =>
       staleTime: 5 * 60_000,
       queryFn: async () => {
         const r = await api.get<PlaceDetails>(`/v1/places/${encodeURIComponent(id ?? "")}`)
-        if (r.error !== undefined || !r.data) throw new Error(`place ${r.response.status}`)
+        if (r.error !== undefined || !r.data) throw new ApiError(r)
         return r.data
       },
     },
@@ -72,7 +73,7 @@ export const useSavedPlaces = (tripId: string) =>
       retry: 1,
       queryFn: async () => {
         const r = await api.get<{ items: SavedPlace[] }>(`/v1/trips/${encodeURIComponent(tripId)}/saved-places`, { query: { limit: 100 } })
-        if (r.error !== undefined || !r.data) throw new Error(`saved ${r.response.status}`)
+        if (r.error !== undefined || !r.data) throw new ApiError(r)
         return r.data.items
       },
     },

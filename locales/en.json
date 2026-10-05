@@ -68,7 +68,6 @@
     "error": "We could not load your trips. Try again.",
     "retry": "Try again",
     "offline": "You are offline. Showing your saved trips.",
-    "loading": "Loading your trips",
     "datesNone": "No dates yet",
     "sectionNow": "In progress",
     "sectionUpcoming": "Upcoming",
@@ -151,7 +150,6 @@
   },
   "activity": {
     "title": "Activity",
-    "loading": "Loading activity",
     "filters": "Filter activity",
     "all": "All",
     "alerts": "Alerts",
@@ -171,7 +169,6 @@
     "overview": "Overview",
     "group": "Group",
     "title": "People",
-    "loading": "Loading people",
     "error": "We could not load people. Pull down to try again.",
     "offline": "You are offline. Showing saved people. Changes need a connection.",
     "emptyTitle": "Just you so far",
@@ -202,7 +199,6 @@
     "failed": "That did not work. Try again.",
     "forbidden": "You do not have permission to do that.",
     "collabCount": "{n} of {max} collaborators",
-    "membersLoading": "Loading members",
     "membersError": "We could not load members. Try again.",
     "changeRole": "Role for {name}",
     "removeMember": "Remove member {name}",
@@ -253,7 +249,6 @@
     "resendAria": "Resend invite to {who}",
     "regenerateAria": "Regenerate invite for {who}",
     "landing": {
-      "loading": "Loading your invite",
       "title": "{name} invited you to {trip}",
       "role": "You will join as {role}.",
       "join": "Join trip",
@@ -288,7 +283,6 @@
     "title": "Flights",
     "addRoute": "Add route",
     "addFirst": "Add a route",
-    "loading": "Loading fares",
     "emptyTitle": "No routes yet",
     "emptyBody": "Add where you fly from and to, and we will track fares for you.",
     "error": "We could not load fares. Try again.",
@@ -435,7 +429,6 @@
   "plan": {
     "tab": "Plan",
     "title": "Plan",
-    "loading": "Loading your plan",
     "error": "We could not load your plan. Try again.",
     "offline": "Offline. You can read your plan. Reconnect to rearrange.",
     "daysAria": "Days",
@@ -628,7 +621,6 @@
   "stays": {
     "tab": "Stays",
     "title": "Stays",
-    "loading": "Loading your stays",
     "error": "We could not load your stays. Try again.",
     "offline": "Offline. You can read your stays. Reconnect to add or change them.",
     "viewerNote": "You can heart stays. Only editors can add or change them.",

@@ -45,11 +45,11 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-test("loading shows card skeletons", () => {
+test("loading shows a card skeleton", async () => {
   mockApi(() => new Promise(() => {}) as never)
   const { container } = open()
-  expect(container.querySelectorAll(".stays__skel")).toHaveLength(3)
-  expect(screen.getByText("Loading your stays")).toBeInTheDocument()
+  expect(await screen.findByRole("status", { name: "Loading" })).toBeInTheDocument()
+  expect(container.querySelectorAll(".state-card .state-skel--photo")).toHaveLength(3)
 })
 
 test("error: a failed load shows the message and a retry", async () => {

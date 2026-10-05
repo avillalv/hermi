@@ -65,7 +65,7 @@ test("Plan shows an error with Try again, then the day", async ({ page }) => {
   await page.route("**/v1/trips/t1/items**", (r) => r.fulfill({ json: { items: [item], next_cursor: null, has_more: false } }));
   await signIn(page, "Free user");
   await page.goto("/trips/t1/plan");
-  await expect(page.getByRole("alert")).toHaveText("We could not load your plan. Try again.", { timeout: 10_000 });
+  await expect(page.getByRole("alert").getByText("We could not load your plan. Try again.", { exact: true })).toBeVisible({ timeout: 10_000 });
   fail = false;
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("heading", { level: 3, name: "Castle" })).toBeVisible();

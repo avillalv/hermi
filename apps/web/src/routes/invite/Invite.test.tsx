@@ -65,7 +65,7 @@ test("members block lists roles and the count under Invite", async () => {
 test("loading shows a members skeleton", async () => {
   mockApi((u, i) => (u.endsWith("/members") ? (new Promise(() => {}) as never) : api()(u, i)))
   open()
-  expect(await screen.findByText("Loading members")).toBeInTheDocument()
+  expect(await screen.findByRole("status", { name: "Loading" })).toBeInTheDocument()
 })
 
 test("a members error offers retry", async () => {
@@ -216,6 +216,12 @@ test("an already-member invite opens the trip", async () => {
   land()
   fireEvent.click(await screen.findByRole("button", { name: "Join trip" }))
   await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/trips/t7"))
+})
+
+test("landing loading shows the shared skeleton", async () => {
+  mockApi(() => new Promise(() => {}) as never)
+  land()
+  expect(await screen.findByRole("status", { name: "Loading" })).toBeInTheDocument()
 })
 
 test("an expired, used or revoked invite says it is no longer valid", async () => {
