@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router";
+import { Activity } from "../routes/activity/Activity";
 import { SessionControl } from "../routes/auth/SessionControl";
 import { SignIn } from "../routes/auth/SignIn";
 import { InviteLanding } from "../routes/invite/InviteLanding";
@@ -34,7 +35,8 @@ export function AppRoutes() {
       <Route path="/trips/:id/group" element={<TripGroup />} />
       <Route path="/trips/:id" element={<TripOverview />} />
       <Route path="/" element={<TripsHome />} />
-      {TABS.filter((t) => t.key !== "trips").map((t) => (
+      <Route path="/activity" element={<Activity />} />
+      {TABS.filter((t) => t.key !== "trips" && t.key !== "activity").map((t) => (
         <Route key={t.key} path={t.href} element={<Placeholder tab={t} />} />
       ))}
     </Routes>

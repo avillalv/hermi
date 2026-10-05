@@ -1,0 +1,6 @@
+/* Activity inbox (WF-027.2). Tokens only; the filter is the kit .h-seg, rows are the kit .h-listcard. */
+.activity__filters { margin-top: var(--tp-space-3); }
+.activity__list { margin: 0; padding: 0; list-style: none; }
+.activity__rows { margin: 0; padding: 0; list-style: none; }
+.activity__rows li + li > .h-listcard__row { border-top: 1px solid var(--tp-rule); }
+.activity__row { flex-direction: column; align-items: flex-start; justify-content: center; gap: var(--tp-space-1); height: auto; min-height: 44px; padding-top: var(--tp-space-2); padding-bottom: var(--tp-space-2); }

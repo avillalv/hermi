@@ -149,6 +149,23 @@
     "actions": "Trip actions",
     "timezone": "Time zone"
   },
+  "activity": {
+    "title": "Activity",
+    "loading": "Loading activity",
+    "filters": "Filter activity",
+    "all": "All",
+    "alerts": "Alerts",
+    "group": "Group",
+    "ai": "AI",
+    "emptyTitle": "Nothing new",
+    "emptyBody": "Price alerts, changes from your group and finished AI runs show up here.",
+    "error": "We could not load activity.",
+    "offline": "You are offline. Showing your saved activity.",
+    "guest": "Sign in to get alerts and see changes from your group.",
+    "signIn": "Sign in",
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
   "group": {
     "section": "Trip sections",
     "overview": "Overview",
