@@ -12,6 +12,7 @@ export type TripSummary = {
   end_date: string | null
   destinations_label: string
   member_count: number
+  my_role: "owner" | "editor" | "viewer"
 }
 export type DestinationIn = { name: string; region?: string | null; country?: string | null; country_code?: string | null; lat: number; lon: number }
 export type TripCreate = { name: string; start_date?: string; end_date?: string; destinations?: DestinationIn[] }

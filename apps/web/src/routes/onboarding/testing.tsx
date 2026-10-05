@@ -22,10 +22,10 @@ function Where() {
   return <p data-testid="where">{useLocation().pathname}</p>
 }
 
-/** Renders `ui` at `path`. Any other route renders "elsewhere", and `where` shows the current path. */
-export function show(ui: React.ReactElement, path: string) {
+/** Renders `ui` at `path` (a route pattern; `url` is the address to open, default `path`). Any other route renders "elsewhere", and `where` shows the current path. */
+export function show(ui: React.ReactElement, path: string, url = path) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
+    <MemoryRouter initialEntries={[url]}>
       <Where />
       <Routes>
         <Route path={path} element={ui} />

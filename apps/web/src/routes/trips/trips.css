@@ -1,0 +1,12 @@
+/* Trips home and trip Overview layout (WF-019.2). Tokens only; tickets, list cards and buttons come from the kit. */
+.trips__stack, .trips__empty { display: flex; flex-direction: column; gap: var(--tp-space-3); align-items: flex-start; margin-top: var(--tp-space-4); }
+.trips__route { width: 100%; max-width: 360px; height: 100px; }
+.trips__list { display: flex; flex-direction: column; gap: var(--tp-space-3); margin: 0; padding: 0; list-style: none; }
+@media (min-width: 768px) { .trips__list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.trips__section { margin-top: var(--tp-space-4); }
+.trips__skel { min-height: 120px; border: 1px solid transparent; border-radius: var(--radius-xl); background: var(--tp-sunken); }
+.trips__note { display: flex; align-items: center; gap: var(--tp-space-2); }
+.overview { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.overview__back { align-self: flex-start; }
+.overview__row { display: flex; align-items: center; gap: var(--tp-space-3); }
+.overview__lead { display: block; padding: var(--tp-space-3) var(--tp-space-4) var(--tp-space-2); }

@@ -3,7 +3,8 @@ import { SessionControl } from "../routes/auth/SessionControl";
 import { SignIn } from "../routes/auth/SignIn";
 import { CreateTrip } from "../routes/onboarding/CreateTrip";
 import { Onboarding } from "../routes/onboarding/Onboarding";
-import { TripsHome } from "../routes/onboarding/TripsHome";
+import { TripOverview } from "../routes/trips/TripOverview";
+import { TripsHome } from "../routes/trips/TripsHome";
 import { Welcome } from "../routes/onboarding/Welcome";
 import { AppShell, TABS } from "./AppShell";
 
@@ -25,6 +26,7 @@ export function AppRoutes() {
       <Route path="/sign-in" element={<SignIn />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/trips/new" element={<CreateTrip />} />
+      <Route path="/trips/:id" element={<TripOverview />} />
       <Route path="/" element={<TripsHome />} />
       {TABS.filter((t) => t.key !== "trips").map((t) => (
         <Route key={t.key} path={t.href} element={<Placeholder tab={t} />} />

@@ -69,8 +69,20 @@
     "retry": "Try again",
     "offline": "You are offline. Showing your saved trips.",
     "loading": "Loading your trips",
-    "upcoming": "Your trips",
-    "datesNone": "No dates yet"
+    "datesNone": "No dates yet",
+    "sectionNow": "In progress",
+    "sectionUpcoming": "Upcoming",
+    "sectionShared": "Shared with me",
+    "sectionPast": "Past",
+    "statusPlanning": "Planning",
+    "statusBooked": "Booked",
+    "statusDone": "Done",
+    "statusArchived": "Archived",
+    "statusNow": "Happening now",
+    "nights": "Nights",
+    "travelers": "Travelers",
+    "cardLabel": "{name}, {when}, {count} travelers, {status}",
+    "cardLabelOne": "{name}, {when}, 1 traveler, {status}"
   },
   "createTrip": {
     "title": "New trip",
@@ -99,5 +111,25 @@
     "limit": "You have 2 active trips. Archive one to make room, or upgrade.",
     "offline": "You are offline. Connect to create your trip.",
     "datesBoth": "Add both dates, or choose that you do not have dates yet."
+  },
+  "overview": {
+    "back": "Trips",
+    "sections": "Trip sections",
+    "loading": "Loading your trip",
+    "error": "We could not load this trip. Try again.",
+    "notFound": "This trip is not available. It may have been deleted or you may not have access.",
+    "offline": "You are offline. Showing your saved trip.",
+    "destinations": "Destinations",
+    "nights": "Nights",
+    "travelers": "Travelers",
+    "noDestination": "No destination yet",
+    "nextSteps": "Next steps",
+    "stepDates": "Pick your dates",
+    "stepDestination": "Add a destination",
+    "stepPlan": "Plan your first day",
+    "nowTitle": "Happening now",
+    "nowLocalTime": "Local time in {place}",
+    "nowEmpty": "Nothing planned for today",
+    "nowPlan": "Plan today"
   }
 }

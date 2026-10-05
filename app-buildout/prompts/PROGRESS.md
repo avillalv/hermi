@@ -85,3 +85,4 @@ Things a later prompt must know (a helper that exists, a pattern to reuse, a kno
 |---|---|---|
 | Average agent run cost (target at most $0.60) | not measured | |
 | Crash-free sessions in beta (target above 99.5%) | not measured | |
+- WF-019.2 (for WF-019.3 and later): `/trips/:id/edit` and `/trips/:id/plan` links from Overview have no route yet (blank page until WF-019.3 and the plan ticket). Still to add: ticket-shaped skeletons (4.4) and five Overview skeleton cards (6.7), "Saved offline" chip and card icon, Past toggle for archived trips, Playwright offline and error tests with smoke flow 26, Happening now by destination time zone instead of viewer date. The "Coming from TripIt" empty-state card waits for 6.30. Unused: `overview.sections`, `overview.travelers`, `.overview__row`, `.overview__lead`.
