@@ -142,3 +142,128 @@ class InviteAccept(BaseModel):
 
 class TransferIn(BaseModel):
     new_owner_id: uuid.UUID
+
+
+# --- 04 sections 5.6 and 5.15: share links and the shared trip -------------------------------
+
+
+class Redact(BaseModel):
+    hotel_address: bool = True
+    prices: bool = True
+    notes: bool = True
+    people: bool = True
+
+
+class ShareLinkCreate(BaseModel):
+    expires_in_days: Annotated[int, Field(ge=1, le=365)] = 90
+    redact: Redact = Redact()
+    show_book_slide: bool = True
+    indexable: bool = False
+
+
+class RedactPatch(BaseModel):
+    hotel_address: bool | None = None
+    prices: bool | None = None
+    notes: bool | None = None
+    people: bool | None = None
+
+
+class ShareLinkPatch(BaseModel):
+    expires_in_days: Annotated[int, Field(ge=1, le=365)] | None = None
+    redact: RedactPatch | None = None
+    show_book_slide: bool | None = None
+    indexable: bool | None = None
+
+
+class ShareLink(BaseModel):
+    id: uuid.UUID
+    url: str | None = None  # only in the create response
+    redact: Redact
+    show_book_slide: bool
+    indexable: bool
+    created_at: datetime
+    expires_at: datetime
+    view_count: int
+    revoked_at: datetime | None
+
+
+class SharedItem(BaseModel):
+    id: uuid.UUID
+    start_time: str | None
+    end_time: str | None
+    title: str
+    category: str
+    status: str
+    location_name: str | None
+    address: str | None  # null when the address is redacted
+    lat: float | None
+    lon: float | None
+    url: str | None
+    notes: str
+    estimated_cost_minor: int | None  # null when prices are redacted
+    cost_currency: str | None
+    source: str  # evidence is never redacted: where the item came from and the page it was checked on
+    check_url: str | None
+    checked_at: datetime | None
+
+
+class SharedDay(BaseModel):
+    day: str
+    title: str
+    notes: str
+    destination_name: str | None
+    items: list[SharedItem]
+
+
+class SharedStay(BaseModel):
+    id: uuid.UUID
+    title: str
+    status: str
+    check_in: str | None
+    check_out: str | None
+    location_name: str | None  # null when the address is redacted
+    lat: float | None
+    lon: float | None
+    price_total_minor: int | None
+    price_per_night_minor: int | None
+    currency: str | None
+
+
+class SharedDestination(BaseModel):
+    name: str
+    region: str | None
+    country: str | None
+    country_code: str | None
+
+
+class SharedTripHead(BaseModel):
+    id: uuid.UUID
+    name: str
+    start_date: str | None
+    end_date: str | None
+    cover: str | None
+    destinations: list[SharedDestination]
+    travelers: list[str]
+
+
+class Presentation(BaseModel):
+    trip: SharedTripHead
+    days: list[SharedDay]
+    flights: list[dict] = []
+    stays: list[SharedStay]
+    weather: list[dict] | None = None
+    checklist: dict[str, int] = {"done": 0, "total": 0}
+    book_slide_enabled: bool
+    generated_at: datetime
+
+
+class SharedCta(BaseModel):
+    label: Literal["Get the app to edit"] = "Get the app to edit"
+    url: str
+
+
+class SharedTrip(BaseModel):
+    trip_name: str
+    presentation: Presentation
+    cta: SharedCta
+    book_slide: list[dict] | None = None

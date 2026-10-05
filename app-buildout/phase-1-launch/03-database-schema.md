@@ -3857,6 +3857,7 @@ Practical rules for the revisions: functions, triggers, partitions, policies and
 | `0016_bootstrap_subject` | `bootstrap_user` writes `auth_identities.provider_subject`; `resolve_identity` | 0015 |
 | `0017_trip_effective_limits` | `trip_effective_limits(uuid)`, the 7.1 merge as a definer function | 0016 |
 | `0018_unlink_my_traveler` | `unlink_my_traveler(uuid)`, the undo of `link_my_traveler` as a definer function (WF-024.1) | 0017 |
+| `0020_share_link_book_slide` | `trip_share_links.show_book_slide boolean NOT NULL DEFAULT true`, the "Book the plan" setting of `ShareLinkCreate` (WF-025.2) | 0019 |
 
 Airports and FX are loaded by jobs, not by a migration: `hermi seed-airports` reads the OurAirports CSV and `hermi refresh-fx` pulls Frankfurter. CI runs `npm run db:init`, then the full chain on an empty database as `hermi_migrate_login`, runs the tenant-isolation tests and the role checks as `hermi_api_login` (never as the owner), then runs `alembic downgrade base` and `upgrade head` once to prove the chain is reversible in a scratch database (production never downgrades).
 

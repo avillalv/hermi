@@ -1,5 +1,5 @@
 # ruff: noqa: E501  (long signatures and comments)
-"""Member, invite, leave and transfer routes (04 sections 5.4 and 5.6). WF-025.1. Share links are WF-025.2."""
+"""Member, invite, leave and transfer routes (04 sections 5.4 and 5.6). WF-025.1. Share links and the shared trip are WF-025.2."""
 
 import uuid
 from typing import Annotated
@@ -16,6 +16,10 @@ from hermi.modules.collaboration.schemas import (
     InvitePreview,
     Member,
     MemberRolePatch,
+    SharedTrip,
+    ShareLink,
+    ShareLinkCreate,
+    ShareLinkPatch,
     TransferIn,
 )
 from hermi.modules.trips import repo
@@ -91,3 +95,36 @@ def preview_invite(token: Token, request: Request, response: Response) -> Invite
 def accept_invite(token: Token, body: InviteAccept, user: CurrentUser, session: DbSession) -> Trip:
     trip_id = service.accept(session, token, body.person_id)
     return _trip_for(session, trip_id, user.id)
+
+
+@router.get("/trips/{trip_id}/share-links", response_model=list[ShareLink])
+def list_share_links(access: Annotated[TripAccess, require_trip("owner")], session: DbSession) -> list[ShareLink]:
+    return service.list_share_links(session, access.trip.id)
+
+
+@router.post("/trips/{trip_id}/share-links", response_model=ShareLink, status_code=201)
+def create_share_link(
+    body: ShareLinkCreate, access: Annotated[TripAccess, require_trip("owner")], user: CurrentUser, session: DbSession, request: Request
+) -> ShareLink:
+    return service.create_share_link(session, access, user.id, body, request.app.state.settings.public_web_url)
+
+
+@router.patch("/trips/{trip_id}/share-links/{link_id}", response_model=ShareLink)
+def update_share_link(link_id: uuid.UUID, body: ShareLinkPatch, access: Annotated[TripAccess, require_trip("owner")], session: DbSession) -> ShareLink:
+    return service.update_share_link(session, access.trip.id, link_id, body)
+
+
+@router.delete("/trips/{trip_id}/share-links/{link_id}", status_code=204)
+def revoke_share_link(link_id: uuid.UUID, access: Annotated[TripAccess, require_trip("owner")], session: DbSession) -> Response:
+    service.revoke_share_link(session, access.trip.id, link_id)
+    return Response(status_code=204)
+
+
+@router.get("/shared/{token}", response_model=SharedTrip)
+def shared_trip(token: Token, request: Request, response: Response) -> SharedTrip:
+    # shortcut: no per-IP and per-token limit yet (04 5.6); WF-028 adds the limiter.
+    page, indexable = service.view_shared(request.app.state.settings, token)
+    response.headers["Cache-Control"] = "public, max-age=60"
+    if not indexable:
+        response.headers["X-Robots-Tag"] = "noindex"
+    return page
