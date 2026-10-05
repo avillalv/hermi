@@ -68,7 +68,9 @@ def main(argv: list[str] | None = None) -> None:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("api", help="run the API").add_argument("--host", default=HOST)
     sub.add_parser("migrate", help="upgrade the database to the latest revision")
-    sub.add_parser("seed", help="load the Phase 1 seed data (safe to re-run)")
+    seed_parser = sub.add_parser("seed", help="load the Phase 1 seed data (safe to re-run)")
+    # shortcut: --demo is accepted and loads the same seed; demo trips arrive from prompt 11 on.
+    seed_parser.add_argument("--demo", action="store_true", help="also load demo data (none yet)")
     for name in PLACEHOLDERS:
         sub.add_parser(name, help=f"arrives with {PLACEHOLDERS[name]}")
     args = parser.parse_args(argv)
