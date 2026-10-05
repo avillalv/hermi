@@ -6,6 +6,7 @@
 export type WebEnv = {
   apiBaseUrl: string
   appEnv: string
+  releaseSha: string
   supabaseUrl?: string
   supabaseAnonKey?: string
   revenuecatKeyIos?: string
@@ -28,6 +29,7 @@ export function readEnv(raw: Raw = import.meta.env as Raw): WebEnv {
   return {
     apiBaseUrl: (s("VITE_API_BASE_URL") ?? DEFAULT_API_BASE_URL).replace(/\/+$/, ""),
     appEnv,
+    releaseSha: s("VITE_RELEASE_SHA") ?? "dev",
     supabaseUrl: s("VITE_SUPABASE_URL"),
     supabaseAnonKey: s("VITE_SUPABASE_ANON_KEY"),
     revenuecatKeyIos: s("VITE_REVENUECAT_KEY_IOS"),

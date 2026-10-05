@@ -585,6 +585,7 @@ All configuration is environment variables, read once in `config.py` through `py
 | `VITE_API_BASE_URL` | API origin used by the web and iOS bundles | `https://api.hermi.world` | No | `http://127.0.0.1:8100` |
 | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Client sign-in | `https://abc.supabase.co` / `eyJ...` | No (anon key is public by design) | empty (dev sign-in) |
 | `VITE_APP_ENV` | Shown in the settings footer and Sentry | `production` | No | `local` |
+| `VITE_RELEASE_SHA` | Git SHA of the web build, sent to Sentry as the release | `a1b2c3d` | No | `dev` |
 | `STATUS_PAGE_URL` / `VITE_STATUS_PAGE_URL` | The hosted public status page, linked from Settings and the `/status` redirect | `https://status.hermi.world` | No | empty |
 
 `config.py` enforces the Local column: a variable empty in Local is optional, and a missing optional key makes its provider raise `NotConfigured`. Empty is fine in Local for every `SUPABASE_*`, `ANTHROPIC_API_KEY`, `TRAVELPAYOUTS_*`, `GEOAPIFY_API_KEY`, `SERPAPI_*`, `RESEND_*`, `R2_*`, `SENTRY_*`, `POSTHOG_*`, `APNS_*`, `APPLE_*` and `REVENUECAT_*`.

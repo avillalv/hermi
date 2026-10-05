@@ -30,6 +30,7 @@ never prints its value. `npm run doctor` lists what is set and what is missing.
 | `CORS_ALLOWED_ORIGINS` | Allowed browser origins | Required | Startup fails | `http://localhost:5173`; web origins only, the API always adds the Capacitor origins (`capacitor://localhost`, `https://localhost`) in `main.py` |
 | `API_DOCS_ENABLED` | Serves `/docs` | Required | Startup fails | `true` locally, `false` in production |
 | `RELEASE_SHA` | Git SHA tagged onto logs, Sentry and metrics | Optional | Left off the tags | Set by CI and Render at deploy |
+| `VITE_RELEASE_SHA` | Git SHA of the web build, sent to Sentry as the release | Optional | `dev` | Set by CI at build |
 | `TRUSTED_PROXY_CIDRS` | Networks whose `X-Forwarded-For` is trusted | Optional | Empty: no proxy header is trusted | Cloudflare's published ranges, in production |
 | `IMPORT_SANDBOX` | `strict` or `timeout_only`. On Windows `timeout_only` is a time limit plus a psutil memory kill | Required | Startup fails | `timeout_only` locally on Windows, `strict` in CI and production |
 | `VITE_API_BASE_URL` | API origin for the web and iOS bundles | Required | Startup fails | `http://localhost:8100` |

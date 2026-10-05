@@ -11,6 +11,7 @@ from hermi.modules.auth.router import dev_router
 from hermi.modules.notifications import waitlist
 from hermi.security.idempotency import IdempotencyMiddleware
 from hermi.security.jwt import TokenVerifier
+from hermi.sentry_setup import init_sentry
 
 CAPACITOR_ORIGINS = ["capacitor://localhost", "https://localhost"]
 
@@ -32,7 +33,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Loading here makes every start path (cli, plain uvicorn) fail fast on bad config.
     # An ASGI start does not know its bind host; assume non-loopback so claude_cli is refused.
     settings = settings or load_settings(bind_host="0.0.0.0")
-    setup_logging(settings.log_level)
+    setup_logging(
+        settings.log_level,
+        service="api",
+        env=settings.environment,
+        release=settings.release_sha,
+    )
+    init_sentry(settings.sentry_dsn, release=settings.release_sha, environment=settings.environment)
     app = FastAPI(title="Hermi API", lifespan=_lifespan)
     app.state.settings = settings
     app.state.verifier = TokenVerifier(settings)

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from hermi.db import request_transaction
 from hermi.errors import ApiError, NotFound
+from hermi.logging_setup import bind
 from hermi.modules.collaboration.models import TripMember
 from hermi.modules.trips import repo as trips_repo
 from hermi.modules.trips.models import Trip
@@ -64,6 +65,7 @@ def user_dependency(*, allow_pending_deletion: bool = False) -> Callable[..., Au
                 "Finish sign-up to continue.",
                 {"WWW-Authenticate": "Bearer"},
             )
+        bind(user_id=str(user.id))
         if user.status == "pending_deletion" and allow_pending_deletion:
             return user
         if user.status == "pending_deletion":

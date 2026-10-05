@@ -12,6 +12,7 @@ dependencies = [
     "alembic>=1.14",
     "PyJWT[crypto]>=2.10",
     "sqlalchemy>=2.0",
+    "sentry-sdk>=2.0",
 ]
 
 [project.scripts]

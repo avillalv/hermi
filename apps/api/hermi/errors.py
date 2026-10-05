@@ -1,14 +1,19 @@
 """RFC 9457 problem+json errors (04 section 1.4) and the X-Request-Id header (04 section 1.9)."""
 
 import logging
+import time
 import uuid
 
+import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from hermi.logging_setup import bind, clear_context
+
 log = logging.getLogger("hermi.errors")
+request_log = logging.getLogger("hermi.request")
 PROBLEM_BASE = "https://api.hermi.world/problems/"
 # Codes for statuses that Starlette or FastAPI raise by themselves. Our own errors carry their code.
 STATUS_CODES = {
@@ -59,14 +64,36 @@ class RequestIdMiddleware:
         except ValueError:
             rid = str(uuid.uuid4())
         scope.setdefault("state", {})["request_id"] = rid
+        clear_context()
+        bind(request_id=rid)
+        status, size, started = 500, 0, time.perf_counter()
 
         async def send_with_id(message):
+            nonlocal status, size
             if message["type"] == "http.response.start":
+                status = message["status"]
                 h = [(k, v) for k, v in message["headers"] if k.lower() != b"x-request-id"]
                 message = {**message, "headers": [*h, (b"x-request-id", rid.encode())]}
+            elif message["type"] == "http.response.body":
+                size += len(message.get("body", b""))
             await send(message)
 
-        await self.app(scope, receive, send_with_id)
+        try:
+            await self.app(scope, receive, send_with_id)
+        finally:
+            # The route template only (02 section 9): a concrete path can carry an invite or feed
+            # token, and the query string can carry anything.
+            route = getattr(scope.get("route"), "path", None) or "unmatched"
+            request_log.info(
+                "request",
+                extra={
+                    "method": scope.get("method", "WS"),
+                    "route": route,
+                    "status": status,
+                    "latency_ms": round((time.perf_counter() - started) * 1000),
+                    "bytes": size,
+                },
+            )
 
 
 def problem(request: Request, status: int, code: str, detail: str, **extra) -> JSONResponse:
@@ -123,6 +150,7 @@ def register(app: FastAPI) -> None:
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception):
         log.exception("unhandled error")  # the stack stays in the log, never in the body
+        sentry_sdk.capture_exception(exc)  # no-op without a DSN; the scope carries the request id
         return problem(
             request, 500, "internal_error", "Something went wrong on our side. Try again."
         )
