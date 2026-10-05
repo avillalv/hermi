@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from hermi.deps import CurrentUser, DbSession, TripAccess, require_trip
 from hermi.errors import ApiError, NotFound
 from hermi.modules.billing import service as billing
+from hermi.modules.collaboration.activity import record
 from hermi.modules.collaboration.schemas import (
     Attribution,
     Member,
@@ -190,6 +191,7 @@ def set_travelers(
         ),
         {"t": access.trip.id, "u": user.id, "ids": ids},
     )
+    record(session, access.trip.id, user.id, "updated", "travelers", None, "updated who is traveling")
     return trip_travelers(session, access.trip.id, user.id)
 
 

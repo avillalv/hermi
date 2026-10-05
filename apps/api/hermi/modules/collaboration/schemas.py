@@ -267,3 +267,26 @@ class SharedTrip(BaseModel):
     presentation: Presentation
     cta: SharedCta
     book_slide: list[dict] | None = None
+
+
+# --- activity feed (WF-027.1) ----------------------------------------------------------------
+
+
+class ActivityActor(BaseModel):
+    id: uuid.UUID | None  # None: the account was deleted
+    display_name: str  # "Deleted user" or "Former member" when there is no name to show
+
+
+class ActivityItem(BaseModel):
+    verb: str
+    entity_type: str
+    entity_id: uuid.UUID | None
+    summary: str
+    at: datetime
+    actor: ActivityActor
+
+
+class ActivityPage(BaseModel):
+    items: list[ActivityItem]
+    next_cursor: str | None
+    has_more: bool

@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from hermi.deps import CurrentUser, DbSession, TripAccess, require_trip
 from hermi.errors import ApiError, NotFound
 from hermi.modules.billing import service as billing
+from hermi.modules.collaboration.activity import record
 from hermi.modules.collaboration.service import reconcile_collaborators
 from hermi.modules.trips import repo
 from hermi.modules.trips.people import trip_travelers
@@ -119,6 +120,7 @@ def create_trip(body: TripCreate, user: CurrentUser, session: DbSession, respons
         [d.model_dump(exclude_none=True, exclude={"id"}) for d in body.destinations],
         people,
     )
+    record(session, trip.id, user.id, "created", "trip", trip.id, "created the trip")
     response.headers["Location"] = f"/v1/trips/{trip.id}"
     return full_trip(session, trip, "owner", user.id)
 
@@ -172,6 +174,9 @@ def update_trip(
         raise _invalid("destinations", "One of the destinations is not part of this trip.")
     if people is not None:
         repo.sync_my_travelers(session, trip.id, user.id, people)
+    changed = sorted(sent & {"name", "notes", "start_date", "end_date", "status", "destinations", "traveler_ids", "home_currency"})
+    if changed:  # field names only: note text is never copied into the feed
+        record(session, trip.id, user.id, "updated", "trip", trip.id, "updated the trip (" + ", ".join(c.replace("_", " ") for c in changed) + ")")
     response.headers["ETag"] = f'"{trip.version}"'
     return full_trip(session, trip, access.role, user.id)
 
@@ -232,25 +237,28 @@ def list_destinations(access: Annotated[TripAccess, require_trip("viewer")], ses
 
 
 @router.post("/trips/{trip_id}/destinations", response_model=TripDestinationOut, status_code=201)
-def add_destination(body: DestinationIn, access: Annotated[TripAccess, require_trip("editor")], session: DbSession):
+def add_destination(body: DestinationIn, access: Annotated[TripAccess, require_trip("editor")], user: CurrentUser, session: DbSession):
     # shortcut: the summary and image fetch is not enqueued (info_status stays pending) until the destination job lands (WF-032),
     # and PATCH does not set the cover from the first destination image until then either (WF-032).
     # shortcut: two parallel adds can pass the cap together; lock the trip row (SELECT ... FOR UPDATE) if that ever shows up.
     if len(repo.destinations_of(session, access.trip.id)) >= MAX_DESTINATIONS:
         raise _invalid("destinations", f"A trip can have up to {MAX_DESTINATIONS} destinations.")
-    return repo.add_destination(session, access.trip.id, body.model_dump(exclude_none=True, exclude={"id"}))
+    row = repo.add_destination(session, access.trip.id, body.model_dump(exclude_none=True, exclude={"id"}))
+    record(session, access.trip.id, user.id, "added", "destination", row.id, f"added {row.name} to the trip")
+    return row
 
 
 @router.put("/trips/{trip_id}/destinations/order", response_model=list[TripDestinationOut])
-def order_destinations(body: DestinationOrder, access: Annotated[TripAccess, require_trip("editor")], session: DbSession):
+def order_destinations(body: DestinationOrder, access: Annotated[TripAccess, require_trip("editor")], user: CurrentUser, session: DbSession):
     if not repo.order_destinations(session, access.trip.id, body.ids):
         raise _invalid("ids", "Send every destination of the trip exactly once.")
+    record(session, access.trip.id, user.id, "moved", "destination", None, "reordered the destinations")
     return repo.destinations_of(session, access.trip.id)
 
 
 @router.patch("/trips/{trip_id}/destinations/{destination_id}", response_model=TripDestinationOut)
 def update_destination(
-    destination_id: uuid.UUID, body: DestinationPatch, access: Annotated[TripAccess, require_trip("editor")], session: DbSession
+    destination_id: uuid.UUID, body: DestinationPatch, access: Annotated[TripAccess, require_trip("editor")], user: CurrentUser, session: DbSession
 ):
     row = repo.get_destination(session, access.trip.id, destination_id)
     if row is None:
@@ -259,13 +267,15 @@ def update_destination(
         setattr(row, k, getattr(body, k))
     session.flush()
     session.refresh(row)
+    record(session, access.trip.id, user.id, "updated", "destination", row.id, f"updated {row.name}")
     return row
 
 
 @router.delete("/trips/{trip_id}/destinations/{destination_id}", status_code=204)
-def delete_destination(destination_id: uuid.UUID, access: Annotated[TripAccess, require_trip("editor")], session: DbSession) -> Response:
+def delete_destination(destination_id: uuid.UUID, access: Annotated[TripAccess, require_trip("editor")], user: CurrentUser, session: DbSession) -> Response:
     row = repo.get_destination(session, access.trip.id, destination_id)
     if row is None:
         raise NotFound()
+    record(session, access.trip.id, user.id, "removed", "destination", row.id, f"removed {row.name} from the trip")
     repo.remove_destination(session, row)
     return Response(status_code=204)

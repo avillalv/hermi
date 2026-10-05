@@ -41,6 +41,7 @@ POLICY: dict[str, str] = {
     "PUT /v1/trips/{trip_id}/travelers": "tenant",
     "PUT /v1/trips/{trip_id}/members/me/traveler": "tenant",
     "DELETE /v1/trips/{trip_id}/members/me/traveler": "tenant",
+    "GET /v1/trips/{trip_id}/activity": "tenant",
     "GET /v1/trips/{trip_id}/members": "tenant",
     "PATCH /v1/trips/{trip_id}/members/{user_id}": "tenant",
     "DELETE /v1/trips/{trip_id}/members/{user_id}": "tenant",

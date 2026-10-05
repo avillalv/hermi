@@ -4,12 +4,13 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Request, Response
+from fastapi import APIRouter, Path, Query, Request, Response
 from sqlalchemy.orm import Session
 
 from hermi.deps import CurrentUser, DbSession, TripAccess, require_trip
-from hermi.modules.collaboration import service
+from hermi.modules.collaboration import activity, service
 from hermi.modules.collaboration.schemas import (
+    ActivityPage,
     Invite,
     InviteAccept,
     InviteCreate,
@@ -42,21 +43,35 @@ def list_members(access: Annotated[TripAccess, require_trip("viewer")], session:
     return service.list_members(session, access.trip.id)
 
 
+@router.get("/trips/{trip_id}/activity", response_model=ActivityPage)
+def trip_activity(
+    access: Annotated[TripAccess, require_trip("viewer")],
+    session: DbSession,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    cursor: str | None = None,
+) -> ActivityPage:
+    return activity.feed(session, access.trip.id, limit, cursor)
+
+
 @router.patch("/trips/{trip_id}/members/{user_id}", response_model=Member)
 def set_member_role(
     user_id: uuid.UUID, body: MemberRolePatch, access: Annotated[TripAccess, require_trip("owner")], session: DbSession
 ) -> Member:
-    return service.set_role(session, access, user_id, body.role)
+    member = service.set_role(session, access, user_id, body.role)
+    activity.record(session, access.trip.id, access.member.user_id, "role_changed", "member", user_id, f"made a member {body.role}")
+    return member
 
 
 @router.delete("/trips/{trip_id}/members/{user_id}", status_code=204)
 def remove_member(user_id: uuid.UUID, access: Annotated[TripAccess, require_trip("owner")], session: DbSession) -> Response:
+    activity.record(session, access.trip.id, access.member.user_id, "removed", "member", user_id, "removed a member")
     service.remove_member(session, access, user_id)
     return Response(status_code=204)
 
 
 @router.post("/trips/{trip_id}/leave", status_code=204)
 def leave_trip(access: Annotated[TripAccess, require_trip("viewer")], session: DbSession) -> Response:
+    activity.record(session, access.trip.id, access.member.user_id, "left", "member", access.member.user_id, "left the trip")
     service.leave(session, access)
     return Response(status_code=204)
 
@@ -64,6 +79,7 @@ def leave_trip(access: Annotated[TripAccess, require_trip("viewer")], session: D
 @router.post("/trips/{trip_id}/transfer", response_model=Trip)
 def transfer_trip(body: TransferIn, access: Annotated[TripAccess, require_trip("owner")], user: CurrentUser, session: DbSession) -> Trip:
     service.transfer(session, access.trip.id, body.new_owner_id)
+    activity.record(session, access.trip.id, user.id, "transferred", "trip", access.trip.id, "transferred the trip to another member")
     return _trip_for(session, access.trip.id, user.id)
 
 
@@ -95,6 +111,7 @@ def preview_invite(token: Token, request: Request, response: Response) -> Invite
 @router.post("/invites/{token}/accept", response_model=Trip)
 def accept_invite(token: Token, body: InviteAccept, user: CurrentUser, session: DbSession) -> Trip:
     trip_id = service.accept(session, token, body.person_id)
+    activity.record(session, trip_id, user.id, "joined", "member", user.id, "joined the trip")
     return _trip_for(session, trip_id, user.id)
 
 
