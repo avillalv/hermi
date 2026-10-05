@@ -21,7 +21,7 @@ from hermi.security.jwt import mint_dev_token
 
 HERMI = Path(__file__).resolve().parents[1] / "hermi"
 # Routes with an id parameter that do not take a trip: public tokens and the user's own resources.
-PUBLIC_ID_ROUTES: set[str] = set()
+PUBLIC_ID_ROUTES: set[str] = {"/v1/people/{person_id}"}  # the caller's own people (WF-024.1)
 
 
 @pytest.fixture

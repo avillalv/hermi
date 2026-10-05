@@ -34,6 +34,13 @@ POLICY: dict[str, str] = {
     "PUT /v1/trips/{trip_id}/destinations/order": "tenant",
     "PATCH /v1/trips/{trip_id}/destinations/{destination_id}": "tenant",
     "DELETE /v1/trips/{trip_id}/destinations/{destination_id}": "tenant",
+    "GET /v1/people": "user_scoped",
+    "POST /v1/people": "user_scoped",
+    "PUT /v1/people/{person_id}": "user_scoped",
+    "DELETE /v1/people/{person_id}": "user_scoped",
+    "PUT /v1/trips/{trip_id}/travelers": "tenant",
+    "PUT /v1/trips/{trip_id}/members/me/traveler": "tenant",
+    "DELETE /v1/trips/{trip_id}/members/me/traveler": "tenant",
     # Mounted only when AUTH_MODE=dev in local and ci (main.create_app).
     "GET /v1/dev/personas": "public",
     "POST /v1/dev/session": "public",
@@ -45,4 +52,4 @@ POLICY: dict[str, str] = {
 }
 
 # Tenant write routes a viewer may call (04 role table: a viewer can read and heart). "METHOD /path" keys.
-VIEWER_WRITE_OK: set[str] = set()
+VIEWER_WRITE_OK: set[str] = {"PUT /v1/trips/{trip_id}/members/me/traveler", "DELETE /v1/trips/{trip_id}/members/me/traveler"}  # a viewer says which traveler they are

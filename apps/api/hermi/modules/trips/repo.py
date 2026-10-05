@@ -120,6 +120,14 @@ def sync_my_travelers(session: Session, trip_id: uuid.UUID, user_id: uuid.UUID, 
     session.flush()
 
 
+def others_travelers_count(session: Session, trip_id: uuid.UUID, user_id: uuid.UUID) -> int:
+    """Travelers on the trip that the user does not own (kept by sync_my_travelers)."""
+    return session.execute(
+        text("SELECT count(*) FROM trip_people tp JOIN people p ON p.id = tp.person_id WHERE tp.trip_id = :t AND p.owner_user_id <> :u"),
+        {"t": trip_id, "u": user_id},
+    ).scalar_one()
+
+
 def replace_destinations(session: Session, trip_id: uuid.UUID, items: list[dict]) -> bool:
     """Makes the trip's destinations `items`, in that order. An item with an `id` updates that row; one without is new;
     rows not named are removed. False when an id is not a destination of this trip."""

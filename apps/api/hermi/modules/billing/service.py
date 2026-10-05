@@ -223,3 +223,26 @@ def get_entitlements(session: Session, user_id: uuid.UUID) -> Entitlements:
             blocked=blocked,
         ),
     )
+
+
+def require_traveler_slots(
+    session: Session, trip_id: uuid.UUID | None, count: int, user_id: uuid.UUID | None = None
+) -> None:
+    """402 `limit_reached`, reason `traveler_limit`, when `count` travelers exceed `travelers_per_trip` (04 section 5.7).
+    An existing trip uses its merged limits; a trip not created yet (`trip_id` None) uses the owner's `user_id` tier.
+    The reason sets no trigger (04 section 5.20), so the hint has none."""
+    limits = trip_limits(session, trip_id)[1] if trip_id else user_limits(session, user_id)
+    limit = limit_of(limits, "travelers_per_trip")
+    if count > limit:
+        raise ApiError(
+            402,
+            "limit_reached",
+            f"A trip can have {limit} travelers on your plan.",
+            extra={
+                "paywall": {
+                    "reason": "traveler_limit",
+                    "offer_url": "/v1/paywall/offer?reason=traveler_limit",
+                    "free_path": f"Keep {limit} travelers on this trip",
+                }
+            },
+        )

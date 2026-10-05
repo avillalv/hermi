@@ -2860,9 +2860,9 @@ GRANT  EXECUTE ON FUNCTION my_referral_code(), redeem_referral(text), set_import
 -- transfer_trip_owner are defined in 5.4; the others are written in 0014 beside these grants. Each checks app_user_id() itself, has a fixed
 -- search_path and is owned by hermi_definer. A name without an argument list matches the function's one overload.
 REVOKE EXECUTE ON FUNCTION redeem_trip_invite, transfer_trip_owner, request_account_deletion, cancel_account_deletion,
-  advance_trip_import, link_my_traveler, file_content_report, clear_run_content, clear_my_ai_history, my_provider_spend_micros FROM PUBLIC;
+  advance_trip_import, link_my_traveler, unlink_my_traveler (0018), file_content_report, clear_run_content, clear_my_ai_history, my_provider_spend_micros FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION redeem_trip_invite, transfer_trip_owner, request_account_deletion, cancel_account_deletion,
-  advance_trip_import, link_my_traveler, file_content_report, clear_run_content, clear_my_ai_history, my_provider_spend_micros TO hermi_app;
+  advance_trip_import, link_my_traveler, unlink_my_traveler (0018), file_content_report, clear_run_content, clear_my_ai_history, my_provider_spend_micros TO hermi_app;
 -- Procrastinate: the API defers jobs through the library's own function; workers hold full rights on the procrastinate_* tables.
 GRANT EXECUTE ON FUNCTION procrastinate_defer_jobs_v1 TO hermi_app;
 -- The retention sweep is the only deleter of expired audit rows (5.16); only the scheduler's worker role runs it.
@@ -2911,6 +2911,7 @@ Walked route by route from `04-api-spec.md` section 5 and the jobs it names. "RL
 | `POST /trips/{id}/transfer` | `transfer_trip_owner()` (5.4) | Definer |
 | `POST /trips/{id}/leave`, `PATCH` and `DELETE /trips/{id}/members/{user_id}` | `trip_members` | RLS |
 | `PUT /trips/{id}/members/me/traveler` | `link_my_traveler(trip, person)` sets `people.linked_user_id` (the person may belong to the owner) | Definer |
+| `DELETE /trips/{id}/members/me/traveler` | `unlink_my_traveler(trip)` clears the caller's own `people.linked_user_id` on that trip (0018) | Definer |
 | `POST` and `DELETE /trips/{id}/invites` | `trip_invites` | RLS |
 | `POST /invites/{token}/accept` | `redeem_trip_invite()` (5.4): inserts `trip_members`, bumps `use_count` | Definer |
 | `POST`, `PATCH` and `DELETE /trips/{id}/share-links` | `trip_share_links` | RLS |
@@ -3855,6 +3856,7 @@ Practical rules for the revisions: functions, triggers, partitions, policies and
 | `0015_seed` | Seed data (section 11), idempotent `INSERT ... ON CONFLICT DO NOTHING` | 0014 |
 | `0016_bootstrap_subject` | `bootstrap_user` writes `auth_identities.provider_subject`; `resolve_identity` | 0015 |
 | `0017_trip_effective_limits` | `trip_effective_limits(uuid)`, the 7.1 merge as a definer function | 0016 |
+| `0018_unlink_my_traveler` | `unlink_my_traveler(uuid)`, the undo of `link_my_traveler` as a definer function (WF-024.1) | 0017 |
 
 Airports and FX are loaded by jobs, not by a migration: `hermi seed-airports` reads the OurAirports CSV and `hermi refresh-fx` pulls Frankfurter. CI runs `npm run db:init`, then the full chain on an empty database as `hermi_migrate_login`, runs the tenant-isolation tests and the role checks as `hermi_api_login` (never as the owner), then runs `alembic downgrade base` and `upgrade head` once to prove the chain is reversible in a scratch database (production never downgrades).
 

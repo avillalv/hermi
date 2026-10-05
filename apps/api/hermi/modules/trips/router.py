@@ -97,6 +97,7 @@ def list_trips(
 def create_trip(body: TripCreate, user: CurrentUser, session: DbSession, response: Response) -> Trip:
     _check_trip_limit(session, user.id)
     people = _my_travelers(session, user.id, body.traveler_ids)
+    billing.require_traveler_slots(session, None, len(people), user.id)
     trip = repo.create_trip(
         session,
         user.id,
@@ -150,6 +151,8 @@ def update_trip(
     if sent & {"start_date", "end_date"}:
         values["start_date"], values["end_date"] = start, end
     people = _my_travelers(session, user.id, body.traveler_ids) if body.traveler_ids is not None else None
+    if people is not None:  # the caller's new set plus the travelers other members put on the trip
+        billing.require_traveler_slots(session, trip.id, len(people) + repo.others_travelers_count(session, trip.id, user.id))
     if not repo.update_trip(session, trip, version, values):
         raise version_conflict(_full(session, trip, access.role).model_dump(mode="json"))
     # shortcut: changing dates does not re-derive itinerary_days yet; the itinerary module (WF-032) owns days and hooks in here.

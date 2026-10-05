@@ -100,7 +100,7 @@ def _router(settings, *, guarded: bool):
 
 def test_walk_passes_on_a_guarded_tenant_route(make_app, settings, world):
     with make_app(_router(settings, guarded=True)) as client:
-        assert run_walk(client, world, MUT_POLICY) == []
+        assert run_walk(client, world, MUT_POLICY, VIEWER_WRITE_OK) == []
 
 
 def test_mutation_unclassified_route_fails(make_app, settings, world):
@@ -111,7 +111,7 @@ def test_mutation_unclassified_route_fails(make_app, settings, world):
 
 def test_mutation_route_without_its_guard_fails(make_app, settings, world):
     with make_app(_router(settings, guarded=False)) as client:
-        bad = run_walk(client, world, MUT_POLICY)
+        bad = run_walk(client, world, MUT_POLICY, VIEWER_WRITE_OK)
     assert any("with no token" in b for b in bad) and any("sentinel" in b for b in bad)
 
 
@@ -125,7 +125,7 @@ def test_mutation_require_trip_lookup_that_ignores_membership_fails(make_app, se
 
     monkeypatch.setattr(deps.trips_repo, "get_trip_with_member", no_membership)
     with make_app(_router(settings, guarded=True)) as client:
-        bad = run_walk(client, world, MUT_POLICY)
+        bad = run_walk(client, world, MUT_POLICY, VIEWER_WRITE_OK)
     assert any("as B" in b for b in bad) and any("sentinel" in b for b in bad)
 
 
