@@ -35,6 +35,7 @@ ROUTE_CLASSES: dict[str, tuple[int, int]] = {
     "import_ics_feed": (5, DAY),
     "import_confirm": (30, DAY),
     "link_preview": (20, HOUR),
+    "fare_refresh": (10, HOUR),  # per trip, POST /trips/{id}/flights/refresh
     "export": (1, DAY),
     "delete": (1, DAY),
     "signup_ip": (5, DAY),  # new accounts per IP

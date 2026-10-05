@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from hermi.modules.auth.router import router as auth_router
 from hermi.modules.billing.router import router as billing_router
 from hermi.modules.collaboration.router import router as collaboration_router
+from hermi.modules.flights.router import router as flights_router
 from hermi.modules.geo.router import router as geo_router
 from hermi.modules.trips.people import router as people_router
 from hermi.modules.trips.router import router as trips_router
@@ -16,3 +17,4 @@ router.include_router(geo_router)
 router.include_router(billing_router)
 router.include_router(people_router)
 router.include_router(collaboration_router)
+router.include_router(flights_router)

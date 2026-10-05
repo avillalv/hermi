@@ -24,7 +24,7 @@ from hermi.modules.billing.schemas import (
 )
 
 # The paywall trigger a limit key fires (04 section 2.2, 07 section 6.2); reason and free path come from `paywall.TRIGGERS`.
-_PAYWALLS = {"active_trips": "third_trip", "collaborators": "invite"}
+_PAYWALLS = {"active_trips": "third_trip", "collaborators": "invite", "routes_per_trip": "second_route", "live_routes": "track_live"}
 
 
 def user_limits(session: Session, user_id: uuid.UUID) -> dict[str, Any]:
@@ -246,3 +246,19 @@ def require_traveler_slots(
                 }
             },
         )
+
+
+def require_route_limits(
+    session: Session, trip_id: uuid.UUID, *, origins: int, destinations: int, live: bool, other_routes: int, other_live: int
+) -> None:
+    """402 `limit_reached` when a flight route breaks `airports_per_side`, `routes_per_trip` or (live mode) `live_routes`
+    on the trip's merged limits (04 section 5.8). `other_*` count the trip's other routes, so an edit does not count itself."""
+    limits = trip_limits(session, trip_id)[1]
+    per_side = limit_of(limits, "airports_per_side")
+    if max(origins, destinations) > per_side:  # no PaywallHint reason exists for this limit (04 section 2.2), so no hint
+        raise paywall_error("airports_per_side", per_side, f"A route can have {per_side} airports on each side on your plan.", upsell=False)
+    routes = limit_of(limits, "routes_per_trip")
+    if other_routes >= routes:
+        raise paywall_error("routes_per_trip", routes, f"A trip can track {routes} flight routes on your plan.")
+    if live and other_live >= limit_of(limits, "live_routes"):
+        raise paywall_error("live_routes", limit_of(limits, "live_routes"), "Live tracking needs a free live route slot.")
