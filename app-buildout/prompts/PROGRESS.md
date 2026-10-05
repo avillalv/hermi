@@ -43,7 +43,7 @@ Same status values as above.
 | 05 | [Sign-in, tenancy and row-level security](05-auth-and-tenancy.md) | WF-013, WF-014, WF-015, WF-016 | Done (#17) |
 | 06 | [Web app platform, sign-in and trips](06-web-app-and-trips.md) | WF-017, WF-130, WF-018, WF-019 | Done (#18) |
 | 07 | [Entitlements, travelers, invites and roles](07-entitlements-and-collaboration.md) | WF-023, WF-024, WF-025, WF-026, WF-027, WF-028 | Done (#21) |
-| 08 | [Currency, cached fares and price alerts](08-fares-and-alerts.md) | WF-029, WF-030, WF-031 | In progress (phase1/p08-fares-and-alerts) |
+| 08 | [Currency, cached fares and price alerts](08-fares-and-alerts.md) | WF-029, WF-030, WF-031 | Done (#22) |
 | 09 | [Itinerary, places, map, stays and notes](09-plan-and-stays.md) | WF-032, WF-033, WF-034, WF-035 | Not started |
 | 10 | [Responsive layout, observability and sync indicator](10-layout-observability-sync.md) | WF-036, WF-037, WF-038, WF-039, WF-125 | Not started |
 | 11 | [Import the owner's existing Trip Planner data](11-owner-data-migration.md) | WF-040, WF-133 | Not started |
@@ -95,3 +95,4 @@ Things a later prompt must know (a helper that exists, a pattern to reuse, a kno
 - WF-030.2: `flights/fare_view.py` holds the shared fare SELECT and `fare_of` mapping (reuse in WF-031 and WF-075). Still open: `flight_chosen` and `flight_booked` events (04 5.8) are not emitted because no analytics emitter exists, and `flight_booked` is missing from the 10 section 4 catalogue; the 5.16 checklist side effect of `PUT choice` (Flights booked, Airport transfer, Travel insurance become visible) belongs to the checklist ticket. Price history typical range and price level stay null until WF-031 writes `route_price_insights`.
 
 - Smoke hygiene (WF-031.2): `sign-in.spec.ts` "new user creates a first trip in three steps" never archives its trip, so on a reused dev DB the Plus persona hits its 25 active trip cap and two sign-in tests fail. Archive in the test or use a fresh persona per run. Also `packages/shared/src/events.ts` does not exist; `fare_alert_created` is only in `track()` calls.
+- P08 ship (for WF-075, WF-040 and the notes ticket): `flights/fare_view.py` is the shared fare read; alert routes are top level (`/v1/routes/{route_id}/price-alerts`); `refresh_fx_rates` runs on Frankfurter and money.ts shows a stale-rate notice. The route sheet and alert sheet have no kit mockup, so a 390 by 844 visual check is owner-pending. The alert trigger sends no push or email yet (notification prompts).
