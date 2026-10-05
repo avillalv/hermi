@@ -16,6 +16,20 @@ This repo is the specification itself, so its reference material lives in `app-b
 | `ios-builds-on-ci.md` | You build, sign or test the iOS app without a Mac: the GitHub macOS jobs, the Apple account steps and TestFlight. |
 | `row-level-security.md` | You touch RLS policies, `app.user_id`, or the API startup refusal for an unsafe database login. |
 
+## Repo docs and skills
+
+| File | Read it when |
+|---|---|
+| `README.md` | You need the setup and run steps for a fresh machine. |
+| `docs/adr/0001-name.md` | You touch the product name, fallback names (Twoyage, Zigroam), the trademark checklist or owner-only domain and mail items. |
+| `docs/porting-map.md` | You port code from the old Trip Planner: what moved where, what is not ported yet, what was left behind and why. |
+| `docs/validation/README.md` | You run the demand validation kit (WF-003): interview script, price test cards, terms checklist. |
+| `.claude/skills/autopilot-status` | Someone asks how the autopilot build is going, what is running, or what the owner must do. Read-only. |
+| `.claude/skills/month-gate` | You run a month exit gate in the ship session after prompt 06, 11, 15, 20 or 24. |
+| `.claude/skills/prepare-pr` | You finish a build unit's pull request in the ship session. Never merges. |
+| `.claude/skills/run-hermi-locally` | You confirm a change in the real app: doctor, scratch database, dev servers, smoke test, cleanup. |
+| `.claude/skills/verify-ui-against-kit` | A UI step is built and needs checking against the design kit before opus-reviewer. |
+
 ## The record: `app-buildout/`
 
 | File | Read it when |

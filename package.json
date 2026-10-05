@@ -19,7 +19,7 @@
     "gen:shared": "node scripts/stub.mjs gen:shared",
     "test:kit": "npm run test:kit --workspace apps/web",
     "test:e2e": "node scripts/stub.mjs test:e2e WF-130",
-    "test:e2e:smoke": "node --test scripts/e2e-smoke.mjs",
+    "test:e2e:smoke": "node --test scripts/e2e-smoke.mjs && npm run test:smoke -w apps/web",
     "evals": "node scripts/stub.mjs evals WF-057",
     "smoke:live": "node scripts/stub.mjs smoke:live"
   },

@@ -1,6 +1,6 @@
 ---
 name: month-gate
-description: "Run a month exit gate in the autopilot ship session of the prompt after 06, 11, 15, 20 or 24 (the gates for months 1 to 5). Checks the exit list, audits the context layout, gets an opus-judge verdict and writes docs/gates/month-N.md."
+description: "Use when running a month exit gate in the autopilot ship session of the prompt after 06, 11, 15, 20 or 24 (the gates for months 1 to 5). Checks the exit list, audits the context layout, gets an opus-judge verdict and writes docs/gates/month-N.md."
 ---
 
 # Month gate

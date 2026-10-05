@@ -75,6 +75,9 @@ jobs:
           mkdir -p .autopilot/tmp
           nohup npm run dev > .autopilot/tmp/dev.log 2>&1 &
           node scripts/wait-ready.mjs 90
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/web
       - name: Smoke test
         run: npm run test:e2e:smoke
       - name: Dev server log
