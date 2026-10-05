@@ -438,7 +438,7 @@ CREATE INDEX ix_places_cache_expires ON places_cache (expires_at);
 CREATE INDEX ix_places_cache_provider_kind ON places_cache (provider, kind, expires_at);
 
 -- Converts a minor-unit amount between currencies with the stored ECB rates. Returns NULL when either rate is missing,
--- so a caller never shows a made-up number. EUR is the base and has no row. Used at read time only; converted amounts are never stored.
+-- so a caller never shows a made-up number. Stays numeric with one division at the end, so exact halves round away from zero (the web app's convertMinor does the same). EUR is the base and has no row. Used at read time only; converted amounts are never stored.
 CREATE FUNCTION fx_convert_minor(p_minor bigint, p_from text, p_to text) RETURNS bigint
 LANGUAGE plpgsql STABLE AS $$
 DECLARE v_from numeric; v_to numeric;
@@ -447,7 +447,7 @@ BEGIN
   v_from := CASE WHEN p_from = 'EUR' THEN 1 ELSE (SELECT per_eur FROM fx_rates WHERE currency = p_from) END;
   v_to   := CASE WHEN p_to   = 'EUR' THEN 1 ELSE (SELECT per_eur FROM fx_rates WHERE currency = p_to) END;
   IF v_from IS NULL OR v_to IS NULL THEN RETURN NULL; END IF;
-  RETURN round(p_minor::numeric / power(10, currency_exponent(p_from)) / v_from * v_to * power(10, currency_exponent(p_to)))::bigint;
+  RETURN round((p_minor::numeric * v_to * power(10::numeric, currency_exponent(p_to))) / (v_from * power(10::numeric, currency_exponent(p_from))))::bigint;
 END $$;
 ```
 

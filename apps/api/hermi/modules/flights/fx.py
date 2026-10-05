@@ -1,17 +1,44 @@
-"""Reference-rate refresh timing and the local currency by country. DB-free.
+# ruff: noqa: E501
+"""Reference-rate refresh and the local currency by country.
 
-Currency conversion is not here: money is integer minor units, converted at read time in SQL by
-`fx_convert_minor()` with `currency_exponent()` (03 section 3). Refresh rates with
-`providers.frankfurter.latest_rates_per_eur` when `needs_refresh` says so (every 12 hours).
+Conversion is not here: money is integer minor units, converted at read time in SQL by `fx_convert_minor()`
+with `currency_exponent()` (03 section 3). `refresh_fx_rates` is called by the daily worker job.
 """
 
-from datetime import datetime, timedelta
+import re
 
-REFRESH_AFTER = timedelta(hours=12)
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from hermi.modules.ai.provider_calls import metered
+from hermi.providers import ProviderError, frankfurter
+
+_UPSERT = text(
+    """INSERT INTO fx_rates (currency, per_eur, rate_date, fetched_at) VALUES (:c, :r, :d, now())
+       ON CONFLICT (currency) DO UPDATE SET per_eur = EXCLUDED.per_eur, rate_date = EXCLUDED.rate_date,
+         fetched_at = EXCLUDED.fetched_at"""
+)
+_CODE = re.compile(r"^[A-Z]{3}$")
 
 
-def needs_refresh(newest_fetch: datetime | None, now: datetime) -> bool:
-    return newest_fetch is None or now - newest_fetch >= REFRESH_AFTER
+def refresh_fx_rates(session: Session, client=None) -> int:
+    """Fetch rates (recorded in provider_calls), upsert them, return the count. Old rates stay on failure.
+
+    EUR is the base and has no row (03 section 3), so it is not stored."""
+    rates = metered(
+        session,
+        "frankfurter",
+        "/v2/rates",
+        lambda: frankfurter.latest_rates_per_eur(client),
+        params={"base": "EUR"},
+    )
+    rows = [
+        {"c": c, "r": r, "d": d} for c, (r, d) in rates.items() if c != "EUR" and _CODE.match(c)
+    ]
+    if not rows:
+        raise ProviderError("Exchange rate response had no usable rates.")
+    session.execute(_UPSERT, rows)
+    return len(rows)
 
 
 # The currency people pay in, by ISO country code (ISO 4217, as of 2026: Bulgaria uses the euro,
