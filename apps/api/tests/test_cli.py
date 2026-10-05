@@ -49,10 +49,11 @@ def test_placeholder_commands_exit_non_zero_with_a_pointer(cmd):
         cli.main([cmd])
 
 
-def test_seed_subcommand_runs_the_seed(monkeypatch):
+@pytest.mark.parametrize("argv", [["seed"], ["seed", "--demo"]])
+def test_seed_subcommand_runs_the_seed(monkeypatch, argv):
     seen = []
     monkeypatch.setattr(cli, "seed", lambda: seen.append(1))
-    cli.main(["seed"])
+    cli.main(argv)
     assert seen == [1]
 
 
