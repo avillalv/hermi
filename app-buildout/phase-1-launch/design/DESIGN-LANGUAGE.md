@@ -89,7 +89,7 @@ All phone mockups are 390 by 844 (`.h-screen`, mockups only).
 - **Map header and sheet top:** on trip screens the sheet starts at 166 px (`--h-sheet-top`) and the map band is 194 px tall, 28 px of it under the sheet's rounded corners. The logo badge (`.h-map__badge`) sits at 44 px above the sheet top. A modal or tall sheet sets its own top: 84 px (AI actions, `.h-sheet--ai`), 104 px (agent run, `.h-screen--run`), 118 px (paywall, `.h-sheet--paywall`).
 - **Round nav buttons:** 44 px circles at `top: 55px` (47 + 8), 16 px from each side (`.h-navbtn--back`, `--menu`). Level 2 elevation.
 - **Sheet and grabber:** `.h-sheet` has 20 px top corners and level 3 elevation. The grabber is 36 by 5 px in `--tp-edge`, 8 px from the top.
-- **Section strip:** `.h-strip` under the trip header: six pill tabs, 44 px hit area, 34 px pill, 14 px 600 type, the selected one in ink. State comes from `aria-selected`.
+- **Section strip:** `.h-strip` under the trip header: six pill tabs, 44 px hit area, 34 px pill, 14 px 600 type, the selected one in ink. It is a `nav` of links, and state comes from `aria-current="page"`.
 - **Content ends above 758 px.** The tab bar's top is at 764 px, so a screen that scrolls ends its last item at 758 px at the latest in the resting position.
 - **Floating tab bar:** `.h-tabbar__bar` is 58 px tall, inset 12 px from each side, with its bottom 22 px above the screen edge, over an 83 px fade. Four tabs, labels always shown. Hide it in full-screen sheets and present mode.
 
@@ -185,7 +185,7 @@ Markers are HTML children of `.h-map`, placed with `left` and `top` in map coord
 
 ### Segmented control, section strip and day chips
 
-`.h-seg` is a 44 px track with a 34 px selected pill (sheet fill, edge border). `.h-strip` is the six-tab section strip (see section 3). `.h-daychips` is a scrolling row of 46 by 44 px chips, the selected day in ink. All three use `role="tablist"` and `aria-selected`. React: `<SegmentedControl>`, `<SectionTabs>`, `<DayChips>`. **Don't** use a segmented control for more than four options.
+`.h-seg` is a 44 px track with a 34 px selected pill (sheet fill, edge border). `.h-strip` is the six-tab section strip (see section 3). `.h-daychips` is a scrolling row of 46 by 44 px chips, the selected day in ink. The segmented control and day chips use `role="tablist"` and `aria-selected`; the strip is a `nav` whose current link has `aria-current="page"`. React: `<SegmentedControl>`, `<SectionTabs>`, `<DayChips>`. **Don't** use a segmented control for more than four options.
 
 ### Tab bar and sheet
 
@@ -242,7 +242,7 @@ A booking row is a side-stub ticket (`.h-provider__name`, `__price`, `__amount`)
 
 - **Targets are 44 px** or larger on touch. A 34 px visual gets a 44 px hit area (strip, seg and chip components do this).
 - **Contrast** is measured in [05 section 2.3](../05-ui-ux-spec.md). A new color pair is checked with the same formula and added there.
-- **Tabs.** The section strip, the segmented control and the day chips use `role="tablist"` with `aria-selected`; the current day also has `aria-current="date"`.
+- **Tabs.** The segmented control and the day chips use `role="tablist"` with `aria-selected`; the section strip is a `nav` of links with `aria-current="page"` on the current one; the current day also has `aria-current="date"`.
 - **Votes** use `aria-pressed` and name the person and the stay.
 - **Tickets are one link** with a full label that reads the facts in order ("Costa Rica, 25 November to 6 December 2026, flight booked, 2 travelers, departs in 53 days").
 - **Body text is at least 13 px**, in `rem`, so Dynamic Type and browser zoom work.

@@ -7,7 +7,8 @@
   "exports": {
     ".": "./index.ts",
     "./theme.css": "./theme.css",
-    "./tokens.css": "./tokens.css"
+    "./tokens.css": "./tokens.css",
+    "./hermi.css": "./hermi.css"
   },
   "dependencies": {
     "@fontsource-variable/atkinson-hyperlegible-mono": "^5.3.0",

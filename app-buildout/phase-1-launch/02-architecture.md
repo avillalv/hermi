@@ -470,7 +470,7 @@ All configuration is environment variables, read once in `config.py` through `py
 | `PORT` | API listen port. The API binds `127.0.0.1` locally, never `0.0.0.0` (section 2) | `8100` | No | `8100` |
 | `PUBLIC_API_URL` | Public base URL of the API, used in links and webhooks | `https://api.hermi.world` | No | `http://127.0.0.1:8100` |
 | `PUBLIC_WEB_URL` | Public web app URL, used in emails and invites | `https://app.hermi.world` | No | `http://localhost:5173` |
-| `CORS_ALLOWED_ORIGINS` | Comma list of allowed origins, including Capacitor | `https://app.hermi.world,capacitor://localhost` | No | `http://localhost:5173` |
+| `CORS_ALLOWED_ORIGINS` | Comma list of allowed web origins. The API always adds the Capacitor origins (`capacitor://localhost`, `https://localhost`) | `https://app.hermi.world` | No | `http://localhost:5173` |
 | `TRUSTED_PROXY_CIDRS` | Networks whose `X-Forwarded-For` is trusted | `173.245.48.0/20,...` | No | empty |
 | `API_DOCS_ENABLED` | Serves `/docs` (off in production) | `false` | No | `true` |
 | `SCHEDULER_ENABLED` | Whether this process runs the scheduler loop | `true` | No | `false` in local runs, `true` only to test jobs |

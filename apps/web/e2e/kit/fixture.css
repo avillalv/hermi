@@ -1,0 +1,3 @@
+/* Kit fixture: the real app CSS entry (Tailwind theme and utilities with no preflight, bundled fonts, tokens, hermi.css).
+ * WF-130.3 can swap the served markup for React kit components; the specs only call openApp(). */
+@import "../../src/index.css";

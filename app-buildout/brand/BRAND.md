@@ -54,13 +54,17 @@ starts, and the plane joining them is the trip you take together.
 | `hermi-logo.svg` | Horizontal lockup on light backgrounds |
 | `hermi-logo-dark.svg` | Horizontal lockup on dark backgrounds and dark mode |
 | `hermi-wordmark.svg` | Wordmark only, for places where the mark is already shown |
+| `hermi-wordmark-light.svg` | Wordmark in the light ink, for dark grounds |
+| `hermi-logo-transparent.svg` | Lockup with no background, for light surfaces in the app |
+| `hermi-logo-dark-transparent.svg` | Lockup with no background and light wordmark, for dark surfaces in the app |
 | `hermi-logo-preview.png` | Review sheet: both lockups, the icon and small sizes |
 | `generate_logo.py` | Regenerates every SVG; see "Regenerating" below |
 
-Today `generate_logo.py` writes the five SVGs above (the two lockups have an opaque paper or night
-background). WF-130 extends it to also emit transparent lockups (light and dark), a light wordmark for
-dark grounds and the web icon set (favicon, touch icon and the PWA sizes). The app copies the generated
-files from this folder into `apps/web/public/` (WF-130); do not hand-edit the copies.
+`generate_logo.py` writes the eight SVGs above (the two plain lockups have an opaque paper or night
+background; the transparent ones have none). It also writes six web icon files into `apps/web/public/`:
+`favicon.svg`, `favicon-32.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` and
+`apple-touch-icon.png` (180 px). The app imports the SVGs from this folder (WF-130); do not hand-edit the
+generated files.
 
 The wordmark is Fredoka SemiBold (600) converted to outlines, so it renders the same everywhere without
 the font installed.
@@ -92,9 +96,9 @@ the font installed.
 ### Regenerating
 
 1. `npm pack @fontsource/fredoka` in a temporary folder outside the repo, then unpack the `.tgz` there.
-2. From this folder, run `uv run --with fonttools python generate_logo.py` with `FREDOKA_600` set to the
+2. From this folder, run `uv run --with fonttools --with pillow python generate_logo.py` with `FREDOKA_600` set to the
    unpacked `package/files/fredoka-latin-600-normal.woff` (the default is that path relative to the
-   current folder). It writes the five SVGs next to the script, and writes the review page to
+   current folder). It writes the eight SVGs next to the script and the six web icons into `apps/web/public/`, and writes the review page to
    `PREVIEW_HTML` (default: your system temp folder) and prints its path.
 3. Render the PNGs with headless Edge (or any Chromium): `msedge.exe --headless=new --disable-gpu
    --hide-scrollbars --screenshot=<absolute png path> --window-size=W,H <file:/// address>`. Use

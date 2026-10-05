@@ -116,7 +116,7 @@ def test_mutation_route_without_its_guard_fails(make_app, settings, world):
 
 
 def test_mutation_require_trip_lookup_that_ignores_membership_fails(make_app, settings, world, monkeypatch):
-    def no_membership(session, trip_id, user_id):  # the guard's lookup with the membership check removed
+    def no_membership(session, trip_id, user_id, **_):  # the guard's lookup with the membership check removed
         with db.system_session("dev_session", settings=settings, route="mut") as s:
             t = s.get(Trip, trip_id)
             if t is not None:

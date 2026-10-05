@@ -1,7 +1,5 @@
+import { AppRoutes } from "./shell/routes";
+
 export function App() {
-  return (
-    <main>
-      <h1>Hermi</h1>
-    </main>
-  );
+  return <AppRoutes />;
 }

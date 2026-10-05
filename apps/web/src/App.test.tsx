@@ -1,8 +1,20 @@
 import { render, screen } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { MemoryRouter } from "react-router";
+import { beforeEach, expect, test, vi } from "vitest";
+import { authStore } from "./routes/auth/authStore";
 import { App } from "./App";
 
-test("renders the app name", () => {
-  render(<App />);
-  expect(screen.getByRole("heading", { name: "Hermi" })).toBeInTheDocument();
+// The Trips tab needs a session; the list call is stubbed.
+beforeEach(() => {
+  vi.stubGlobal("fetch", async () => Response.json({ items: [], next_cursor: null, has_more: false }));
+  authStore.signIn("tok", "free");
+});
+
+test("opens on the Trips tab", () => {
+  render(
+    <MemoryRouter initialEntries={["/"]}>
+      <App />
+    </MemoryRouter>,
+  );
+  expect(screen.getByRole("heading", { name: "Trips" })).toBeInTheDocument();
 });

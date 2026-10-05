@@ -1,0 +1,9 @@
+/* Sign-in screen layout (WF-018.1). Tokens only. The fields, buttons and errors come from the kit (h-input, h-btn). */
+.auth { min-height: 100dvh; display: flex; justify-content: center; padding: var(--tp-space-6) var(--tp-space-4); background: var(--tp-paper); color: var(--tp-ink); }
+.auth__panel { width: 100%; max-width: 390px; display: flex; flex-direction: column; gap: var(--tp-space-4); }
+.auth__brand { display: flex; justify-content: center; padding: var(--tp-space-4) 0; }
+.auth__title { text-align: center; }
+.auth__stack { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.auth__field { display: flex; flex-direction: column; gap: var(--tp-space-1); }
+.auth__note { margin: 0; text-align: center; }
+.auth__dev { padding: var(--tp-space-3); border: 2px dashed var(--tp-edge); border-radius: var(--radius-lg); }

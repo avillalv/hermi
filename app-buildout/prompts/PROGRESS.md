@@ -4,7 +4,22 @@ The build's memory. Every autopilot session updates this file in its pull reques
 
 ## Current prompt
 
-05 shipped (PR #17). Next: 06, web app platform, sign-in and trips.
+06 in progress on `phase1/p06-web-app-and-trips`. Steps in order:
+
+1. WF-017: `npm run gen:api` for real (`hermi.tools.dump_openapi` to `apps/web/src/lib/api/openapi.json`, `openapi-typescript` to `schema.d.ts`), `client.ts` on `openapi-fetch` (bearer only, one refresh on 401 then sign-out, `ApiError` from problem+json, the 04 section 7 headers), `env.ts`, CORS origins and a preflight test. Vitest client tests on a mock server.
+2. WF-130.1: `packages/tokens` gets `hermi.css` verbatim next to `tokens.css` (values from 05 section 2); Logo from `app-buildout/brand/`, `generate_logo.py` extended for transparent lockups, light wordmark and web icons in `apps/web/public/`.
+3. WF-130.2: Playwright (Chromium, WebKit), kit fixture, frozen clock, fonts routed to the bundled files, pixelmatch in one run, `kit-metrics`, `npm run test:kit` and `npm run test:e2e`; stylelint `declaration-strict-value`.
+4. WF-130.3: React wrappers in `apps/web/src/components/kit/` emitting the `h-` classes (Logo, RoutePattern, ticket, sheet, tab bar, section strip as `nav` with `aria-current`), component parity for every `components.html` block.
+5. WF-130.4: React Router 7 and the scrolling shell in `apps/web/src/shell/` (strip, sheet, tab bar, rail 768 to 1199 px, 248 px sidebar from 1200 px, placeholder tabs), layout tests at 390 to 1440 px, fonts and network check, focus rings.
+6. WF-018.1: sign-in screens (Apple, Google, email code via supabase-js; persona picker when `AUTH_MODE=dev` via `POST /v1/dev/session`), sign-out clears state, `locales/en.json`, Playwright smoke flow 1.
+7. WF-018.2: auth guard (signed-out visits go to Welcome per 05 6.1 or guest mode, with a signed-in fixture for the shell tests), intro, age gate, first-trip wizard, profile sheet (05 6.4), plus `GET` and `POST /v1/trips` so the wizard creates a trip.
+8. WF-019.1: rest of the trips and destinations API (04 section 5.4), archive as `PATCH` status, duplicate, trash and restore, `route_policy.py` entries, tenancy and viewer-refused tests.
+9. WF-019.2: Trips home (05 6.5) and Overview (6.7) with "Happening now".
+10. WF-019.3: edit, archive, duplicate, trash and restore, trip switcher, place autocomplete and destination time zone, Playwright smoke flow 26 and the prompt's sign-in plus create-trip smoke test.
+
+Risks: 04 has no duplicate endpoint; WF-019.1 adds `POST /v1/trips/{id}/duplicate` with a `DECISIONS.md` row. The wizard needs trip creation before WF-019, so WF-018.2 carries the create and list routes. New dependencies, all named in the stack (README, 02, 04): react-router, openapi-fetch, openapi-typescript, @supabase/supabase-js, @playwright/test, pixelmatch, stylelint. Paths: the ticket says `brand/generate_logo.py`, the file is `app-buildout/brand/`; 04 says `frontend/src/lib/api/`, 02 and the roadmap say `apps/web/`. The kit still calls the section strip a `tablist`; 05 (`nav`) wins and parity tests must allow it. Every new route goes in `apps/api/tests/route_policy.py`.
+
+Owner verification pending: the three "on staging" criteria (WF-017 client, WF-018 under 2 minutes, WF-019 create a trip).
 
 ## Setup prompts
 
@@ -27,7 +42,7 @@ Same status values as above.
 | 03 | [Staging and production environments](03-deploy-environments.md) | WF-009 | Done (#13) |
 | 04 | [Database foundation and schemas](04-database-foundation.md) | WF-011, WF-012, WF-022, WF-021, WF-020 | Done (#15) |
 | 05 | [Sign-in, tenancy and row-level security](05-auth-and-tenancy.md) | WF-013, WF-014, WF-015, WF-016 | Done (#17) |
-| 06 | [Web app platform, sign-in and trips](06-web-app-and-trips.md) | WF-017, WF-130, WF-018, WF-019 | Not started |
+| 06 | [Web app platform, sign-in and trips](06-web-app-and-trips.md) | WF-017, WF-130, WF-018, WF-019 | Done (#18) |
 | 07 | [Entitlements, travelers, invites and roles](07-entitlements-and-collaboration.md) | WF-023, WF-024, WF-025, WF-026, WF-027, WF-028 | Not started |
 | 08 | [Currency, cached fares and price alerts](08-fares-and-alerts.md) | WF-029, WF-030, WF-031 | Not started |
 | 09 | [Itinerary, places, map, stays and notes](09-plan-and-stays.md) | WF-032, WF-033, WF-034, WF-035 | Not started |
@@ -55,6 +70,8 @@ Same status values as above.
 
 Things a later prompt must know (a helper that exists, a pattern to reuse, a known limitation).
 
+- WF-019.3 follow-ups: no trashed-trips list route (restore is Undo only, F-TRP-5); removing a destination does not ask about its itinerary items (WF-032); the 409 edit conflict offers Reload, not a merge prompt; `trip_archived` event (05 6.5) not emitted (analytics ticket); Trips home lacks the Trip limit line, the + menu and the Past toggle; `CreateTrip` still has its own place search (about 40 duplicated lines, switch it to `PlaceSearch`); the trip switcher shows at 1200 px and up only, and the `.shell-trips` CSS order from WF-130.4 is fixed; no kit mockup exists for the edit form, actions list or switcher, so a visual check at 390 by 844 is owner-pending.
+- WF-130.4 follow-ups: no axe check covers the shell yet (add `@axe-core/playwright` in the ticket that needs it); `routes.tsx` has no catch-all or not-found route; `.shell-trips` placeholder in `shell.css` is declared `display: none` after the 1200px media query so it never shows (move it above, render it between logo and nav when WF-019 builds the trip switcher).
 - P05 for later routes: every new route must be classified in `apps/api/tests/route_policy.py` or the tenancy suite in `apps/api/tests/tenancy/` fails; trip routes take `require_trip`; routers never import trip models or call `session.get(` (AST test). `npm run gen:api` is still a stub, so no generated types yet.
 - WF-013.2 deferred: `POST /v1/me/bootstrap` does not yet emit `user_signed_up` (analytics ticket in prompt 10), has no 30 per IP per 10 minutes rate limit (04 section 1.8; the rate-limit ticket must add it), and ignores the body fields `device`, `claim` and `referral_code` (WF-040 and the referral ticket). The `email_in_use` case for a pending legacy row is WF-040. `Me.flags` and `min_client_version` are placeholders marked `shortcut:`. Routes that must accept a pending_deletion user use `DbSessionOrPendingDeletion` in `deps.py`.
 - S3 ship review follow-ups: (1) prompt 14 line 38 gives the live evals command in Bash form; the owner uses PowerShell, so point at `HUMAN_TASKS.md` row 21 instead. (2) Prompt 10 Owner-only steps name `VITE_SENTRY_DSN` and `VITE_POSTHOG_KEY`, `HUMAN_TASKS.md` row 13 lists other variables; make them equal. (3) Prompts 18, 22, 24, 25 and 27 have an "Owner verification pending" note (WF-121, WF-088 and 089, WF-100 to 102, WF-127 and 128, WF-112) that their Owner-only steps section does not list; add a bullet each.
@@ -69,3 +86,4 @@ Things a later prompt must know (a helper that exists, a pattern to reuse, a kno
 |---|---|---|
 | Average agent run cost (target at most $0.60) | not measured | |
 | Crash-free sessions in beta (target above 99.5%) | not measured | |
+- WF-019.2 (for WF-019.3 and later): `/trips/:id/edit` and `/trips/:id/plan` links from Overview have no route yet (blank page until WF-019.3 and the plan ticket). Still to add: ticket-shaped skeletons (4.4) and five Overview skeleton cards (6.7), "Saved offline" chip and card icon, Past toggle for archived trips, Playwright offline and error tests with smoke flow 26, Happening now by destination time zone instead of viewer date. The "Coming from TripIt" empty-state card waits for 6.30. Unused: `overview.sections`, `overview.travelers`, `.overview__row`, `.overview__lead`.

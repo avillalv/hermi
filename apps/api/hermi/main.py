@@ -12,6 +12,8 @@ from hermi.modules.notifications import waitlist
 from hermi.security.idempotency import IdempotencyMiddleware
 from hermi.security.jwt import TokenVerifier
 
+CAPACITOR_ORIGINS = ["capacitor://localhost", "https://localhost"]
+
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
@@ -49,6 +51,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # The landing page on Cloudflare Pages posts here cross-origin.
     # List its origin in CORS_ALLOWED_ORIGINS.
     origins = [o.strip() for o in settings.cors_allowed_origins.split(",") if o.strip()]
+    # The iOS app (Capacitor) always calls from these origins, in every environment.
+    # Bearer tokens only, so allow_credentials stays off and no cookie is ever sent.
+    origins += [o for o in CAPACITOR_ORIGINS if o not in origins]
     # Innermost, so CORS and the request id wrap its errors.
     app.add_middleware(IdempotencyMiddleware)
     app.add_middleware(

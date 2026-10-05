@@ -233,6 +233,8 @@
       <symbol id="i-bed" viewBox="0 0 24 24"><path d="M2 4v16"></path><path d="M2 8h18a2 2 0 0 1 2 2v10"></path><path d="M2 17h20"></path><path d="M6 8v9"></path></symbol>
       <symbol id="i-shopping-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path><path d="M3 6h18"></path><path d="M16 10a4 4 0 0 1-8 0"></path></symbol>
       <symbol id="i-landmark" viewBox="0 0 24 24"><path d="M3 22h18"></path><path d="M6 18v-7"></path><path d="M10 18v-7"></path><path d="M14 18v-7"></path><path d="M18 18v-7"></path><path d="M12 2 3 7v4h18V7z"></path></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></symbol>
+      <symbol id="i-circle-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></symbol>
     </svg>
     <div class="light" data-probe="light" hidden></div>
     <div class="dark" data-probe="dark" hidden></div>
@@ -872,7 +874,7 @@
         <section class="doc-block" id="tabbar">
           <h3 class="doc-h3">Tab bar</h3>
           <dl class="doc-meta">
-            <div><dt>Classes</dt><dd><code>.h-tabbar</code> <code>__bar</code> <code>__item</code> <code>--active</code></dd></div>
+            <div><dt>Classes</dt><dd><code>.h-tabbar</code> <code>__bar</code> <code>__item</code> <code>__badge</code> <code>--active</code></dd></div>
             <div><dt>Spec</dt><dd>05 section 4.20 Tab bar, becomes <code>&lt;TabBar&gt;</code>.</dd></div>
             <div><dt>Use</dt><dd>Four tabs: Trips, Discover, Activity, Account. A floating pill over a fade. Hide it in full-screen sheets and present mode.</dd></div>
           </dl>
@@ -884,7 +886,7 @@
                   <div class="h-tabbar__bar">
                     <a class="h-tabbar__item h-tabbar__item--active" href="02-trips-home.html" aria-current="page"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-luggage"></use></svg><span>Trips</span></a>
                     <a class="h-tabbar__item" href="#discover"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-compass"></use></svg><span>Discover</span></a>
-                    <a class="h-tabbar__item" href="#activity"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span>Activity</span></a>
+                    <a class="h-tabbar__item" href="#activity" aria-label="Activity, 3 new"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span>Activity</span><span class="h-tabbar__badge" aria-hidden="true">3</span></a>
                     <a class="h-tabbar__item" href="#account"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-circle-user"></use></svg><span>Account</span></a>
                   </div>
                 </nav>
@@ -897,7 +899,7 @@
                   <div class="h-tabbar__bar">
                     <a class="h-tabbar__item h-tabbar__item--active" href="02-trips-home.html" aria-current="page"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-luggage"></use></svg><span>Trips</span></a>
                     <a class="h-tabbar__item" href="#discover"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-compass"></use></svg><span>Discover</span></a>
-                    <a class="h-tabbar__item" href="#activity"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span>Activity</span></a>
+                    <a class="h-tabbar__item" href="#activity" aria-label="Activity, 3 new"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-bell"></use></svg><span>Activity</span><span class="h-tabbar__badge" aria-hidden="true">3</span></a>
                     <a class="h-tabbar__item" href="#account"><svg class="h-icon" width="22" height="22" aria-hidden="true" focusable="false"><use href="#i-circle-user"></use></svg><span>Account</span></a>
                   </div>
                 </nav>
@@ -908,9 +910,9 @@
         <section class="doc-block" id="strip">
           <h3 class="doc-h3">Section strip</h3>
           <dl class="doc-meta">
-            <div><dt>Classes</dt><dd><code>.h-strip</code> <code>__tab</code> <code>[aria-selected="true"]</code></dd></div>
+            <div><dt>Classes</dt><dd><code>.h-strip</code> <code>__tab</code> <code>[aria-selected="true"]</code> <code>[aria-current="page"]</code></dd></div>
             <div><dt>Spec</dt><dd>05 section 5.2 Section strip, becomes <code>&lt;SectionTabs&gt;</code>.</dd></div>
-            <div><dt>Use</dt><dd>Six scrollable pill tabs under a trip header. State comes from aria-selected.</dd></div>
+            <div><dt>Use</dt><dd>Six scrollable pill tabs under a trip header. A nav of links; the current one has aria-current="page".</dd></div>
           </dl>
           <div class="doc-pair">
             <div class="doc-demo light" data-mode="light">
@@ -1595,6 +1597,58 @@
                 <a class="h-btn h-btn--secondary" href="#">Sign in</a>
                 <div class="doc-row"><button class="h-btn h-btn--primary h-btn--lead" type="button"><svg class="h-icon" width="20" height="20" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>Add a stay</button><button class="h-btn h-btn--primary h-btn--icon" type="button" aria-label="New trip"><svg class="h-icon h-icon--bold" width="24" height="24" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg></button><button class="h-btn h-btn--secondary h-btn--sm" type="button"><svg class="h-icon" width="20" height="20" aria-hidden="true" focusable="false"><use href="#i-plus"></use></svg>Add to day 4</button><button class="h-btn h-btn--text" type="button">Sort: Hearts<svg class="h-icon" width="18" height="18" aria-hidden="true" focusable="false"><use href="#i-chevrons-up-down"></use></svg></button></div>
                 <button class="h-btn h-btn--primary" type="button" disabled>Mark as booked</button>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="doc-block" id="input">
+          <h3 class="doc-h3">Text input</h3>
+          <dl class="doc-meta">
+            <div><dt>Classes</dt><dd><code>.h-input</code> <code>__label</code> <code>__field</code> <code>__help</code> <code>__error</code> <code>--error</code></dd></div>
+            <div><dt>Spec</dt><dd>05 section 4.2, becomes <code>&lt;TextField&gt;</code>.</dd></div>
+            <div><dt>Use</dt><dd>Label above, 44 px field, helper below. Error adds a danger icon and message and turns the border danger. Disabled is 50% and the helper says why.</dd></div>
+          </dl>
+          <div class="doc-pair">
+            <div class="doc-demo light" data-mode="light">
+              <span class="doc-demo__tag">Light</span>
+              <div class="doc-stage doc-stage--sheet doc-stage--pad doc-stage--gap">
+                <div class="h-input"><label class="h-input__label" for="in-email-l">Email</label><input class="h-input__field" id="in-email-l" type="email" value="maya@example.com" aria-describedby="in-email-l-help"><p class="h-input__help" id="in-email-l-help">We will send a six digit code. No password needed.</p></div>
+                <div class="h-input h-input--error"><label class="h-input__label" for="in-code-l">Six digit code</label><input class="h-input__field h-input__field--code" id="in-code-l" value="123456" aria-invalid="true" aria-describedby="in-code-l-err"><p class="h-input__error" id="in-code-l-err" role="alert"><svg class="h-icon" width="16" height="16" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg>That code is not right. Check the email we sent and try again.</p></div>
+                <div class="h-input"><label class="h-input__label" for="in-off-l">Destination</label><input class="h-input__field" id="in-off-l" disabled aria-describedby="in-off-l-help"><p class="h-input__help" id="in-off-l-help">Add a trip first.</p></div>
+              </div>
+            </div>
+            <div class="doc-demo dark" data-mode="dark">
+              <span class="doc-demo__tag">Dark</span>
+              <div class="doc-stage doc-stage--sheet doc-stage--pad doc-stage--gap">
+                <div class="h-input"><label class="h-input__label" for="in-email-d">Email</label><input class="h-input__field" id="in-email-d" type="email" value="maya@example.com" aria-describedby="in-email-d-help"><p class="h-input__help" id="in-email-d-help">We will send a six digit code. No password needed.</p></div>
+                <div class="h-input h-input--error"><label class="h-input__label" for="in-code-d">Six digit code</label><input class="h-input__field h-input__field--code" id="in-code-d" value="123456" aria-invalid="true" aria-describedby="in-code-d-err"><p class="h-input__error" id="in-code-d-err" role="alert"><svg class="h-icon" width="16" height="16" aria-hidden="true" focusable="false"><use href="#i-circle-alert"></use></svg>That code is not right. Check the email we sent and try again.</p></div>
+                <div class="h-input"><label class="h-input__label" for="in-off-d">Destination</label><input class="h-input__field" id="in-off-d" disabled aria-describedby="in-off-d-help"><p class="h-input__help" id="in-off-d-help">Add a trip first.</p></div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="doc-block" id="btn-state">
+          <h3 class="doc-h3">Button loading and Apple</h3>
+          <dl class="doc-meta">
+            <div><dt>Classes</dt><dd><code>.h-btn[aria-busy]</code> <code>__label</code> <code>__spin</code> <code>--apple</code></dd></div>
+            <div><dt>Spec</dt><dd>05 section 4.1 loading state, becomes <code>&lt;Btn busy&gt;</code>.</dd></div>
+            <div><dt>Use</dt><dd>Loading keeps the width, hides the label and shows a 16 px spinner; repeat taps are blocked. Apple follows the Human Interface Guidelines: black in light, white in dark.</dd></div>
+          </dl>
+          <div class="doc-pair">
+            <div class="doc-demo light" data-mode="light">
+              <span class="doc-demo__tag">Light</span>
+              <div class="doc-stage doc-stage--sheet doc-stage--pad doc-stage--gap">
+                <button class="h-btn h-btn--primary" type="button" aria-busy="true"><span class="h-btn__label">Send code</span><span class="h-btn__spin" aria-hidden="true"></span></button>
+                <button class="h-btn h-btn--secondary" type="button" aria-busy="true"><span class="h-btn__label">Continue with Google</span><span class="h-btn__spin" aria-hidden="true"></span></button>
+                <button class="h-btn h-btn--primary h-btn--apple" type="button">Continue with Apple</button>
+              </div>
+            </div>
+            <div class="doc-demo dark" data-mode="dark">
+              <span class="doc-demo__tag">Dark</span>
+              <div class="doc-stage doc-stage--sheet doc-stage--pad doc-stage--gap">
+                <button class="h-btn h-btn--primary" type="button" aria-busy="true"><span class="h-btn__label">Send code</span><span class="h-btn__spin" aria-hidden="true"></span></button>
+                <button class="h-btn h-btn--secondary" type="button" aria-busy="true"><span class="h-btn__label">Continue with Google</span><span class="h-btn__spin" aria-hidden="true"></span></button>
+                <button class="h-btn h-btn--primary h-btn--apple" type="button">Continue with Apple</button>
               </div>
             </div>
           </div>

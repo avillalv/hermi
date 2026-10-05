@@ -117,18 +117,18 @@ def capabilities_for(role: str) -> frozenset[str]:
     return frozenset(c for c, need in (("can_edit", 1), ("can_manage", 2)) if rank >= need)
 
 
-def require_trip(min_role: str = "viewer"):
+def require_trip(min_role: str = "viewer", *, trashed: bool = False):
     """Depends() for a route with {trip_id}: the caller's TripAccess, 404 when not a member or the trip is in trash,
     403 insufficient_role when the role is below min_role (02 section 3 step 5, 04 section 1.2).
 
     The route path must name the parameter `{trip_id}`; a child-id route resolves the child, then calls
-    trips_repo with its trip id. Later: a restore route needs an include_trashed option on the repo lookup."""
+    trips_repo with its trip id. `trashed=True` finds only trips in the trash (the restore route) and never a live one."""
     if min_role not in ROLE_RANK:
         raise ValueError(f"min_role must be one of {sorted(ROLE_RANK)}")
 
     def access(trip_id: uuid.UUID, session: DbSession) -> TripAccess:
         user_id = session.execute(text("SELECT app_user_id()")).scalar()
-        found = trips_repo.get_trip_with_member(session, trip_id, user_id)
+        found = trips_repo.get_trip_with_member(session, trip_id, user_id, trashed=trashed)
         if found is None:
             raise NotFound()
         trip, member = found

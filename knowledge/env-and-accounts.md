@@ -27,7 +27,7 @@ never prints its value. `npm run doctor` lists what is set and what is missing.
 | `PORT` | API listen port | Required | Startup fails | `8100` |
 | `PUBLIC_API_URL` | API base URL used in links and webhooks | Required | Startup fails | `http://localhost:8100` |
 | `PUBLIC_WEB_URL` | Web app URL used in emails and invites | Required | Startup fails | `http://localhost:5173` |
-| `CORS_ALLOWED_ORIGINS` | Allowed browser origins | Required | Startup fails | `http://localhost:5173`; add `capacitor://localhost` for the iOS build |
+| `CORS_ALLOWED_ORIGINS` | Allowed browser origins | Required | Startup fails | `http://localhost:5173`; web origins only, the API always adds the Capacitor origins (`capacitor://localhost`, `https://localhost`) in `main.py` |
 | `API_DOCS_ENABLED` | Serves `/docs` | Required | Startup fails | `true` locally, `false` in production |
 | `RELEASE_SHA` | Git SHA tagged onto logs, Sentry and metrics | Optional | Left off the tags | Set by CI and Render at deploy |
 | `TRUSTED_PROXY_CIDRS` | Networks whose `X-Forwarded-For` is trusted | Optional | Empty: no proxy header is trusted | Cloudflare's published ranges, in production |
