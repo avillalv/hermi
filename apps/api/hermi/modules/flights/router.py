@@ -6,7 +6,7 @@ Fares are written by the refresh in `fares.py` (worker role). The API only reads
 
 import base64
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Request, Response
@@ -21,7 +21,8 @@ from hermi.errors import ApiError, NotFound
 from hermi.modules.billing import service as billing
 from hermi.modules.collaboration.activity import record
 from hermi.modules.flights import fares as fares_service
-from hermi.modules.flights.schemas import Fare, FarePage, Money, Route, RouteIn
+from hermi.modules.flights.fare_view import FARE_COLUMNS, FARE_FROM, fare_of
+from hermi.modules.flights.schemas import FarePage, Route, RouteIn
 from hermi.providers import ProviderError
 from hermi.security import rate_limit
 from hermi.security.preconditions import resolve_version, version_conflict
@@ -31,7 +32,8 @@ router = APIRouter(tags=["flights"])
 _ROUTE = (
     "id, trip_id, label, origin_codes::text[] AS origin_codes, destination_codes::text[] AS destination_codes, trip_type::text AS trip_type, "
     "depart_from, depart_to, return_from, return_to, min_nights, max_nights, adults, children, cabin::text AS cabin, max_stops, "
-    "CASE WHEN is_live THEN 'live' ELSE 'cached' END AS mode, active, version, last_checked_at, created_at, updated_at"
+    "CASE WHEN is_live THEN 'live' ELSE 'cached' END AS mode, active, version, last_checked_at, created_at, updated_at, "
+    "(SELECT l.id FROM chosen_flights c JOIN trip_fare_links l ON l.observation_id = c.observation_id AND l.route_id = c.route_id WHERE c.route_id = flight_routes.id) AS chosen_fare_id"
 )
 _FIELDS = ("label", "origin_codes", "destination_codes", "trip_type", "depart_from", "depart_to", "return_from", "return_to", "min_nights", "max_nights", "adults", "children", "cabin", "max_stops", "active")
 
@@ -119,13 +121,6 @@ def delete_route(route_id: uuid.UUID, access: Annotated[TripAccess, require_trip
     return Response(status_code=204)
 
 
-def age_label(observed_at: datetime, confidence: str, now: datetime | None = None) -> str:
-    """'cached 6 h ago': every fare shows how old it is (05 section 6)."""
-    seconds = max(0, int(((now or datetime.now(UTC)) - observed_at).total_seconds()))
-    age = "just now" if seconds < 60 else f"{seconds // 60} min ago" if seconds < 3600 else f"{seconds // 3600} h ago" if seconds < 172800 else f"{seconds // 86400} d ago"
-    return f"{confidence} {age}"
-
-
 def _cursor(value: str | None) -> tuple[int, uuid.UUID] | None:
     if not value:
         return None
@@ -151,10 +146,8 @@ def list_fares(
     after = _cursor(cursor)
     rows = session.execute(
         text(
-            """SELECT l.id, l.route_id, l.hidden, l.suspect, o.source, o.confidence::text AS confidence, o.origin, o.destination, o.depart_date,
-                      o.return_date, o.price_total_minor, o.currency, o.adults, o.children, o.airlines, o.stops_out, o.stops_back,
-                      o.duration_out_min, o.duration_back_min, o.depart_at_local, o.flight_numbers, o.source_url, o.observed_at
-                 FROM trip_fare_links l JOIN fare_observations o ON o.id = l.observation_id
+            f"""SELECT {FARE_COLUMNS}
+                 FROM {FARE_FROM}
                 WHERE l.route_id = :r AND l.trip_id = :t
                   AND (CAST(:src AS text) IS NULL OR o.source = :src) AND (CAST(:since AS timestamptz) IS NULL OR o.observed_at >= :since)
                   AND (CAST(:p AS bigint) IS NULL OR (o.price_total_minor, l.id) > (CAST(:p AS bigint), CAST(:i AS uuid)))
@@ -163,17 +156,7 @@ def list_fares(
         {"r": route_id, "t": access.trip.id, "src": source, "since": since, "p": after[0] if after else None, "i": after[1] if after else None, "n": limit + 1},
     ).mappings().all()
     more, page = len(rows) > limit, rows[:limit]
-    items = [
-        Fare(
-            id=r["id"], route_id=r["route_id"], source=r["source"], confidence=r["confidence"], origin=r["origin"], destination=r["destination"],
-            depart_date=r["depart_date"], return_date=r["return_date"], price=Money(amount_minor=r["price_total_minor"], currency=r["currency"]),
-            passengers=r["adults"] + r["children"], airlines=r["airlines"], stops_out=r["stops_out"], stops_back=r["stops_back"],
-            duration_out_min=r["duration_out_min"], duration_back_min=r["duration_back_min"], depart_at_local=r["depart_at_local"],
-            flight_numbers=r["flight_numbers"], source_url=r["source_url"], observed_at=r["observed_at"],
-            age_label=age_label(r["observed_at"], r["confidence"]), suspect=r["suspect"], hidden=r["hidden"],
-        )
-        for r in page
-    ]
+    items = [fare_of(r) for r in page]
     last = page[-1] if more else None
     nxt = base64.urlsafe_b64encode(f"{last['price_total_minor']}|{last['id']}".encode()).decode() if last else None
     return FarePage(items=items, next_cursor=nxt, has_more=more)

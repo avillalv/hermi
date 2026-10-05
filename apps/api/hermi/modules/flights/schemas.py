@@ -5,7 +5,7 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, Field, StringConstraints, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, StringConstraints, model_validator
 
 Iata = Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")]
 MAX_DAYS_OUT = 330  # 01 section 5.8 validation
@@ -125,3 +125,64 @@ class FarePage(BaseModel):
     items: list[Fare]
     next_cursor: str | None
     has_more: bool
+
+
+class RouteSummary(BaseModel):
+    route_id: uuid.UUID
+    cheapest: Fare | None
+    last_checked_at: datetime | None
+    fare_count: int
+    chosen: Fare | None
+    chosen_latest: Fare | None
+
+
+class PricePoint(BaseModel):
+    day: date
+    source: str
+    price: Money
+
+
+class PriceHistory(BaseModel):
+    currency: str
+    points: list[PricePoint]
+    google: list[dict] = []  # Google price insights arrive with the live fares provider (WF-031); empty for cached routes
+    typical_low: Money | None = None
+    typical_high: Money | None = None
+    price_level: Literal["low", "typical", "high"] | None = None
+
+
+class DateGridCell(BaseModel):
+    fare_id: uuid.UUID
+    depart_date: date
+    return_date: date | None
+    price: Money
+    source: str
+    observed_at: datetime
+
+
+class FarePatch(BaseModel):
+    hidden: bool | None = None
+    suspect: bool | None = None
+
+    @model_validator(mode="after")
+    def _one(self) -> Self:
+        if self.hidden is None and self.suspect is None:
+            raise ValueError("Send hidden, suspect or both.")
+        return self
+
+
+class MoneyIn(BaseModel):
+    amount_minor: int = Field(gt=0, le=10**12)
+    currency: Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")]
+
+
+class ChoiceIn(BaseModel):
+    fare_id: uuid.UUID
+    paid: MoneyIn | None = None
+    booked_at: AwareDatetime | None = None
+
+
+class BookedIn(BaseModel):
+    booked: bool
+    paid: MoneyIn | None = None
+    booked_at: AwareDatetime | None = None
