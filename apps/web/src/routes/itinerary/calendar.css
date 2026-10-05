@@ -1,0 +1,34 @@
+/* Plan, Calendar view (WF-032.3, 05 4.7). FullCalendar's classic theme, dressed in the app tokens so light and dark follow. Events carry a tint of their group color. */
+.plan__cal {
+  --fc-classic-button: var(--tp-sheet);
+  --fc-classic-button-border: var(--tp-edge);
+  --fc-classic-button-foreground: var(--tp-ink);
+  --fc-classic-primary: var(--tp-brand);
+  --fc-classic-primary-foreground: var(--tp-brand-ink);
+  --fc-classic-event: var(--tp-sunken);
+  --fc-classic-event-contrast: var(--tp-ink);
+  --fc-classic-highlight: var(--tp-sunken);
+  --fc-classic-today: transparent;
+  --fc-classic-now: var(--tp-brand);
+  --fc-classic-background: var(--tp-sheet);
+  --fc-classic-faint: var(--tp-sunken);
+  --fc-classic-muted: var(--tp-sunken);
+  --fc-classic-strong: var(--tp-edge);
+  --fc-classic-foreground: var(--tp-ink);
+  --fc-classic-faint-foreground: var(--tp-ink-soft);
+  --fc-classic-muted-foreground: var(--tp-ink-soft);
+  --fc-classic-border: var(--tp-rule);
+  --fc-classic-strong-border: var(--tp-edge);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  font-family: var(--tp-font-body);
+}
+:where(.plan__event) { --h-cat: var(--cat-neutral); }
+.plan__event { display: flex; width: 100%; align-items: flex-start; gap: var(--tp-space-2); box-sizing: border-box; min-height: 100%; padding: var(--tp-space-1) var(--tp-space-2); border-left: 4px solid var(--h-cat); color: var(--tp-ink); }
+.plan__event .h-icon { flex: none; margin-top: 2px; color: var(--h-cat); }
+.plan__event-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.plan__event-title { font: 600 0.9375rem/1.2 var(--tp-font-body); overflow-wrap: anywhere; }
+.plan__event-time { font: 500 0.8125rem/1.2 var(--tp-font-mono); font-variant-numeric: tabular-nums; }
+.plan__event-cat { font: 400 0.8125rem/1.2 var(--tp-font-body); color: var(--tp-ink-soft); }
+.plan__laps { display: flex; flex-direction: column; gap: var(--tp-space-1); margin: 0; padding: 0; list-style: none; }
+.plan__laps li { display: flex; align-items: center; gap: var(--tp-space-2); }

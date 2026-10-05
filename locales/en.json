@@ -500,6 +500,14 @@
     "moveTitle": "Move {title}",
     "sameTime": "Items with different start times stay in time order, so they cannot be moved up or down. Move to another day instead.",
     "dropBlocked": "That item has a different start time, so it stays in time order.",
-    "addedBy": "Added by"
+    "addedBy": "Added by",
+    "viewTabs": "Plan view",
+    "viewDays": "Days",
+    "viewCalendar": "Calendar",
+    "calEmpty": "Nothing planned. Add a place or ask for a draft.",
+    "overlap": "{a} and {b} overlap in time.",
+    "overlapsAria": "Time overlaps",
+    "calNoDates": "The calendar needs trip dates. Add dates to your trip, or plan your ideas in Days.",
+    "saveMove": "Save"
   }
 }

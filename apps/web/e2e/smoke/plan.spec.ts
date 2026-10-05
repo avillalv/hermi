@@ -82,3 +82,36 @@ test("Plan offline shows the read-only banner and disables rearranging", async (
   await expect(page.getByRole("button", { name: "Add item" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Move Castle" })).toBeDisabled();
 });
+
+// WF-032.3: Calendar view. The day grid on a wide screen, the list with Move on a phone, and offline.
+const timed = { ...item, id: "i2", title: "Dinner", category: "food", start_time: "19:00:00", end_time: "20:30:00", sort_order: 2 };
+const late = { ...item, id: "i3", title: "Show", category: "nightlife", start_time: "20:00:00", end_time: null, sort_order: 3 };
+async function calendar(page: Page) {
+  await page.route("**/v1/trips/t1", (r) => r.fulfill({ json: stub }));
+  await page.route("**/v1/trips/t1/days", (r) => r.fulfill({ json: [day] }));
+  await page.route("**/v1/trips/t1/items**", (r) => r.fulfill({ json: { items: [timed, late], next_cursor: null, has_more: false } }));
+  await signIn(page, "Free user");
+  await page.goto("/trips/t1/plan");
+  await page.getByRole("tab", { name: "Calendar" }).click();
+}
+
+test("Plan calendar: the wide day grid shows timed blocks and an overlap hint", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await calendar(page);
+  await expect(page.locator(".plan__event", { hasText: "Dinner" })).toBeVisible();
+  await expect(page.getByText("Dinner and Show overlap in time.")).toBeVisible();
+  await page.locator(".plan__cal").screenshot({ path: "test-results/plan-calendar-wide.png" });
+});
+
+test("Plan calendar: on a phone the day is a list and Move opens the sheet; offline disables Move", async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await calendar(page);
+  await expect(page.locator(".plan__event", { hasText: "Dinner" })).toBeVisible();
+  await page.screenshot({ path: "test-results/plan-calendar-phone.png" });
+  await page.getByRole("button", { name: "Move Dinner" }).click();
+  const sheet = page.getByRole("dialog", { name: "Move Dinner" });
+  await expect(sheet.getByLabel("Start time")).toBeVisible();
+  await sheet.getByRole("button", { name: "Close" }).click();
+  await context.setOffline(true);
+  await expect(page.getByRole("button", { name: "Move Dinner" })).toBeDisabled();
+});

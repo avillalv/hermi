@@ -383,3 +383,157 @@ test("Download calendar file fetches the ICS with the bearer token and saves it"
   expect(new Headers((call[1] as RequestInit).headers).get("Authorization")).toBe("Bearer tok")
   expect(make).toHaveBeenCalled()
 })
+
+// WF-032.3: Calendar view (FullCalendar timeGridDay on wide screens, listWeek on phones).
+const phone = () => vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("max-width"), media: q, addEventListener() {}, removeEventListener() {} }))
+const toCalendar = async (dayLabel?: string | RegExp) => {
+  fireEvent.click(await screen.findByRole("tab", { name: "Calendar" }))
+  if (dayLabel) fireEvent.click(screen.getByRole("tab", { name: dayLabel }))
+}
+const DAY2 = /^Day 2,/
+const isPatch = (id: string) => (u: string, i?: RequestInit) => u.endsWith(`/items/${id}`) && i?.method === "PATCH"
+const lapped = () => [
+  item("i3", "Dinner", { day: "2027-03-13", category: "food", start_time: "19:00:00", end_time: "21:30:00" }),
+  item("i5", "Show", { day: "2027-03-13", category: "nightlife", start_time: "21:00:00", sort_order: 2 }),
+]
+
+test("view toggle: Days and Calendar tabs switch the view and log plan_viewed with the mode", async () => {
+  const ev = events()
+  mockApi(api())
+  open()
+  expect(await screen.findByRole("tab", { name: "Days" })).toHaveAttribute("aria-selected", "true")
+  fireEvent.click(screen.getByRole("tab", { name: "Calendar" }))
+  expect(screen.getByRole("tab", { name: "Calendar" })).toHaveAttribute("aria-selected", "true")
+  expect(screen.queryByRole("list", { name: "Day 1" })).not.toBeInTheDocument()
+  expect(screen.queryByRole("tab", { name: "Ideas, not scheduled yet" })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole("tab", { name: "Days" }))
+  expect(await screen.findByRole("list", { name: "Day 1" })).toBeInTheDocument()
+  expect(ev.seen.filter((e) => e.event === "plan_viewed").map((e) => e.props.mode)).toEqual(["days", "calendar", "days"])
+  ev.stop()
+})
+
+test("calendar: the selected day shows its items as blocks with the time and category", async () => {
+  mockApi(api())
+  open()
+  await toCalendar(DAY2)
+  const block = await screen.findByText("Dinner")
+  expect(block.closest(".plan__event")).toHaveTextContent("7:00 PM")
+  expect(block.closest(".plan__event")).toHaveTextContent("Food")
+  expect(await screen.findByText("Show")).toBeInTheDocument()
+  expect(screen.queryByText("Museum")).not.toBeInTheDocument()
+  expect(screen.queryByText(/overlap/)).not.toBeInTheDocument()
+})
+
+test("calendar: an empty day says Nothing planned", async () => {
+  mockApi(api())
+  open()
+  await toCalendar(/^Day 3,/)
+  expect(await screen.findByText("Nothing planned. Add a place or ask for a draft.")).toBeInTheDocument()
+})
+
+test("calendar: items that overlap in time get a text hint naming both", async () => {
+  mockApi(api({ items: lapped() }))
+  open()
+  await toCalendar(DAY2)
+  expect(await screen.findByText("Dinner and Show overlap in time.")).toBeInTheDocument()
+})
+
+test("phone list mode: tapping Move on an event opens the sheet with day and time, and Save patches with the version", async () => {
+  phone()
+  const ev = events()
+  const f = mockApi(api({ more: (u, i) => (isPatch("i3")(u, i) ? Response.json(item("i3", "Dinner", { version: 2 })) : undefined) }))
+  open()
+  await toCalendar(DAY2)
+  fireEvent.click(await screen.findByRole("button", { name: "Move Dinner" }))
+  const sheet = await screen.findByRole("dialog", { name: "Move Dinner" })
+  fireEvent.change(within(sheet).getByLabelText("Day"), { target: { value: "2027-03-12" } })
+  fireEvent.change(within(sheet).getByLabelText("Start time"), { target: { value: "18:30" } })
+  fireEvent.click(within(sheet).getByRole("button", { name: "Save" }))
+  await waitFor(() => expect(calls(f, "PATCH", "/items/i3")).toHaveLength(1))
+  expect(JSON.parse(String((calls(f, "PATCH", "/items/i3")[0][1] as RequestInit).body))).toEqual({ day: "2027-03-12", start_time: "18:30:00", version: 1 })
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+  expect(ev.seen.find((e) => e.event === "itinerary_item_moved")?.props).toEqual({ method: "move_to_sheet" })
+  ev.stop()
+})
+
+test("phone list mode: a shifted time keeps the event's length", async () => {
+  phone()
+  const f = mockApi(api({ items: lapped(), more: (u, i) => (isPatch("i3")(u, i) ? Response.json(item("i3", "Dinner")) : undefined) }))
+  open()
+  await toCalendar(DAY2)
+  fireEvent.click(await screen.findByRole("button", { name: "Move Dinner" }))
+  const sheet = await screen.findByRole("dialog", { name: "Move Dinner" })
+  fireEvent.change(within(sheet).getByLabelText("Start time"), { target: { value: "20:00" } })
+  fireEvent.click(within(sheet).getByRole("button", { name: "Save" }))
+  await waitFor(() => expect(calls(f, "PATCH", "/items/i3")).toHaveLength(1))
+  expect(JSON.parse(String((calls(f, "PATCH", "/items/i3")[0][1] as RequestInit).body))).toMatchObject({ start_time: "20:00:00", end_time: "22:30:00" })
+})
+
+test("calendar: a 409 opens the conflict sheet with their version; Keep mine patches again with the latest version", async () => {
+  phone()
+  const n = { v: 0 }
+  const f = mockApi(
+    api({
+      more: (u, i) => {
+        if (!isPatch("i3")(u, i)) return undefined
+        n.v += 1
+        return n.v === 1
+          ? Response.json({ code: "version_conflict", current: item("i3", "Dinner at 8", { day: "2027-03-13", start_time: "20:00:00", version: 5 }) }, { status: 409 })
+          : Response.json(item("i3", "Dinner"))
+      },
+    }),
+  )
+  open()
+  await toCalendar(DAY2)
+  fireEvent.click(await screen.findByRole("button", { name: "Move Dinner" }))
+  const sheet = await screen.findByRole("dialog", { name: "Move Dinner" })
+  fireEvent.change(within(sheet).getByLabelText("Start time"), { target: { value: "18:00" } })
+  fireEvent.click(within(sheet).getByRole("button", { name: "Save" }))
+  const conflict = await screen.findByRole("dialog", { name: "Someone changed this while you were editing." })
+  expect(within(conflict).getByText("Dinner at 8")).toBeInTheDocument()
+  fireEvent.click(within(conflict).getByRole("button", { name: "Keep mine" }))
+  await waitFor(() => expect(calls(f, "PATCH", "/items/i3")).toHaveLength(2))
+  expect(JSON.parse(String((calls(f, "PATCH", "/items/i3")[1][1] as RequestInit).body))).toMatchObject({ start_time: "18:00:00", version: 5 })
+})
+
+test("calendar: a viewer sees the events with no Move buttons and the read-only note", async () => {
+  phone()
+  mockApi(api({ role: "viewer" }))
+  open()
+  await toCalendar(DAY2)
+  expect(await screen.findByText("Dinner")).toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: /Move/ })).not.toBeInTheDocument()
+  expect(screen.getByText("You can read this plan. Only editors can change it.")).toBeInTheDocument()
+})
+
+test("calendar: offline disables Move on events", async () => {
+  phone()
+  mockApi(api())
+  const spy = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false)
+  open()
+  await toCalendar(DAY2)
+  expect(await screen.findByRole("button", { name: "Move Dinner" })).toBeDisabled()
+  spy.mockRestore()
+})
+
+test("calendar: a trip with no dates and one idea shows the dates message, not a grid", async () => {
+  const f = mockApi(api({ days: [], items: [item("i4", "Fado night", { day: null })] }))
+  open()
+  await toCalendar()
+  expect(await screen.findByText("The calendar needs trip dates. Add dates to your trip, or plan your ideas in Days.")).toBeInTheDocument()
+  expect(document.querySelector(".plan__cal")).toBeNull()
+  expect(f).toBeDefined()
+})
+
+test("phone list mode: a start moved late keeps the end inside the same day", async () => {
+  phone()
+  const f = mockApi(api({ items: lapped(), more: (u, i) => (isPatch("i3")(u, i) ? Response.json(item("i3", "Dinner")) : undefined) }))
+  open()
+  await toCalendar(DAY2)
+  fireEvent.click(await screen.findByRole("button", { name: "Move Dinner" }))
+  const sheet = await screen.findByRole("dialog", { name: "Move Dinner" })
+  fireEvent.change(within(sheet).getByLabelText("Start time"), { target: { value: "23:00" } })
+  fireEvent.click(within(sheet).getByRole("button", { name: "Save" }))
+  await waitFor(() => expect(calls(f, "PATCH", "/items/i3")).toHaveLength(1))
+  expect(JSON.parse(String((calls(f, "PATCH", "/items/i3")[0][1] as RequestInit).body))).toMatchObject({ start_time: "23:00:00", end_time: "23:59:00" })
+})

@@ -120,3 +120,7 @@ export async function downloadIcs(tripId: string): Promise<boolean> {
     return false
   }
 }
+
+/** PATCH /items/{id}: a day or time change. The item version in the body guards a stale edit; 409 carries the latest row. */
+export const updateItem = (tripId: string, item: Pick<Item, "id" | "version">, body: { day: string | null; start_time: string | null; end_time?: string | null }) =>
+  write<Item>(tripId, () => api.patch(`/v1/items/${encodeURIComponent(item.id)}`, { ...body, version: item.version }))

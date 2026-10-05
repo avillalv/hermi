@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState, type DragEvent, type KeyboardEvent } from "react"
 import { Navigate, useNavigate, useParams } from "react-router"
-import { Btn, DayChip, DayChips, Icon, TextField } from "../../components/kit"
+import { Btn, DayChip, DayChips, Icon, SegItem, SegmentedControl, TextField } from "../../components/kit"
 import { t } from "../../lib/i18n"
 import { formatTimeRange } from "../../lib/itinerary-time"
 import { track } from "../../lib/track"
@@ -10,13 +10,13 @@ import { useAuth } from "../auth/authStore"
 import { NotFound, useTrip } from "../trips/api"
 import { tripStrip } from "../trips/TripStrip"
 import "../trips/trips.css"
-import { CATEGORIES, createItem, downloadIcs, moveItem, useDays, useItems, type Category, type Item } from "./api"
+import { CATEGORIES, createItem, downloadIcs, moveItem, updateItem, useDays, useItems, type Category, type Item } from "./api"
+import { CalendarMoveSheet, CalendarView, patchBody, type Change } from "./CalendarView"
+import { GROUP, ICON } from "./meta"
 import { Modal } from "./Modal"
 import "./plan.css"
 
 const IDEAS = "ideas"
-const ICON: Record<Category, string> = { sights: "landmark", museum: "landmark", food: "utensils", nature: "mountain", nightlife: "star", shopping: "shopping-bag", travel: "car", other: "circle" }
-const GROUP: Record<Category, string> = { sights: "culture", museum: "culture", food: "food", nature: "outdoors", nightlife: "neutral", shopping: "shopping", travel: "neutral", other: "neutral" }
 const fmt = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
 const dayText = (iso: string) => fmt.format(new Date(`${iso}T00:00:00Z`))
 
@@ -32,7 +32,7 @@ function today(timeZone: string | null | undefined): string {
 
 type Target = { day: string | null; before_id: string | null }
 type Method = "drag" | "move_to_sheet" | "actions"
-type Conflict = { item: Item; to: Target; where: string; method: Method }
+type Conflict = { item: Item; to: Target; where: string; method: Method; change?: Change }
 type NumberedDay = { day: string; n: number }
 
 /** One day's items in the order the API lists them: start time (untimed last), then sort_order, then id. */
@@ -239,6 +239,7 @@ export function Plan() {
   const trip = useTrip(id, !!token)
   const days = useDays(id, !!token)
   const items = useItems(id, !!token)
+  const [view, setView] = useState<"days" | "calendar">("days")
   const [picked, setPicked] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [moving, setMoving] = useState<string | null>(null)
@@ -246,7 +247,7 @@ export function Plan() {
   const [busy, setBusy] = useState(false)
   const [conflict, setConflict] = useState<Conflict | null>(null)
   const [note, setNote] = useState<{ kind: "ok" | "error"; text: string } | null>(null)
-  useEffect(() => track("plan_viewed", { mode: "days" }), [])
+  useEffect(() => track("plan_viewed", { mode: view }), [view])
   if (!token) return <Navigate to="/welcome" replace />
 
   const canEdit = !!trip.data && trip.data.my_role !== "viewer"
@@ -254,7 +255,8 @@ export function Plan() {
   const all = items.data ?? []
   const todayIso = today(trip.data?.destinations.find((d) => d.timezone)?.timezone ?? days.data?.find((d) => d.timezone)?.timezone)
   const first = numbered.find((d) => d.day === todayIso)?.day ?? numbered[0]?.day ?? IDEAS
-  const sel = picked && (picked === IDEAS || numbered.some((d) => d.day === picked)) ? picked : first
+  const sel0 = picked && (picked === IDEAS || numbered.some((d) => d.day === picked)) ? picked : first
+  const sel = view === "calendar" && sel0 === IDEAS && numbered[0] ? numbered[0].day : sel0 // Ideas have no time, so the calendar has no Ideas chip
   const list = inOrder(all, sel === IDEAS ? null : sel)
   const short = (day: string | null) => (day ? `${t("plan.dayLabel")} ${numbered.find((d) => d.day === day)?.n ?? ""}`.trim() : t("plan.ideas"))
   const showBy = (trip.data?.travelers.length ?? 0) >= 2 // 05 4.8: a solo trip hides "Added by"
@@ -279,12 +281,32 @@ export function Plan() {
     if (r.reason === "conflict" && r.current) return setConflict({ item: r.current, to, where: short(to.day), method })
     setNote({ kind: "error", text: t(r.reason === "forbidden" ? "plan.forbidden" : "plan.moveFailed") }) // a 409 with no latest row falls here
   }
+  /** Calendar edits: a day or time change by PATCH. Resolves true when saved, so a dragged block can snap back on false. */
+  const reschedule = async (item: Item, change: Change, method: Method): Promise<boolean> => {
+    if (!canEdit || !online || busy) return false
+    setBusy(true)
+    setNote(null)
+    const r = await updateItem(id, item, patchBody(item, change))
+    setBusy(false)
+    setMoving(null)
+    if (r.ok) {
+      track("itinerary_item_moved", { method })
+      setConflict(null)
+      setNote({ kind: "ok", text: t("plan.moved", { title: item.title }) })
+      return true
+    }
+    const where = `${short(change.day)}${change.start_time ? `, ${formatTimeRange(change.start_time, null)}` : ""}`
+    if (r.reason === "conflict" && r.current) setConflict({ item: r.current, to: { day: change.day, before_id: null }, where, method, change })
+    else setNote({ kind: "error", text: t(r.reason === "forbidden" ? "plan.forbidden" : "plan.moveFailed") })
+    return false
+  }
   const keepMine = async () => {
     if (!conflict) return
     track("edit_conflict_shown", { resolution: "keep_mine" })
-    const { item, to, method } = conflict
+    const { item, to, method, change } = conflict
     setConflict(null)
-    await move(item, to, method, item.version)
+    if (change) await reschedule(item, change, method)
+    else await move(item, to, method, item.version)
   }
   const resolve = (resolution: "use_theirs" | "dismissed") => {
     track("edit_conflict_shown", { resolution })
@@ -296,7 +318,7 @@ export function Plan() {
   const empty = !failed && !pending && all.length === 0
   const chips = [
     ...numbered.map((d) => ({ key: d.day, label: `D${d.n}`, aria: t("plan.dayChip", { n: d.n, date: dayText(d.day) }), to: d.day as string | null })),
-    { key: IDEAS, label: t("plan.ideas"), aria: t("plan.ideasAria"), to: null as string | null },
+    ...(view === "days" ? [{ key: IDEAS, label: t("plan.ideas"), aria: t("plan.ideasAria"), to: null as string | null }] : []),
   ]
   const pick = (key: string) => {
     setPicked(key)
@@ -333,6 +355,12 @@ export function Plan() {
             )}
           </div>
         </div>
+        {!failed && !pending && !empty && (
+          <SegmentedControl aria-label={t("plan.viewTabs")} narrow>
+            <SegItem selected={view === "days"} onClick={() => setView("days")}>{t("plan.viewDays")}</SegItem>
+            <SegItem selected={view === "calendar"} onClick={() => setView("calendar")}>{t("plan.viewCalendar")}</SegItem>
+          </SegmentedControl>
+        )}
         {trip.data && !canEdit && <p className="h-soft">{t("plan.viewerNote")}</p>}
         {note && (
           <p role={note.kind === "error" ? "alert" : "status"} className={note.kind === "error" ? "h-input__error trips__note" : "trips__note"}>
@@ -409,6 +437,10 @@ export function Plan() {
                   </div>
                 </div>
               )}
+              {view === "calendar" ? (
+                <CalendarView day={sel === IDEAS ? null : sel} items={list} canEdit={canEdit} locked={busy || !online} onOpen={(m) => setMoving(m.id)} onChange={(m, ch) => reschedule(m, ch, "drag")} />
+              ) : (
+                <>
               {canEdit && list.length > 1 && <p className="h-soft">{t("plan.dragHint")}</p>}
               {list.length === 0 ? (
                 <p className="h-soft plan__free">{t(sel === IDEAS ? "plan.emptyIdeas" : "plan.emptyDay")}</p>
@@ -445,6 +477,8 @@ export function Plan() {
                   )}
                 </ol>
               )}
+                </>
+              )}
             </div>
           </>
         )}
@@ -463,7 +497,8 @@ export function Plan() {
           }}
         />
       )}
-      {moveItemRow && !conflict && <MoveSheet item={moveItemRow} list={list} days={numbered} onMove={(m, to, how) => void move(m, to, how)} onClose={() => setMoving(null)} />}
+      {moveItemRow && !conflict && view === "calendar" && <CalendarMoveSheet item={moveItemRow} days={numbered} onSave={(ch) => void reschedule(moveItemRow, ch, "move_to_sheet")} onClose={() => setMoving(null)} />}
+      {moveItemRow && !conflict && view === "days" && <MoveSheet item={moveItemRow} list={list} days={numbered} onMove={(m, to, how) => void move(m, to, how)} onClose={() => setMoving(null)} />}
       {conflict && <ConflictSheet c={conflict} busy={busy} onKeep={() => void keepMine()} onTheirs={() => resolve("use_theirs")} onDismiss={() => resolve("dismissed")} />}
     </AppShell>
   )
