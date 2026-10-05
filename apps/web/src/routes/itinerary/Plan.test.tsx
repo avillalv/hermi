@@ -3,6 +3,11 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { bodyOf, mockApi, reset, show, type Handler } from "../onboarding/testing"
 import { Plan } from "./Plan"
 
+// jsdom has no WebGL: the Map tab falls back to its list, which is what these tests check.
+vi.mock("maplibre-gl", () => ({
+  default: { Map: class { constructor() { throw new Error("WebGL is not available") } } },
+}))
+
 const person = (id: string, name: string) => ({ id, name, color: "#000", home_airports: [], linked_user_id: null, is_me: false })
 const trip = (over: Record<string, unknown> = {}) => ({
   id: "t1", version: 1, name: "Lisbon", status: "planning", start_date: "2027-03-12", end_date: "2027-03-14", home_currency: "USD",
@@ -312,6 +317,7 @@ test("an Add to day row ends the timeline and opens the add form on that day", a
   const { container } = open()
   fireEvent.click(await screen.findByRole("button", { name: "Add to day 1" }))
   expect(container.querySelector(".h-timeline__row--link-end")).toBeInTheDocument()
+  fireEvent.click(await screen.findByRole("button", { name: "Custom item" }))
   expect(within(await screen.findByRole("dialog", { name: "Add an item" })).getByLabelText("Day")).toHaveValue("2027-03-12")
 })
 
@@ -343,6 +349,7 @@ test("add item by hand: the title is required, then the item posts with category
   open()
   await screen.findByText("Museum")
   fireEvent.click(screen.getByRole("button", { name: "Add item" }))
+  fireEvent.click(await screen.findByRole("button", { name: "Custom item" }))
   const sheet = await screen.findByRole("dialog", { name: "Add an item" })
   fireEvent.click(within(sheet).getByRole("button", { name: "Add to plan" }))
   expect(await within(sheet).findByText("Give it a title.")).toBeInTheDocument()
@@ -362,10 +369,32 @@ test("add item: a server failure keeps the sheet open with an error", async () =
   open()
   await screen.findByText("Museum")
   fireEvent.click(screen.getByRole("button", { name: "Add item" }))
+  fireEvent.click(await screen.findByRole("button", { name: "Custom item" }))
   const sheet = await screen.findByRole("dialog")
   fireEvent.change(within(sheet).getByLabelText("Title"), { target: { value: "Castle" } })
   fireEvent.click(within(sheet).getByRole("button", { name: "Add to plan" }))
   expect(await within(sheet).findByRole("alert")).toHaveTextContent("We could not add that. Try again.")
+})
+
+test("Add item opens the place search sheet first, with the destination as the search area", async () => {
+  const f = mockApi(api({ trip: { destinations: [{ id: "d1", position: 0, name: "Lisbon", region: null, country: "Portugal", timezone: null, lat: 38.72, lon: -9.14 }] }, more: (u) => (u.includes("/places/search") ? Response.json({ places: [], cached: false, sorted_by: "relevance", attribution: "x" }) : undefined) }))
+  open()
+  await screen.findByText("Museum")
+  fireEvent.click(screen.getByRole("button", { name: "Add item" }))
+  fireEvent.change(await screen.findByRole("searchbox", { name: "Search places" }), { target: { value: "belem" } })
+  fireEvent.click(screen.getByRole("button", { name: "Search" }))
+  expect(await screen.findByText("No results. Try a different name, or add it yourself.")).toBeInTheDocument()
+  expect(String(f.mock.calls.find(([u]) => String(u).includes("/places/search"))![0])).toContain("destination_id=d1")
+})
+
+test("the Map tab lists the stops with coordinates (the list is the whole screen when the map cannot load)", async () => {
+  mockApi(api({ items: [item("m1", "Belem Tower", { lat: 38.69, lon: -9.21 }), item("m2", "Lunch")] }))
+  open()
+  fireEvent.click(await screen.findByRole("tab", { name: "Map" }))
+  expect(await screen.findByRole("button", { name: /^Belem Tower/ })).toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: /^Lunch/ })).not.toBeInTheDocument()
+  expect(screen.getByRole("link", { name: "Open in Apple Maps" })).toBeInTheDocument()
+  expect(screen.getByText("Map data © OpenStreetMap contributors")).toBeInTheDocument()
 })
 
 test("Download calendar file fetches the ICS with the bearer token and saves it", async () => {

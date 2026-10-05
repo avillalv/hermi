@@ -34,6 +34,7 @@ test("create a trip with two destinations, add an itinerary item, reload, and it
     await page.goto(`/trips/${trip.id}/plan`);
     await expect(page.getByText("Nothing planned yet")).toBeVisible();
     await page.getByRole("button", { name: "Add item" }).click();
+    await page.getByRole("button", { name: "Custom item" }).click();
     await page.getByLabel("Title").fill("Pasteis de Belem");
     await page.getByLabel("Category").selectOption("food");
     await page.getByRole("button", { name: "Add to plan" }).click();

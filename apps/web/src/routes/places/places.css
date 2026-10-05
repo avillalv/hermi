@@ -1,0 +1,30 @@
+/* Places and map (WF-033, 05 6.13 and 6.14). Tokens only; pins, list card, day chips, buttons and inputs come from the kit (hermi.css). */
+.places { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.places__frame { position: relative; height: 50dvh; min-height: 16rem; overflow: hidden; border-radius: var(--radius-xl); background: var(--tp-sunken); }
+.places__frame[hidden] { display: none; }
+.places__map { position: absolute; inset: 0; }
+.places__veil { position: absolute; inset: 0; }
+.places__skel { min-height: 4rem; border-radius: var(--radius-xl); background: var(--tp-sunken); }
+.places__note { display: flex; flex-direction: column; align-items: flex-start; gap: var(--tp-space-2); margin: 0; }
+.places__empty { margin: 0; padding: var(--tp-space-6) 0; text-align: center; color: var(--tp-ink-soft); }
+.places__attr { margin: 0; font-size: 0.8125rem; }
+.places__handoff { display: flex; flex-wrap: wrap; gap: var(--tp-space-2); }
+.places__list { padding-top: 0; }
+.places__row { box-sizing: border-box; width: 100%; min-height: 2.75rem; height: auto; padding-block: var(--tp-space-2); border: 0; background: none; text-align: left; cursor: pointer; font: inherit; }
+.places__row[aria-current="true"] { background: var(--tp-sunken); }
+.places__text { display: flex; flex: 1; flex-direction: column; gap: var(--tp-space-1); min-width: 0; }
+/* The kit pin is absolutely placed for the artboard; in a list row and in a map marker it sits in flow. */
+.places__pin { position: static; transform: none; flex: none; padding: 0; border: 0; cursor: pointer; }
+.places__pin--on { outline: 3px solid var(--ring); outline-offset: 3px; }
+.places__cluster { display: flex; align-items: center; justify-content: center; min-width: 2.25rem; height: 2.25rem; padding: 0 var(--tp-space-2); border: 0; border-radius: 50%; background: var(--tp-ink); color: var(--tp-sheet); box-shadow: 0 0 0 4px var(--tp-sheet); font: 600 0.875rem/1 var(--tp-font-display); cursor: pointer; }
+/* The add sheet. */
+.places__chips { display: flex; flex-wrap: wrap; gap: var(--tp-space-2); }
+.places__search { display: flex; gap: var(--tp-space-2); align-items: flex-end; }
+.places__search .h-input { flex: 1; }
+.places__results { display: flex; flex-direction: column; gap: var(--tp-space-2); }
+.places__result { display: flex; flex-direction: column; gap: var(--tp-space-1); width: 100%; min-height: 2.75rem; padding: var(--tp-space-3) var(--tp-space-4); border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-paper); color: var(--tp-ink); text-align: left; font: inherit; cursor: pointer; }
+.places__idea { display: flex; align-items: center; gap: var(--tp-space-2); }
+.places__idea .places__result { flex: 1; }
+.places__detail { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.places__wiki { margin: 0; }
+.places__facts { display: flex; flex-direction: column; gap: var(--tp-space-1); margin: 0; }

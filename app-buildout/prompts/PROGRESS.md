@@ -70,6 +70,8 @@ Same status values as above.
 
 ## Notes for later prompts
 
+- WF-033.2 reviewer minors left for a later pass: quota copy should show the number (05 6.13); one-letter search shows a generic error (API needs 2 chars); failed remove of an idea is silent (`places.removeFailed` unused); `fitBounds` maxZoom 15 exceeds `clusterMaxZoom` 14; consider stubbing tiles in e2e.
+
 Things a later prompt must know (a helper that exists, a pattern to reuse, a known limitation).
 
 - WF-027.1: `collaboration/activity.py` has `record(session, ..., private=False)` and `feed()`; `GET /v1/trips/{id}/activity`. `activity_log` has no privacy column, so `private=True` writes nothing: the notes ticket must pass `private=note.private`. Trip delete and restore are not logged. Transfer and owner-remove log writes have no test. Trip PATCH summaries use raw field names (`traveler_ids`): WF-027.2 or a follow-up should label them. A soft-deleted user whose profile is gone shows "Former member" until the hard purge. Undo, read state and filters from 05 6.24 are WF-027.2 or later.

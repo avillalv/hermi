@@ -12,13 +12,12 @@ import { tripStrip } from "../trips/TripStrip"
 import "../trips/trips.css"
 import { CATEGORIES, createItem, downloadIcs, moveItem, updateItem, useDays, useItems, type Category, type Item } from "./api"
 import { CalendarMoveSheet, CalendarView, patchBody, type Change } from "./CalendarView"
-import { GROUP, ICON } from "./meta"
+import { AddActivity } from "../places/AddActivity"
+import { PlacesMap } from "../places/PlacesMap"
+import { dayText, GROUP, ICON, IDEAS, inOrder } from "./meta"
 import { Modal } from "./Modal"
 import "./plan.css"
 
-const IDEAS = "ideas"
-const fmt = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
-const dayText = (iso: string) => fmt.format(new Date(`${iso}T00:00:00Z`))
 
 /** Today as a calendar day at the trip's first destination, else the device's day. */
 function today(timeZone: string | null | undefined): string {
@@ -34,12 +33,6 @@ type Target = { day: string | null; before_id: string | null }
 type Method = "drag" | "move_to_sheet" | "actions"
 type Conflict = { item: Item; to: Target; where: string; method: Method; change?: Change }
 type NumberedDay = { day: string; n: number }
-
-/** One day's items in the order the API lists them: start time (untimed last), then sort_order, then id. */
-const inOrder = (items: Item[], day: string | null) =>
-  items
-    .filter((i) => i.day === day)
-    .sort((a, b) => (a.start_time ?? "99").localeCompare(b.start_time ?? "99") || a.sort_order - b.sort_order || a.id.localeCompare(b.id))
 
 /** The server orders by start time first (04 5.10), so two items swap places only when they start at the same time (05 4.8). */
 const sameSlot = (a: Item | undefined, b: Item) => !!a && a.start_time === b.start_time
@@ -230,7 +223,7 @@ function AddItem({ tripId, days, start, canWrite, onClose, onAdded }: { tripId: 
   )
 }
 
-/** 05 6.12 Plan, Days view. Calendar and Map join with their tickets (WF-033 and WF-034); until then the screen is the Days view alone. */
+/** 05 6.12 Plan: the Days, Calendar and Map views, and the Add sheet (05 6.13). */
 export function Plan() {
   const { token } = useAuth()
   const { id = "" } = useParams()
@@ -239,9 +232,9 @@ export function Plan() {
   const trip = useTrip(id, !!token)
   const days = useDays(id, !!token)
   const items = useItems(id, !!token)
-  const [view, setView] = useState<"days" | "calendar">("days")
+  const [view, setView] = useState<"days" | "calendar" | "map">("days")
   const [picked, setPicked] = useState<string | null>(null)
-  const [adding, setAdding] = useState(false)
+  const [adding, setAdding] = useState<"search" | "custom" | null>(null)
   const [moving, setMoving] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -348,7 +341,7 @@ export function Plan() {
               {t("plan.export")}
             </Btn>
             {canEdit && (
-              <Btn variant="primary" mod={["sm"]} disabled={!online} onClick={() => setAdding(true)}>
+              <Btn variant="primary" mod={["sm"]} disabled={!online} onClick={() => setAdding("search")}>
                 <Icon name="plus" size={18} />
                 {t("plan.add")}
               </Btn>
@@ -356,9 +349,10 @@ export function Plan() {
           </div>
         </div>
         {!failed && !pending && !empty && (
-          <SegmentedControl aria-label={t("plan.viewTabs")} narrow>
+          <SegmentedControl aria-label={t("plan.viewTabs")}>
             <SegItem selected={view === "days"} onClick={() => setView("days")}>{t("plan.viewDays")}</SegItem>
             <SegItem selected={view === "calendar"} onClick={() => setView("calendar")}>{t("plan.viewCalendar")}</SegItem>
+            <SegItem selected={view === "map"} onClick={() => setView("map")}>{t("plan.viewMap")}</SegItem>
           </SegmentedControl>
         )}
         {trip.data && !canEdit && <p className="h-soft">{t("plan.viewerNote")}</p>}
@@ -391,10 +385,11 @@ export function Plan() {
           <div className="trips__empty">
             <strong>{t("plan.emptyTripTitle")}</strong>
             <span className="h-soft">{t("plan.emptyTripBody")}</span>
-            {canEdit && <Btn variant="primary" disabled={!online} onClick={() => setAdding(true)}>{t("plan.addFirst")}</Btn>}
+            {canEdit && <Btn variant="primary" disabled={!online} onClick={() => setAdding("search")}>{t("plan.addFirst")}</Btn>}
           </div>
         )}
-        {!failed && !pending && !empty && (
+        {!failed && !pending && !empty && view === "map" && <PlacesMap items={all} days={numbered} online={online} />}
+        {!failed && !pending && !empty && view !== "map" && (
           <>
             <DayChips aria-label={t("plan.daysAria")}>
               {chips.map((c, i) => (
@@ -468,7 +463,7 @@ export function Plan() {
                       <li className="h-timeline__row h-timeline__row--add">
                         <span />
                         <span className="h-timeline__node h-timeline__node--open" aria-hidden="true" />
-                        <Btn variant="secondary" mod={["sm"]} disabled={!online} onClick={() => setAdding(true)}>
+                        <Btn variant="secondary" mod={["sm"]} disabled={!online} onClick={() => setAdding("search")}>
                           <Icon name="plus" size={20} />
                           {t("plan.addToDay", { n: numbered.find((d) => d.day === sel)?.n ?? "" })}
                         </Btn>
@@ -483,15 +478,32 @@ export function Plan() {
           </>
         )}
       </div>
-      {adding && (
+      {adding === "search" && (
+        <AddActivity
+          tripId={id}
+          days={numbered}
+          start={sel}
+          destination={trip.data?.destinations[0] ?? null}
+          canWrite={canEdit && online}
+          online={online}
+          onClose={() => setAdding(null)}
+          onCustom={() => setAdding("custom")}
+          onAdded={(day, title) => {
+            setAdding(null)
+            setPicked(day)
+            setNote({ kind: "ok", text: t("plan.added", { title }) })
+          }}
+        />
+      )}
+      {adding === "custom" && (
         <AddItem
           tripId={id}
           days={numbered}
           start={sel}
           canWrite={canEdit && online}
-          onClose={() => setAdding(false)}
+          onClose={() => setAdding(null)}
           onAdded={(day, title) => {
-            setAdding(false)
+            setAdding(null)
             setPicked(day)
             setNote({ kind: "ok", text: t("plan.added", { title }) })
           }}

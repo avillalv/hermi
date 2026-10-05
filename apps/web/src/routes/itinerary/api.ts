@@ -17,12 +17,27 @@ export type Item = {
   category: Category
   status: "idea" | "planned" | "booked"
   notes: string
+  address: string | null
+  lat: number | null
+  lon: number | null
   sort_order: number
   version: number
   added_by: { id: string; display_name: string | null } | null
 }
 export type Day = { day: string; timezone: string | null; title: string; notes: string; in_trip: boolean; item_count: number; version: number; destination_name: string | null }
-export type ItemIn = { title: string; category: Category; day?: string | null; start_time?: string | null }
+export type ItemIn = {
+  title: string
+  category: Category
+  day?: string | null
+  start_time?: string | null
+  location_name?: string
+  address?: string
+  lat?: number
+  lon?: number
+  url?: string
+  /** A place from search: `id` is the Geoapify id without the "geoapify:" prefix. */
+  place?: { provider: "geoapify"; id: string }
+}
 
 const base = (id: string) => `/v1/trips/${encodeURIComponent(id)}`
 export const planKey = (id: string, ...rest: string[]) => ["itinerary", id, ...rest]
