@@ -274,3 +274,19 @@ def migration_database_url() -> str:
             "MIGRATION_DATABASE_URL is not set. Run npm run setup, then npm run db:init."
         )
     return url
+
+
+def own_hosts() -> frozenset[str]:
+    """Hostnames of our own API and web URLs. The SSRF guard refuses to fetch them."""
+    from urllib.parse import urlsplit
+
+    file = dotenv_values(ROOT_ENV_FILE)
+    hosts = set()
+    for name, default in (
+        ("PUBLIC_API_URL", Settings.model_fields["public_api_url"].default),
+        ("PUBLIC_WEB_URL", Settings.model_fields["public_web_url"].default),
+    ):
+        host = urlsplit(os.environ.get(name) or file.get(name) or default).hostname
+        if host:
+            hosts.add(host.lower())
+    return frozenset(hosts)
