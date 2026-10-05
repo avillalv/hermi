@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { queryClient } from "../../lib/queryClient"
+import { ApiError } from "../../lib/api/client"
 import { api } from "../auth/api"
 import { TRIPS_KEY, type DestinationIn, type TripSummary } from "../onboarding/trips"
 
@@ -22,7 +23,7 @@ export type Trip = Pick<TripSummary, "id" | "version" | "name" | "status" | "sta
   destinations: (TripDestination & { lat?: number; lon?: number; country_code?: string | null })[]
 }
 
-export class NotFound extends Error {}
+export class NotFound extends ApiError {}
 
 /** GET /trips/{id}. A 404 (deleted, or not yours) is a `NotFound`, which the screen shows without a retry. */
 export function useTrip(id: string | undefined, enabled: boolean) {
@@ -33,8 +34,8 @@ export function useTrip(id: string | undefined, enabled: boolean) {
       retry: (n, e) => !(e instanceof NotFound) && n < 1,
       queryFn: async () => {
         const r = await api.get<Trip>(`/v1/trips/${encodeURIComponent(id ?? "")}`)
-        if (r.response.status === 404) throw new NotFound()
-        if (r.error !== undefined || !r.data) throw new Error(`trip ${r.response.status}`)
+        if (r.response.status === 404) throw new NotFound(r)
+        if (r.error !== undefined || !r.data) throw new ApiError(r)
         return r.data
       },
     },

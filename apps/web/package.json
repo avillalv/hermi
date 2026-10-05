@@ -7,12 +7,13 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "test:kit": "playwright test --project kit --project kit-metrics --project kit-shell --project kit-parity",
+    "test:kit": "playwright test --project kit --project kit-metrics --project kit-shell --project kit-layout --project mobile --project kit-parity",
     "test:smoke": "playwright test --project smoke"
   },
   "dependencies": {
     "@fullcalendar/react": "^7.1.0",
     "@hermi/tokens": "*",
+    "@sentry/react": "^11.4.0",
     "@supabase/supabase-js": "^2.117.2",
     "@tanstack/react-query": "^5.60.0",
     "maplibre-gl": "^5.24.0",
@@ -22,6 +23,7 @@
     "temporal-polyfill": "^1.0.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@hermi/eslint-config": "*",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.0.0",

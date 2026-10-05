@@ -154,6 +154,15 @@ services:
 databases:
   # Postgres 18. Point-in-time recovery needs a paid plan (basic and up); free plans have none.
   # Keep PITR on, 7 days at launch (05-infrastructure, backups).
+  # Backups (WF-039, docs/runbooks/restore.md). Render sets these per database; the blueprint cannot,
+  # so they are checked in the dashboard (Database, Recovery) and in each quarterly drill:
+  #   - point-in-time recovery: on, 7 days (on every basic and pro plan);
+  #   - daily snapshots: on (Render takes them for paid plans), kept at least 7 days;
+  #   - weekly encrypted pg_dump to R2 in a second Cloudflare account: infra/scripts/backup-dump.sh,
+  #     run Sunday 03:00 UTC by the db_dump_offsite job (prompt 12, not wired yet: script only until then); the key
+  #     BACKUP_ENCRYPTION_KEY is held outside Render. Dumps age out of R2 after 35 days
+  #     (the privacy policy promise, 03 section on retention);
+  #   - restore drill every quarter: infra/scripts/restore-drill.sh.
   - name: hermi-db-staging
     databaseName: hermi
     postgresMajorVersion: "18"

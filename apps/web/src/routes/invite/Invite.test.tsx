@@ -65,7 +65,7 @@ test("members block lists roles and the count under Invite", async () => {
 test("loading shows a members skeleton", async () => {
   mockApi((u, i) => (u.endsWith("/members") ? (new Promise(() => {}) as never) : api()(u, i)))
   open()
-  expect(await screen.findByText("Loading members")).toBeInTheDocument()
+  expect(await screen.findByRole("status", { name: "Loading" })).toBeInTheDocument()
 })
 
 test("a members error offers retry", async () => {
@@ -218,6 +218,12 @@ test("an already-member invite opens the trip", async () => {
   await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/trips/t7"))
 })
 
+test("landing loading shows the shared skeleton", async () => {
+  mockApi(() => new Promise(() => {}) as never)
+  land()
+  expect(await screen.findByRole("status", { name: "Loading" })).toBeInTheDocument()
+})
+
 test("an expired, used or revoked invite says it is no longer valid", async () => {
   mockApi(() => Response.json({ detail: "gone" }, { status: 410 }))
   land()
@@ -238,13 +244,13 @@ test("landing load error offers retry, and offline disables Join", async () => {
 })
 
 // --- review round 1 ---
-test("a role change says so politely, and a removal fires member_removed", async () => {
-  mockApi(api())
+test("a role change says so politely, and a removal is sent", async () => {
+  const f = mockApi(api())
   open()
   fireEvent.change(await screen.findByLabelText("Role for Sam"), { target: { value: "viewer" } })
   expect(await screen.findByRole("status")).toHaveTextContent("Sam is now a viewer")
   fireEvent.click(screen.getByRole("button", { name: "Remove member Sam" }))
-  await waitFor(() => expect(events).toContain("member_removed"))
+  await waitFor(() => expect(f.mock.calls.some(([u, i]) => String(u).includes("/members/") && (i as RequestInit | undefined)?.method === "DELETE")).toBe(true))
 })
 
 test("the owner can make an editor the owner", async () => {

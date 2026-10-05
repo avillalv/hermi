@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react"
+import { setAnalyticsUser } from "../../lib/analytics"
 import { queryClient } from "../../lib/queryClient"
 
 export type AuthState = { token: string | null; persona?: string }
@@ -41,6 +42,7 @@ export const authStore = {
     sessionStorage.removeItem(KEY)
     sessionStorage.removeItem("hermi.onboarded") // see onboarding/trips.ts
     queryClient.clear()
+    setAnalyticsUser(null)
     set(SIGNED_OUT)
   },
 }

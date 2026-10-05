@@ -1,5 +1,4 @@
 /* Notes and evidence (WF-035.2, 05 6.18). Tokens only; chips, buttons, avatar and segmented control come from the kit (hermi.css). */
-.notes__skel { min-height: 5rem; border-radius: var(--radius-xl); background: var(--tp-sunken); }
 .notes__item { display: flex; flex-direction: column; gap: var(--tp-space-2); padding: var(--tp-space-3) var(--tp-space-4); border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-sheet); }
 .notes__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-space-2); }
 .notes__scope { margin-left: auto; }

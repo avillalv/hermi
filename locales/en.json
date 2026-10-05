@@ -68,7 +68,6 @@
     "error": "We could not load your trips. Try again.",
     "retry": "Try again",
     "offline": "You are offline. Showing your saved trips.",
-    "loading": "Loading your trips",
     "datesNone": "No dates yet",
     "sectionNow": "In progress",
     "sectionUpcoming": "Upcoming",
@@ -127,6 +126,26 @@
     "offline": "You are offline. Connect to create your trip.",
     "datesBoth": "Add both dates, or choose that you do not have dates yet."
   },
+  "sync": {
+    "synced": "Synced {ago}",
+    "agoSec": "{n} s ago",
+    "agoMin": "{n} min ago",
+    "syncedAt": "Synced at {time}",
+    "syncedLive": "Synced",
+    "syncing": "Syncing",
+    "offline": "Offline",
+    "offlineOne": "Offline, 1 edit waiting",
+    "offlineMany": "Offline, {n} edits waiting",
+    "failing": "Could not sync, retrying",
+    "tryNow": "Try now",
+    "conflict": {
+      "title": "This trip changed elsewhere",
+      "body": "Someone saved a different version while you were editing. Keep your changes, or use theirs.",
+      "keepMine": "Keep mine",
+      "useTheirs": "Use theirs",
+      "failed": "We could not save your changes. Check your connection and try again."
+    }
+  },
   "overview": {
     "back": "Trips",
     "sections": "Trip sections",
@@ -151,7 +170,6 @@
   },
   "activity": {
     "title": "Activity",
-    "loading": "Loading activity",
     "filters": "Filter activity",
     "all": "All",
     "alerts": "Alerts",
@@ -171,7 +189,6 @@
     "overview": "Overview",
     "group": "Group",
     "title": "People",
-    "loading": "Loading people",
     "error": "We could not load people. Pull down to try again.",
     "offline": "You are offline. Showing saved people. Changes need a connection.",
     "emptyTitle": "Just you so far",
@@ -202,7 +219,6 @@
     "failed": "That did not work. Try again.",
     "forbidden": "You do not have permission to do that.",
     "collabCount": "{n} of {max} collaborators",
-    "membersLoading": "Loading members",
     "membersError": "We could not load members. Try again.",
     "changeRole": "Role for {name}",
     "removeMember": "Remove member {name}",
@@ -253,7 +269,6 @@
     "resendAria": "Resend invite to {who}",
     "regenerateAria": "Regenerate invite for {who}",
     "landing": {
-      "loading": "Loading your invite",
       "title": "{name} invited you to {trip}",
       "role": "You will join as {role}.",
       "join": "Join trip",
@@ -288,7 +303,6 @@
     "title": "Flights",
     "addRoute": "Add route",
     "addFirst": "Add a route",
-    "loading": "Loading fares",
     "emptyTitle": "No routes yet",
     "emptyBody": "Add where you fly from and to, and we will track fares for you.",
     "error": "We could not load fares. Try again.",
@@ -435,7 +449,6 @@
   "plan": {
     "tab": "Plan",
     "title": "Plan",
-    "loading": "Loading your plan",
     "error": "We could not load your plan. Try again.",
     "offline": "Offline. You can read your plan. Reconnect to rearrange.",
     "daysAria": "Days",
@@ -628,7 +641,6 @@
   "stays": {
     "tab": "Stays",
     "title": "Stays",
-    "loading": "Loading your stays",
     "error": "We could not load your stays. Try again.",
     "offline": "Offline. You can read your stays. Reconnect to add or change them.",
     "viewerNote": "You can heart stays. Only editors can add or change them.",
@@ -719,5 +731,32 @@
     "bookmarkletHelp": "Drag this to your bookmarks bar, then click it on a stay page. It sends only the page address and title from your own browser. Hermi never loads the page.",
     "bookmarkletLink": "Save to Hermi",
     "fromBookmarklet": "Filled from the page you saved. Check the name and add a price."
+  },
+  "states": {
+    "retry": "Try again",
+    "back": "Back",
+    "home": "Home",
+    "reference": "Reference {id}",
+    "loading": "Loading",
+    "signIn": "Sign in",
+    "update": "Update Hermi",
+    "reload": "Reload",
+    "waitSeconds": "Try again in {seconds} seconds.",
+    "error": {
+      "offline": "You are offline. Your trip is saved on this phone. Changes will sync when you reconnect.",
+      "server": "Something went wrong on our side. We are looking into it. Try again in a minute.",
+      "notFound": "This trip is not available. It may have been deleted or you may not have access.",
+      "permission": "You can view this trip but not edit it. Ask the owner to make you an editor.",
+      "limit": "You have reached a limit on your plan. Your trips and data stay yours.",
+      "conflict": "Someone changed this while you were editing. Review their version.",
+      "unauthorized": "Your session ended. Sign in again to keep going.",
+      "rateLimited": "You are doing that too fast. Wait a moment, then try again.",
+      "maintenance": "Hermi is read only for a short while. You can still look at your trips. Try again soon.",
+      "forcedUpdate": "This version of Hermi is too old to keep working. Update to continue."
+    },
+    "page": {
+      "notFound": "This page is not available. It may have moved or the address may be wrong.",
+      "stale": "Hermi was updated. Reload to continue."
+    }
   }
 }

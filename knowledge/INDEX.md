@@ -16,6 +16,7 @@ This repo is the specification itself, so its reference material lives in `app-b
 | `ios-builds-on-ci.md` | You build, sign or test the iOS app without a Mac: the GitHub macOS jobs, the Apple account steps and TestFlight. |
 | `plan-and-stays.md` | You touch the itinerary, places and map, lodging, notes or the shared SSRF guard. |
 | `row-level-security.md` | You touch RLS policies, `app.user_id`, or the API startup refusal for an unsafe database login. |
+| `layout-observability-sync.md` | You add a screen state, breakpoint, analytics event, Sentry or log field, the sync indicator, or touch backups and the restore drill. |
 
 ## Repo docs and skills
 

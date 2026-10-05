@@ -20,7 +20,7 @@ test("Notes: a failed load says so with a retry, and offline the list stays read
   );
   await signIn(page, "Free user");
   await page.goto("/trips/t1/notes");
-  await expect(page.getByRole("alert")).toHaveText("We could not load notes. Pull down to try again.");
+  await expect(page.getByRole("alert").getByText("We could not load notes. Pull down to try again.", { exact: true })).toBeVisible();
   fail = false;
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByText("Ask about the shuttle")).toBeVisible();

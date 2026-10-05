@@ -19,10 +19,12 @@
 .actions__panel { margin-top: var(--tp-space-2); }
 .actions__panel .h-listcard__row { width: 100%; box-sizing: border-box; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
 .trips__item { display: flex; flex-direction: column; }
-.group__row { display: flex; flex: 1; align-items: center; min-width: 0; gap: var(--tp-space-2); }
+.group__row { display: flex; flex: 1; flex-wrap: wrap; align-items: center; min-width: 0; gap: var(--tp-space-2); }
+/* A long traveler name wraps instead of widening the row (the Unlink label carries the name). */
+.group__row .h-listcard__text { min-width: 0; overflow-wrap: anywhere; }
+.group__row .h-btn { max-width: 100%; height: auto; min-height: 44px; white-space: normal; text-align: start; }
 .group__airport { color: var(--tp-ink-soft); }
 .group__empty { flex-direction: column; align-items: flex-start; }
-.group__skel { min-height: 56px; }
 .group__form, .group__choose { display: flex; flex-direction: column; gap: var(--tp-space-3); padding: var(--tp-space-3) var(--tp-space-4); }
 .group__choose { flex-direction: row; flex-wrap: wrap; }
 .group__colors { display: flex; flex-wrap: wrap; gap: var(--tp-space-2); }

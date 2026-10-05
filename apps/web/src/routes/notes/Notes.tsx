@@ -1,5 +1,8 @@
 import { Fragment, useState } from "react"
 import { Navigate, useNavigate, useParams } from "react-router"
+import { EmptyState } from "../../components/EmptyState"
+import { QueryError } from "../../components/ErrorState"
+import { Skeleton } from "../../components/Skeleton"
 import { SourceChip } from "../../components/SourceChip"
 import { Avatar, Btn, Icon, SegItem, SegmentedControl, TextField } from "../../components/kit"
 import { t } from "../../lib/i18n"
@@ -8,7 +11,7 @@ import { useOnline } from "../../lib/useOnline"
 import { AppShell } from "../../shell/AppShell"
 import { useAuth } from "../auth/authStore"
 import { Modal } from "../itinerary/Modal"
-import { NotFound, useTrip } from "../trips/api"
+import { useTrip } from "../trips/api"
 import { tripStrip } from "../trips/TripStrip"
 import "../trips/trips.css"
 import "../itinerary/plan.css"
@@ -178,6 +181,7 @@ export function Notes() {
   const failed = (list.isError && !list.data) || trip.isError
   const pending = !failed && (list.isPending || trip.isPending)
   const ready = !failed && !pending
+  const retry = () => void Promise.all([list.refetch(), trip.refetch()])
   const onFail = (reason: string) => setFail(reason === "forbidden" ? t("notes.forbidden") : reason === "conflict" ? t("notes.conflict") : t("notes.saveFailed"))
   const addBtn = (
     <Btn variant="primary" disabled={!online} onClick={() => setAdding(true)}>{t("notes.add")}</Btn>
@@ -207,27 +211,15 @@ export function Notes() {
             {fail}
           </p>
         )}
-        {pending && (
-          <>
-            <p className="h-soft" aria-live="polite">{t("notes.loading")}</p>
-            {[0, 1, 2].map((n) => <div key={n} className="notes__skel" aria-hidden="true" />)}
-          </>
-        )}
-        {failed && (
-          <div className="trips__stack">
-            <p role="alert" className="h-input__error trips__note">
-              <Icon name="circle-alert" size={16} />
-              {trip.error instanceof NotFound ? t("overview.notFound") : t("notes.error")}
-            </p>
-            {!(trip.error instanceof NotFound) && <Btn variant="secondary" onClick={() => void Promise.all([list.refetch(), trip.refetch()])}>{t("notes.retry")}</Btn>}
-          </div>
-        )}
+        {pending && <Skeleton shape="lines" onRetry={retry} />}
+        {failed && <QueryError error={trip.error ?? list.error} message={t("notes.error")} onRetry={retry} />}
         {ready && view === "notes" && (mine.length === 0 ? (
-          <div className="trips__empty">
-            <strong>{t("notes.emptyTitle")}</strong>
-            <span className="h-soft">{t("notes.emptyBody")}</span>
-            {canEdit && addBtn}
-          </div>
+          <EmptyState
+            icon="pencil"
+            title={t("notes.emptyTitle")}
+            body={t("notes.emptyBody")}
+            action={canEdit && online ? { label: t("notes.add"), onClick: () => setAdding(true) } : undefined}
+          />
         ) : (
           <div className="h-stack">{mine.map((n) => <NoteRow key={n.id} note={n} canEdit={canEdit && (trip.data?.my_role === "owner" || (!!me.data && n.author?.id === me.data.id))} tripId={id} onFail={onFail} />)}</div>
         ))}

@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
+import { setAnalyticsUser } from "../../lib/analytics"
 import { env } from "../../lib/env"
 import { queryClient } from "../../lib/queryClient"
+import { ApiError } from "../../lib/api/client"
 import { api } from "../auth/api"
 
 // shortcut: hand-written shapes from 04 section 5.4. `npm run gen:api` is still a stub script (no OpenAPI client yet); switch to the generated types when it lands.
@@ -28,7 +30,7 @@ export function useTrips(enabled: boolean) {
       retry: 1, // one quiet retry, then the error state with Try again
       queryFn: async () => {
         const r = await api.get<{ items: TripSummary[] }>("/v1/trips")
-        if (r.error !== undefined || !r.data) throw new Error(`trips ${r.response.status}`)
+        if (r.error !== undefined || !r.data) throw new ApiError(r)
         return r.data.items
       },
     },
@@ -68,6 +70,8 @@ export function useMe(token: string | null, enabled: boolean) {
       queryFn: async () => {
         const r = await fetch(`${env.apiBaseUrl}/v1/me`, { headers: { Authorization: `Bearer ${token}` }, credentials: "omit" })
         if (r.ok) {
+          const body = (await r.json().catch(() => null)) as { id?: unknown } | null
+          if (typeof body?.id === "string") setAnalyticsUser(body.id)
           markOnboarded()
           return true
         }

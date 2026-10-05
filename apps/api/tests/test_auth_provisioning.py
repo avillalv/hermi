@@ -1,6 +1,7 @@
 # ruff: noqa: E501  (long SQL strings and comments)
 """WF-013.2: POST /v1/me/bootstrap, GET /v1/me and the dev routes against a real PostgreSQL (04 sections 1.2 and 5.1)."""
 
+import json
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -293,3 +294,33 @@ def test_nothing_references_the_old_passcode_path():
                 if "passcode" in p.read_text(errors="ignore").lower():
                     hits.append(str(p.relative_to(root)))
     assert hits == [], hits
+
+
+@pytest.fixture
+def sink():
+    from hermi import analytics
+
+    s = analytics.MemorySink()
+    analytics.set_sink(s)
+    yield s
+    analytics.set_sink(analytics.MemorySink())
+
+
+def test_signup_completed_fires_once_on_first_sign_in_only(client, sink):
+    h = _auth(client)
+    first = client.post("/v1/me/bootstrap", json=BODY, headers=h)
+    assert first.status_code == 201
+    assert client.post("/v1/me/bootstrap", json=BODY, headers=h).status_code == 200
+    events = [e for e in sink.events if e["event"] == "signup_completed"]
+    assert len(events) == 1
+    e = events[0]
+    assert e["distinct_id"] == first.json()["id"]
+    assert e["properties"]["method"] == "email_code"
+    assert (e["properties"]["from_invite"], e["properties"]["from_referral"], e["properties"]["was_guest"]) == (False, False, False)
+    assert "@" not in json.dumps(e)
+
+
+def test_signup_completed_is_dropped_under_global_privacy_control(client, sink):
+    r = client.post("/v1/me/bootstrap", json=BODY, headers={**_auth(client), "Sec-GPC": "1"})
+    assert r.status_code == 201
+    assert not sink.events

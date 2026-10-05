@@ -1,7 +1,11 @@
 import { useQueries } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 import { Link } from "react-router"
-import { Icon } from "../../components/kit"
+import { EmptyState } from "../../components/EmptyState"
+import { QueryError } from "../../components/ErrorState"
+import { Skeleton } from "../../components/Skeleton"
+import { Btn, Icon } from "../../components/kit"
+import { ApiError } from "../../lib/api/client"
 import { t } from "../../lib/i18n"
 import { queryClient } from "../../lib/queryClient"
 import { track } from "../../lib/track"
@@ -45,7 +49,7 @@ export function Activity() {
         refetchInterval: POLL_MS,
         queryFn: async () => {
           const r = await api.get<{ items: Entry[] }>(`/v1/trips/${encodeURIComponent(tr.id)}/activity?limit=20`)
-          if (r.error !== undefined || !r.data) throw new Error(`activity ${r.response.status}`)
+          if (r.error !== undefined || !r.data) throw new ApiError(r)
           return r.data.items.map((e): Row => ({ ...e, tripId: tr.id, tripName: tr.name }))
         },
       })),
@@ -100,43 +104,17 @@ export function Activity() {
               </button>
             ))}
           </div>
-          {pending && online && (
-            <>
-              <p className="h-soft" aria-live="polite">
-                {t("activity.loading")}
-              </p>
-              <div className="trips__list trips__section">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="trips__skel group__skel" aria-hidden="true" />
-                ))}
-              </div>
-            </>
-          )}
+          {pending && online && <Skeleton shape="lines" onRetry={retry} />}
           {staleError && (
             <p role="alert" className="h-input__error trips__note">
               <Icon name="circle-alert" size={16} />
               {t("activity.error")}{" "}
-              <button type="button" className="h-btn h-btn--secondary" onClick={retry}>
-                {t("trips.retry")}
-              </button>
+              <Btn variant="secondary" onClick={retry}>{t("states.retry")}</Btn>
             </p>
           )}
-          {!pending && failed && (
-            <div className="trips__stack">
-              <p role="alert" className="h-input__error trips__note">
-                <Icon name="circle-alert" size={16} />
-                {t("activity.error")}
-              </p>
-              <button type="button" className="h-btn h-btn--secondary" onClick={retry}>
-                {t("trips.retry")}
-              </button>
-            </div>
-          )}
+          {!pending && failed && <QueryError error={trips.error ?? feeds.find((f) => f.isError)?.error} message={t("activity.error")} onRetry={retry} />}
           {!pending && !failed && rows.length === 0 && (
-            <section className="trips__empty">
-              <h2 className="h-heading">{t("activity.emptyTitle")}</h2>
-              <p className="h-soft">{t("activity.emptyBody")}</p>
-            </section>
+            <EmptyState icon="bell" title={t("activity.emptyTitle")} body={t("activity.emptyBody")} />
           )}
           {!pending && !failed && rows.length > 0 && (
             <ul className="activity__list" aria-label={t("activity.title")}>

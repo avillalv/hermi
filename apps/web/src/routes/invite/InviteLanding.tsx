@@ -2,6 +2,9 @@ import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate, useParams } from "react-router"
 import { Btn, Icon, Logo } from "../../components/kit"
+import { QueryError } from "../../components/ErrorState"
+import { Skeleton } from "../../components/Skeleton"
+import { ApiError } from "../../lib/api/client"
 import { t } from "../../lib/i18n"
 import { queryClient } from "../../lib/queryClient"
 import { track } from "../../lib/track"
@@ -35,7 +38,7 @@ export function InviteLanding() {
       queryFn: async () => {
         const r = await getPreview(token)
         if (r.response.status === 410 || r.response.status === 404) return null
-        if (r.error !== undefined || !r.data) throw new Error("invite")
+        if (r.error !== undefined || !r.data) throw new ApiError(r)
         return r.data
       },
     },
@@ -117,21 +120,8 @@ export function InviteLanding() {
         <div className="auth__brand">
           <Logo variant="lockup" height={56} />
         </div>
-        {q.isPending && (
-          <>
-            <p className="h-soft" aria-live="polite">{t("invite.landing.loading")}</p>
-            <div className="trips__skel" aria-hidden="true" />
-          </>
-        )}
-        {q.isError && (
-          <>
-            <p role="alert" className="h-input__error trips__note">
-              <Icon name="circle-alert" size={16} />
-              {t("invite.landing.error")}
-            </p>
-            <Btn variant="secondary" onClick={() => void q.refetch()}>{t("trips.retry")}</Btn>
-          </>
-        )}
+        {q.isPending && <Skeleton shape="block" onRetry={() => void q.refetch()} />}
+        {q.isError && <QueryError error={q.error} message={t("invite.landing.error")} onRetry={() => void q.refetch()} />}
         {q.data === null && (
           <p role="alert" className="h-input__error trips__note">
             <Icon name="circle-alert" size={16} />

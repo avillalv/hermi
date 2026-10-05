@@ -1,13 +1,16 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link, Navigate, useNavigate, useParams } from "react-router"
 import { Btn, Icon, TextField } from "../../components/kit"
+import { SyncIndicator } from "../../components/sync-indicator/SyncIndicator"
 import { currencyOptions } from "../../lib/currencies"
 import { t } from "../../lib/i18n"
+import { clearConflict, reportConflict } from "../../lib/sync"
 import { useOnline } from "../../lib/useOnline"
 import { AppShell } from "../../shell/AppShell"
+import { api } from "../auth/api"
 import { useAuth } from "../auth/authStore"
 import type { DestinationIn } from "../onboarding/trips"
-import { NotFound, patchTrip, useTrip, type Trip } from "./api"
+import { NotFound, patchTrip, useTrip, type Trip, type TripPatch } from "./api"
 import { PlaceSearch } from "./PlaceSearch"
 import "./trips.css"
 
@@ -39,16 +42,29 @@ function Form({ trip, onReload }: { trip: Trip; onReload: () => void }) {
     // Destinations go only when the list changed (added, removed or reordered), and a kept one sends just its identity,
     // so the API keeps what the form never shows (kind, bounding box, provider id).
     const same = dests.length === trip.destinations.length && dests.every((d, i) => d.id === trip.destinations[i].id)
-    const r = await patchTrip(trip.id, trip.version, {
+    const body: TripPatch = {
       name: name.trim(),
       start_date: start || null,
       end_date: end || null,
       home_currency: currency,
       ...(same ? {} : { destinations: dests.map((d) => (d.id ? { id: d.id, name: d.name, lat: d.lat, lon: d.lon } : d)) }),
-    })
+    }
+    const r = await patchTrip(trip.id, trip.version, body)
     if (r.ok) return nav(`/trips/${trip.id}`)
     setBusy(false)
     setStale(r.reason === "conflict")
+    if (r.reason === "conflict") {
+      // 05 4.21: the sync indicator's sheet. Keep mine saves the same body on top of their version; Use theirs reloads theirs.
+      reportConflict(trip.id, {
+        keepMine: async () => {
+          const fresh = await api.get<Trip>(`/v1/trips/${encodeURIComponent(trip.id)}`)
+          const saved = fresh.data ? await patchTrip(trip.id, fresh.data.version, body) : null
+          if (saved?.ok) nav(`/trips/${trip.id}`)
+          else setErrors({ form: t("sync.conflict.failed") })
+        },
+        useTheirs: onReload,
+      })
+    }
     setErrors({ form: t(r.reason === "conflict" ? "editTrip.conflict" : r.reason === "forbidden" ? "editTrip.viewerOnly" : "editTrip.failed") })
   }
 
@@ -125,6 +141,7 @@ export function TripEdit() {
   const { token } = useAuth()
   const { id } = useParams()
   const q = useTrip(id, !!token)
+  useEffect(() => () => (id ? clearConflict(id) : undefined), [id]) // a sheet must not outlive this screen
   if (!token) return <Navigate to="/welcome" replace />
   const trip = q.data
   return (
@@ -135,6 +152,7 @@ export function TripEdit() {
           {t("editTrip.back")}
         </Link>
         <h1 className="h-title">{t("editTrip.title")}</h1>
+        {id && <SyncIndicator tripId={id} variant="line" />}
         {q.isPending && (
           <>
             <p className="h-soft" aria-live="polite">

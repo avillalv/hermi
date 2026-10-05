@@ -1,5 +1,8 @@
 import { useState } from "react"
 import { Navigate, useNavigate, useParams, useSearchParams } from "react-router"
+import { EmptyState } from "../../components/EmptyState"
+import { QueryError } from "../../components/ErrorState"
+import { Skeleton } from "../../components/Skeleton"
 import { Avatar, Btn, Icon, SegItem, SegmentedControl, StatusStub, TicketStub, TripTicket } from "../../components/kit"
 import { daysBetween, parseDate } from "../../lib/dates"
 import { t } from "../../lib/i18n"
@@ -8,7 +11,7 @@ import { track } from "../../lib/track"
 import { useOnline } from "../../lib/useOnline"
 import { AppShell } from "../../shell/AppShell"
 import { useAuth } from "../auth/authStore"
-import { NotFound, useTrip, type Person } from "../trips/api"
+import { useTrip, type Person } from "../trips/api"
 import { tone } from "../trips/TripGroup"
 import { tripStrip } from "../trips/TripStrip"
 import "../trips/trips.css"
@@ -186,6 +189,7 @@ export function Stays() {
   const pending = !failed && (list.isPending || trip.isPending)
   const empty = !failed && !pending && all.length === 0
   const ready = !failed && !pending
+  const retry = () => void Promise.all([list.refetch(), trip.refetch()])
   const pick = (sid: string) => setPicked((p) => (p.includes(sid) ? p.filter((x) => x !== sid) : p.length < MAX_COMPARE ? [...p, sid] : p))
   const travelers = trip.data?.travelers ?? []
   const closeAdd = () => {
@@ -256,27 +260,15 @@ export function Stays() {
             {note.text}
           </p>
         )}
-        {pending && (
-          <>
-            <p className="h-soft" aria-live="polite">{t("stays.loading")}</p>
-            {[0, 1, 2].map((n) => <div key={n} className="stays__skel" aria-hidden="true" />)}
-          </>
-        )}
-        {failed && (
-          <div className="trips__stack">
-            <p role="alert" className="h-input__error trips__note">
-              <Icon name="circle-alert" size={16} />
-              {trip.error instanceof NotFound ? t("overview.notFound") : t("stays.error")}
-            </p>
-            {!(trip.error instanceof NotFound) && <Btn variant="secondary" onClick={() => void Promise.all([list.refetch(), trip.refetch()])}>{t("trips.retry")}</Btn>}
-          </div>
-        )}
+        {pending && <Skeleton shape="stayCard" count={3} onRetry={retry} />}
+        {failed && <QueryError error={trip.error ?? list.error} message={t("stays.error")} onRetry={retry} />}
         {empty && (
-          <div className="trips__empty">
-            <strong>{t("stays.emptyTitle")}</strong>
-            <span className="h-soft">{t("stays.emptyBody")}</span>
-            {canEdit && <Btn variant="primary" disabled={locked} onClick={() => setAdding(true)}>{t("stays.add")}</Btn>}
-          </div>
+          <EmptyState
+            icon="bed"
+            title={t("stays.emptyTitle")}
+            body={t("stays.emptyBody")}
+            action={canEdit && !locked ? { label: t("stays.add"), onClick: () => setAdding(true) } : undefined}
+          />
         )}
         {ready && !empty && view === "compare" &&
           (picked.length >= 2 ? (

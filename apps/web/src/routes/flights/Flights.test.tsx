@@ -49,10 +49,11 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-test("loading shows a route card skeleton with a chart frame", () => {
+test("loading shows the shared skeleton", async () => {
   mockApi(() => new Promise(() => {}) as never)
   const { container } = open()
-  expect(container.querySelector(".flights__skel")).toBeInTheDocument()
+  expect(await screen.findByRole("status", { name: "Loading" })).toBeInTheDocument()
+  expect(container.querySelector(".state-card--route .state-skel--chart")).toBeInTheDocument()
 })
 
 test("empty: no routes says so and offers Add a route", async () => {

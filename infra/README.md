@@ -26,3 +26,7 @@ Render env groups (set in the Render dashboard, referenced by `render/render.yam
 Secrets are set per step, never at job level. Snapshot before migration is left to Render point-in-time recovery.
 
 The image is `ghcr.io/avillalv/hermi`, pushed with the built-in `GITHUB_TOKEN`. Render needs a registry credential to pull it if the package is private.
+
+## Backups and restore drill (WF-039)
+
+PITR (7 days) and daily snapshots are Render database settings, noted in `render/render.yaml`. `scripts/backup-dump.sh` makes the weekly encrypted `pg_dump` for R2 (second Cloudflare account, key in `BACKUP_ENCRYPTION_KEY`, held outside Render). `scripts/restore-drill.sh` restores a dump into a scratch `hermi_*` database, smoke tests it and checks the 1 hour RTO; `--local` runs it with no R2 or Render. Procedure, restores and the drill log: `docs/runbooks/restore.md`. Test: `scripts/restore-drill.test.mjs`.

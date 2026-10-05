@@ -30,6 +30,7 @@ never prints its value. `npm run doctor` lists what is set and what is missing.
 | `CORS_ALLOWED_ORIGINS` | Allowed browser origins | Required | Startup fails | `http://localhost:5173`; web origins only, the API always adds the Capacitor origins (`capacitor://localhost`, `https://localhost`) in `main.py` |
 | `API_DOCS_ENABLED` | Serves `/docs` | Required | Startup fails | `true` locally, `false` in production |
 | `RELEASE_SHA` | Git SHA tagged onto logs, Sentry and metrics | Optional | Left off the tags | Set by CI and Render at deploy |
+| `VITE_RELEASE_SHA` | Git SHA of the web build, sent to Sentry as the release | Optional | `dev` | Set by CI at build |
 | `TRUSTED_PROXY_CIDRS` | Networks whose `X-Forwarded-For` is trusted | Optional | Empty: no proxy header is trusted | Cloudflare's published ranges, in production |
 | `IMPORT_SANDBOX` | `strict` or `timeout_only`. On Windows `timeout_only` is a time limit plus a psutil memory kill | Required | Startup fails | `timeout_only` locally on Windows, `strict` in CI and production |
 | `VITE_API_BASE_URL` | API origin for the web and iOS bundles | Required | Startup fails | `http://localhost:8100` |
@@ -146,6 +147,7 @@ Map tiles come from OpenFreeMap and need no key.
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | R2 S3 credentials | Production only | Local storage | Cloudflare dashboard, R2, API tokens. R2 needs a card on file |
 | `R2_BUCKET_UPLOADS`, `R2_BUCKET_EXPORTS`, `R2_BUCKET_BACKUPS` | Bucket names | Production only | Local storage | Create them in R2 (`hermi-uploads` and so on) |
 | `R2_ENDPOINT_URL` | S3 endpoint of the R2 account. New | Production only | Local storage | `https://<account id>.r2.cloudflarestorage.com` |
+| `BACKUP_ENCRYPTION_KEY` | Passphrase for the weekly dump (`infra/scripts/backup-dump.sh`, `restore-drill.sh`). Held outside Render, in a password manager. The dump job's `R2_*` values are the second Cloudflare account's. WF-039 | Not needed (`restore-drill.sh --local` makes a throwaway key) | The dump job refuses to run | `openssl rand -base64 32`, stored in the password manager and in the backup job's environment only |
 
 ## Apple and iOS
 

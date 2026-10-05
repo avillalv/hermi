@@ -1,0 +1,27 @@
+/* Shared empty, error and skeleton states (05 4.16 to 4.18, DL section 11). Tokens only. */
+.state { display: flex; flex-direction: column; align-items: center; gap: var(--tp-space-3); padding: var(--tp-space-8) var(--tp-space-4); text-align: center; color: var(--tp-ink); }
+.state--full { min-height: 100dvh; justify-content: center; background: var(--tp-paper); }
+.state__art { position: relative; display: grid; place-items: center; width: 160px; height: 96px; }
+.state__routes { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.12; }
+.state__icon { position: relative; color: var(--tp-ink-soft); }
+.state--error .state__icon { color: var(--tp-danger); }
+.state__body { margin: 0; max-width: 32ch; font: var(--tp-type-body); color: var(--tp-ink-soft); }
+.state__ref { margin: 0; color: var(--tp-ink-soft); }
+.state__actions { display: flex; flex-direction: column; align-items: stretch; gap: var(--tp-space-2); min-width: 220px; }
+.state__link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; color: var(--tp-brand); font: var(--tp-type-body-strong); }
+.state__row { display: flex; gap: var(--tp-space-2); justify-content: center; align-items: center; }
+
+.state-skel-wrap { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.state-skel { display: block; border-radius: var(--radius-sm); background-color: var(--tp-sunken); background-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--tp-ticket) 40%, transparent), transparent); background-size: 200% 100%; background-repeat: no-repeat; animation: state-shimmer 1.4s ease-in-out infinite; }
+.state-skel--line { height: 14px; }
+.state-skel--line:last-child { width: 60%; }
+.state-skel--block { height: 120px; }
+.state-skel--photo { flex: none; width: 64px; height: 64px; border-radius: 12px; }
+.state-skel--chips { height: 28px; width: 70%; border-radius: var(--radius-lg); }
+.state-skel--chart { border-left: 2px solid var(--tp-rule); border-bottom: 2px solid var(--tp-rule); }
+.state-skel--stub { width: 72px; align-self: stretch; }
+.state-card { display: flex; gap: var(--tp-space-3); padding: var(--tp-space-4); border: 1px solid var(--tp-rule); border-radius: var(--radius-lg); background: var(--tp-ticket); }
+.state-card__main { flex: 1; display: flex; flex-direction: column; gap: var(--tp-space-2); }
+.state-card--day { flex-direction: column; }
+@keyframes state-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .state-skel { animation: none; background-image: none; } }

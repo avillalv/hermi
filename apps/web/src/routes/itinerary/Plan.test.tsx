@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { bodyOf, mockApi, reset, show, type Handler } from "../onboarding/testing"
+import { __resetAnalytics } from "../../lib/analytics"
 import { Plan } from "./Plan"
 
 // jsdom has no WebGL: the Map tab falls back to its list, which is what these tests check.
@@ -60,11 +61,11 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-test("loading shows skeleton rows", () => {
+test("loading shows day card skeletons", async () => {
   mockApi(() => new Promise(() => {}) as never)
   const { container } = open()
-  expect(container.querySelectorAll(".plan__skel").length).toBeGreaterThanOrEqual(2)
-  expect(screen.getByText("Loading your plan")).toBeInTheDocument()
+  expect(await screen.findByRole("status", { name: "Loading" })).toBeInTheDocument()
+  expect(container.querySelectorAll(".state-card--day")).toHaveLength(3)
 })
 
 test("error: a failed load shows the message and a retry", async () => {
@@ -80,6 +81,14 @@ test("empty trip says nothing is planned and offers Add a place", async () => {
   expect(await screen.findByText("Nothing planned yet")).toBeInTheDocument()
   expect(screen.getByText("Add a place to start.")).toBeInTheDocument()
   expect(screen.getByRole("button", { name: "Add a place" })).toBeEnabled()
+})
+
+test("empty trip offline has no Add a place action", async () => {
+  vi.spyOn(navigator, "onLine", "get").mockReturnValue(false)
+  mockApi(api({ days: [], items: [], trip: { start_date: null, end_date: null } }))
+  open()
+  expect(await screen.findByText("Nothing planned yet")).toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: "Add a place" })).not.toBeInTheDocument()
 })
 
 test("day strip is a tablist; the first day shows its stops on the kit timeline and an empty day says Free day", async () => {
@@ -565,4 +574,25 @@ test("phone list mode: a start moved late keeps the end inside the same day", as
   fireEvent.click(within(sheet).getByRole("button", { name: "Save" }))
   await waitFor(() => expect(calls(f, "PATCH", "/items/i3")).toHaveLength(1))
   expect(JSON.parse(String((calls(f, "PATCH", "/items/i3")[0][1] as RequestInit).body))).toMatchObject({ start_time: "23:00:00", end_time: "23:59:00" })
+})
+
+test("two manual adds fire itinerary_item_added each time and first_itinerary_item_added once", async () => {
+  localStorage.clear()
+  __resetAnalytics()
+  const ev = events()
+  mockApi(api({ more: (u, i) => (u.endsWith("/trips/t1/items") && i?.method === "POST" ? Response.json(item("n1", "Castle"), { status: 201 }) : undefined) }))
+  open()
+  await screen.findByText("Museum")
+  for (const title of ["Castle", "Tower"]) {
+    fireEvent.click(screen.getByRole("button", { name: "Add item" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Custom item" }))
+    const sheet = await screen.findByRole("dialog", { name: "Add an item" })
+    fireEvent.change(within(sheet).getByLabelText("Title"), { target: { value: title } })
+    fireEvent.click(within(sheet).getByRole("button", { name: "Add to plan" }))
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument())
+  }
+  const names = ev.seen.map((e) => e.event)
+  expect(names.filter((n) => n === "itinerary_item_added")).toHaveLength(2)
+  expect(names.filter((n) => n === "first_itinerary_item_added")).toHaveLength(1)
+  ev.stop()
 })

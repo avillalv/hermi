@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
 
+from hermi import analytics
 from hermi.deps import (
     CurrentUserOrPendingDeletion,
     DbSessionOrPendingDeletion,
@@ -40,6 +41,22 @@ def bootstrap(
         rate_limit.check_signup(request, token.email)
     me, created = service.bootstrap(request.app.state.engine, token, body)
     response.status_code = 201 if created else 200
+    if created:
+        # shortcut: invite, referral and guest claim are not part of bootstrap yet (WF-040, referral ticket), so those
+        # three are False. Fill them in when those fields land.
+        analytics.capture(
+            "signup_completed",
+            me.id,
+            {
+                "method": "email_code" if token.provider == "email" else token.provider,
+                "from_invite": False,
+                "from_referral": False,
+                "was_guest": False,
+                "tier": me.tier,
+                "is_guest": False,
+            },
+            opted_out=request.headers.get("sec-gpc") == "1",  # Global Privacy Control (10 section 4)
+        )
     return me
 
 

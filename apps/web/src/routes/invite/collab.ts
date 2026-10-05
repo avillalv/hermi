@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { queryClient } from "../../lib/queryClient"
+import { ApiError } from "../../lib/api/client"
 import { api } from "../auth/api"
 import type { Trip } from "../trips/api"
 
@@ -22,7 +23,7 @@ function useList<T>(key: unknown[], path: string, enabled: boolean) {
       enabled,
       queryFn: async () => {
         const r = await api.get<T[]>(path)
-        if (r.error !== undefined || !r.data) throw new Error(`${path} ${r.response.status}`)
+        if (r.error !== undefined || !r.data) throw new ApiError(r)
         return r.data
       },
     },
@@ -41,7 +42,7 @@ export function useCollaboratorMax(tripId: string, enabled: boolean) {
       enabled,
       queryFn: async () => {
         const r = await api.get<{ limits: { collaborators?: number }; trip_passes: { trip_id: string | null; status: string; collaborators_max: number }[] }>("/v1/me/entitlements")
-        if (r.error !== undefined || !r.data) throw new Error("entitlements")
+        if (r.error !== undefined || !r.data) throw new ApiError(r)
         const passes = r.data.trip_passes.filter((p) => p.trip_id === tripId && p.status === "active").map((p) => p.collaborators_max)
         return Math.max(r.data.limits.collaborators ?? 1, ...passes)
       },

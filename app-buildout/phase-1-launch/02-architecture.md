@@ -331,7 +331,7 @@ Times are UTC unless marked local. "Key" is the idempotency key: a second run wi
 | `ai_spend_guard` | api | Scheduler | Every 5 minutes; sums `ai_usage`, trips the global circuit breaker, raises alerts | `(bucket_5m)` | none |
 | `reconcile_anthropic_usage` | batch | Scheduler | Daily 06:30; pulls the Anthropic usage and cost admin API and compares it with `ai_usage` (alert above 3 percent) | `(date)` | transient x3 |
 | `provider_quota_check` | api | Scheduler | Every 30 minutes (SerpApi account API, Geoapify, Travelpayouts rate limits) | `(provider, bucket_30m)` | none |
-| `db_dump_offsite` | batch | Scheduler | Weekly, Sunday 03:00; encrypted `pg_dump` to R2 backups bucket, 90 day lifecycle | `(week)` | transient x3, alert on failure |
+| `db_dump_offsite` | batch | Scheduler | Weekly, Sunday 03:00; encrypted `pg_dump` to R2 backups bucket, 35 day lifecycle (the privacy promise in 03 and 10) | `(week)` | transient x3, alert on failure |
 | `heartbeat_ping` | api | Scheduler | Every minute; pings Better Stack heartbeat URLs for scheduler and queue | none | none |
 
 **Keyless rule.** A job whose provider key is missing (quota check, heartbeat, usage reconcile, offsite dump, conversions) logs and skips; it never fails the queue.
@@ -585,6 +585,7 @@ All configuration is environment variables, read once in `config.py` through `py
 | `VITE_API_BASE_URL` | API origin used by the web and iOS bundles | `https://api.hermi.world` | No | `http://127.0.0.1:8100` |
 | `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Client sign-in | `https://abc.supabase.co` / `eyJ...` | No (anon key is public by design) | empty (dev sign-in) |
 | `VITE_APP_ENV` | Shown in the settings footer and Sentry | `production` | No | `local` |
+| `VITE_RELEASE_SHA` | Git SHA of the web build, sent to Sentry as the release | `a1b2c3d` | No | `dev` |
 | `STATUS_PAGE_URL` / `VITE_STATUS_PAGE_URL` | The hosted public status page, linked from Settings and the `/status` redirect | `https://status.hermi.world` | No | empty |
 
 `config.py` enforces the Local column: a variable empty in Local is optional, and a missing optional key makes its provider raise `NotConfigured`. Empty is fine in Local for every `SUPABASE_*`, `ANTHROPIC_API_KEY`, `TRAVELPAYOUTS_*`, `GEOAPIFY_API_KEY`, `SERPAPI_*`, `RESEND_*`, `R2_*`, `SENTRY_*`, `POSTHOG_*`, `APNS_*`, `APPLE_*` and `REVENUECAT_*`.

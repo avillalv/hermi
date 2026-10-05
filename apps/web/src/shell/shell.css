@@ -1,7 +1,7 @@
 /* App shell (WF-130.4). DL section 3 "From artboard to app" and 05 5.3. Values come from tokens and hermi.css only. */
 .shell { min-height: 100dvh; background: var(--tp-paper); color: var(--tp-ink); }
 .shell-main { min-width: 0; }
-.shell-strip { position: sticky; top: 0; z-index: 10; margin: 0; padding: env(safe-area-inset-top) var(--tp-space-4) 0; background: var(--tp-paper); }
+.shell .shell-strip { position: sticky; top: 0; z-index: 10; margin: 0; padding: env(safe-area-inset-top) var(--tp-space-4) 0; background: var(--tp-paper); }
 .shell-sheet { max-width: 1120px; margin: 0 auto; padding: var(--tp-space-4) var(--tp-space-4) calc(86px + env(safe-area-inset-bottom)); }
 
 /* Layout constants stay raw: 72 px rail, 248 px sidebar, 1120 px content (05 5.3, 10), 83 px tab bar fade and 86 px

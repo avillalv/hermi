@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { queryClient } from "../../lib/queryClient"
+import { setAnalyticsUser } from "../../lib/analytics"
+import { ApiError } from "../../lib/api/client"
 import { api } from "../auth/api"
 
 // shortcut: hand-written from apps/api/hermi/modules/lodging/schemas.py until `npm run gen:api` is real.
@@ -56,7 +58,8 @@ export const useMe = (on: boolean) =>
       retry: 1,
       queryFn: async () => {
         const r = await api.get<{ id: string }>("/v1/me")
-        if (r.error !== undefined || !r.data) throw new Error(`me ${r.response.status}`)
+        if (r.error !== undefined || !r.data) throw new ApiError(r)
+        setAnalyticsUser(r.data.id)
         return r.data
       },
     },
@@ -72,7 +75,7 @@ export const useStays = (id: string, sort: Sort, on: boolean) =>
       refetchInterval: POLL_MS,
       queryFn: async () => {
         const r = await api.get<StayPage>(`${trip(id)}/lodging`, { query: { sort, limit: 200 } })
-        if (r.error !== undefined || !r.data) throw new Error(`lodging ${r.response.status}`)
+        if (r.error !== undefined || !r.data) throw new ApiError(r)
         return r.data
       },
     },

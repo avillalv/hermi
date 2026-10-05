@@ -143,3 +143,38 @@ test("a step 1 error is announced once", () => {
   next()
   expect(screen.getAllByRole("alert")).toHaveLength(1)
 })
+
+const tripEvents = () => {
+  const seen: { event: string; props: Record<string, unknown> }[] = []
+  const on = (e: Event) => seen.push((e as CustomEvent).detail)
+  window.addEventListener("hermi:event", on)
+  return { seen, stop: () => window.removeEventListener("hermi:event", on) }
+}
+
+test("a successful create fires trip_created once with the catalogue properties", async () => {
+  const ev = tripEvents()
+  mockApi((u, init) => suggest(u) ?? (isCreate(u, init) ? created() : undefined))
+  show(<CreateTrip />, "/trips/new")
+  fill("Search a city or country", "Lis")
+  fireEvent.click(await screen.findByRole("option", { name: /Lisbon/ }))
+  next()
+  fill("Start date", "2027-03-12")
+  fill("End date", "2027-03-19")
+  next()
+  fireEvent.click(screen.getByRole("button", { name: "Create trip" }))
+  await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/$/))
+  expect(ev.seen.filter((e) => e.event === "trip_created")).toEqual([{ event: "trip_created", props: { source: "blank", destination_count: 1, has_dates: true } }])
+  ev.stop()
+})
+
+test("a failing create does not fire trip_created", async () => {
+  const ev = tripEvents()
+  const f = mockApi((u, init) => (isCreate(u, init) ? new Response("{}", { status: 500 }) : undefined))
+  show(<CreateTrip />, "/trips/new")
+  toStep3()
+  fireEvent.click(screen.getByRole("button", { name: "Create trip" }))
+  await waitFor(() => expect(bodyOf(f, "/v1/trips")).toBeDefined())
+  await screen.findByRole("alert")
+  expect(ev.seen.filter((e) => e.event === "trip_created")).toHaveLength(0)
+  ev.stop()
+})

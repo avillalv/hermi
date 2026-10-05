@@ -12,7 +12,7 @@ test("Flights shows an error with Try again, then the empty state", async ({ pag
   await page.getByRole("button", { name: "Free user" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Trips" })).toBeVisible();
   await page.goto("/trips/t1/flights");
-  await expect(page.getByRole("alert")).toHaveText("We could not load fares. Try again.", { timeout: 10_000 });
+  await expect(page.getByRole("alert").getByText("We could not load fares. Try again.", { exact: true })).toBeVisible({ timeout: 10_000 });
   fail = false;
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByText("No routes yet")).toBeVisible();

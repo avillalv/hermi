@@ -20,11 +20,10 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-test("loading shows a status, then the empty state", async () => {
+test("the empty state", async () => {
   mockApi(feeds([]))
   show(<Activity />, "/activity")
   expect(screen.getByRole("heading", { level: 1, name: "Activity" })).toBeInTheDocument()
-  expect(screen.getByText("Loading activity")).toBeInTheDocument()
   expect(await screen.findByRole("heading", { name: "Nothing new" })).toBeInTheDocument()
   expect(screen.getByText("Price alerts, changes from your group and finished AI runs show up here.")).toBeInTheDocument()
 })
@@ -90,7 +89,7 @@ test("offline shows the saved activity banner and no skeleton", () => {
   mockApi(feeds([]))
   show(<Activity />, "/activity")
   expect(screen.getByRole("status")).toHaveTextContent("You are offline. Showing your saved activity.")
-  expect(screen.queryByText("Loading activity")).not.toBeInTheDocument()
+  expect(screen.queryByRole("status", { name: "Loading" })).not.toBeInTheDocument()
 })
 
 test("a new item appears after the poll interval", async () => {

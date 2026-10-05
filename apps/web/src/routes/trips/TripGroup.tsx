@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { TRAVELER_COLORS } from "@hermi/tokens";
+import { QueryError } from "../../components/ErrorState";
+import { Skeleton } from "../../components/Skeleton";
 import { Avatar, Btn, Icon, TextField, type Tone } from "../../components/kit";
 import { t } from "../../lib/i18n";
 import { useOnline } from "../../lib/useOnline";
 import { AppShell } from "../../shell/AppShell";
 import { useAuth } from "../auth/authStore";
 import {
-  NotFound,
   useTrip,
   type ActionResult,
   type Person,
@@ -361,35 +362,8 @@ export function TripGroup() {
             {t("group.offline")}
           </p>
         )}
-        {q.isPending && (
-          <>
-            <p className="h-soft" aria-live="polite">
-              {t("group.loading")}
-            </p>
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="trips__skel group__skel"
-                aria-hidden="true"
-              />
-            ))}
-          </>
-        )}
-        {q.isError && (
-          <div className="trips__stack">
-            <p role="alert" className="h-input__error trips__note">
-              <Icon name="circle-alert" size={16} />
-              {q.error instanceof NotFound
-                ? t("overview.notFound")
-                : t("group.error")}
-            </p>
-            {!(q.error instanceof NotFound) && (
-              <Btn variant="secondary" onClick={() => void q.refetch()}>
-                {t("trips.retry")}
-              </Btn>
-            )}
-          </div>
-        )}
+        {q.isPending && <Skeleton shape="lines" onRetry={() => void q.refetch()} />}
+        {q.isError && <QueryError error={q.error} message={t("group.error")} onRetry={() => void q.refetch()} />}
         {q.data && <People trip={q.data} />}
       </div>
     </AppShell>

@@ -43,7 +43,7 @@ test("a trips load error shows the message and Try again", async ({ page }) => {
   await page.route("**/v1/trips", (r) => r.fulfill({ status: 500, json: {} }));
   await page.goto("/sign-in");
   await page.getByRole("button", { name: "Free user" }).click();
-  await expect(page.getByRole("alert")).toHaveText("We could not load your trips. Try again.");
+  await expect(page.getByRole("alert").getByText("We could not load your trips. Try again.", { exact: true })).toBeVisible();
 });
 
 // WF-018.2 error and offline states. A real-provider session (no persona) whose GET /me is 401 is a new user.
