@@ -9,6 +9,7 @@ COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
 COPY packages packages
 COPY locales locales
+COPY app-buildout/brand app-buildout/brand
 RUN npm ci
 COPY apps/web apps/web
 RUN npm run build --workspace apps/web
