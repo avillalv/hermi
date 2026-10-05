@@ -15,6 +15,7 @@ import { TripEdit } from "../routes/trips/TripEdit";
 import { TripOverview } from "../routes/trips/TripOverview";
 import { TripsHome } from "../routes/trips/TripsHome";
 import { Welcome } from "../routes/onboarding/Welcome";
+import { NotFound } from "../routes/errors";
 import { AppShell, TABS } from "./AppShell";
 
 /** Placeholder until each tab's ticket lands. Trips is the home route `/` (05 5.4). */
@@ -49,6 +50,7 @@ export function AppRoutes() {
       {TABS.filter((t) => t.key !== "trips" && t.key !== "activity").map((t) => (
         <Route key={t.key} path={t.href} element={<Placeholder tab={t} />} />
       ))}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

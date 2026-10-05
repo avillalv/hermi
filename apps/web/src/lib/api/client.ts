@@ -94,3 +94,40 @@ export function createApiClient({ baseUrl = env.apiBaseUrl, auth, fetch: f }: Ap
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>
+
+export type ErrorKind =
+  | "offline" | "unauthorized" | "limit" | "rateLimited" | "maintenance"
+  | "forcedUpdate" | "notFound" | "permission" | "conflict" | "server"
+
+export type ErrorInfo = { kind: ErrorKind; requestId?: string; /** Seconds from Retry-After. */ retryAfter?: number }
+
+/**
+ * Map a failed ApiResult, or a thrown fetch error, to the error state to show (05 4.17). Codes are 04 section 3.
+ * Pass `online` in tests; it defaults to the browser.
+ */
+export function errorKind(failure: unknown, online: boolean = typeof navigator === "undefined" || navigator.onLine): ErrorInfo {
+  if (!online) return { kind: "offline" }
+  if (!(typeof failure === "object" && failure && "response" in failure)) {
+    // fetch rejects with a TypeError when the network fails.
+    return { kind: failure instanceof TypeError ? "offline" : "server" }
+  }
+  const { error, response } = failure as ApiResult
+  const code = typeof (error as { code?: unknown } | undefined)?.code === "string" ? (error as { code: string }).code : ""
+  const body = (error as { request_id?: unknown } | undefined)?.request_id
+  const requestId = response.headers.get("X-Request-Id") ?? (typeof body === "string" ? body : undefined)
+  const bodyRetry = (error as { retry_after_seconds?: unknown } | undefined)?.retry_after_seconds
+  const ra = Number(response.headers.get("Retry-After") ?? bodyRetry)
+  const retryAfter = ra > 0 && Number.isFinite(ra) ? ra : undefined
+  const s = response.status
+  const kind: ErrorKind =
+    s === 426 || code === "client_upgrade_required" ? "forcedUpdate"
+    : s === 503 && code === "feature_disabled" ? "maintenance"
+    : s === 401 ? "unauthorized"
+    : s === 402 || (s === 429 && (code === "provider_budget_exhausted" || code === "quota_exceeded")) ? "limit"
+    : s === 403 && code === "insufficient_role" ? "permission"
+    : s === 404 || s === 410 ? "notFound"
+    : s === 409 ? "conflict"
+    : s === 429 ? "rateLimited"
+    : "server"
+  return { kind, requestId, retryAfter }
+}
