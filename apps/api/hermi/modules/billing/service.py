@@ -6,17 +6,25 @@ Plan limits and missing entitlements are 402 with a `paywall` hint (04 section 2
 """
 
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from hermi.errors import ApiError
+from hermi.modules.billing.paywall import TRIGGERS
+from hermi.modules.billing.schemas import (
+    CreditBalance,
+    CreditGrantOut,
+    Entitlements,
+    Flags,
+    TripPassOut,
+    Usage,
+)
 
-# (trigger, reason, free_path) per limit key that can fire a paywall (04 section 2.2, 07 section 6.2).
-_PAYWALLS = {
-    "active_trips": ("third_trip", "trip_limit", "Archive a trip or join trips other people plan"),
-}
+# The paywall trigger a limit key fires (04 section 2.2, 07 section 6.2); reason and free path come from `paywall.TRIGGERS`.
+_PAYWALLS = {"active_trips": "third_trip"}
 
 
 def user_limits(session: Session, user_id: uuid.UUID) -> dict[str, Any]:
@@ -35,7 +43,9 @@ def user_limits(session: Session, user_id: uuid.UUID) -> dict[str, Any]:
 def trip_limits(session: Session, trip_id: uuid.UUID) -> tuple[list[str], dict[str, Any]]:
     """(sources, merged limits) for a trip the caller is a member of: the best of the owner's tier and any active pass,
     per key. Invitees get the owner's tier on that trip only. ([], {}) when the trip is not visible to the caller."""
-    row = session.execute(text("SELECT sources, limits FROM trip_effective_limits(:t)"), {"t": trip_id}).first()
+    row = session.execute(
+        text("SELECT sources, limits FROM trip_effective_limits(:t)"), {"t": trip_id}
+    ).first()
     return (list(row[0]), row[1]) if row and row[1] else ([], {})
 
 
@@ -66,12 +76,20 @@ def paywall_error(key: str, limit: int, message: str, *, upsell: bool = True) ->
     """402 `limit_reached`, with the PaywallHint for a limit key unless `upsell` is false (nothing to sell: the top tier hit its fair-use ceiling)."""
     if not upsell:
         return ApiError(402, "limit_reached", message)
-    trigger, reason, free_path = _PAYWALLS[key]
+    trigger = _PAYWALLS[key]
+    reason, free_path = TRIGGERS[trigger].reason, TRIGGERS[trigger].free_path
     return ApiError(
         402,
         "limit_reached",
         message,
-        extra={"paywall": {"trigger": trigger, "reason": reason, "offer_url": f"/v1/paywall/offer?reason={reason}", "free_path": free_path}},
+        extra={
+            "paywall": {
+                "trigger": trigger,
+                "reason": reason,
+                "offer_url": f"/v1/paywall/offer?reason={reason}",
+                "free_path": free_path,
+            }
+        },
     )
 
 
@@ -80,6 +98,128 @@ def require_active_trip_slot(session: Session, user_id: uuid.UUID) -> None:
     limits = user_limits(session, user_id)
     limit = limit_of(limits, "active_trips")
     if count_active_owned(session, user_id) >= limit:
-        if limit > limit_of(billing_free(session), "active_trips"):  # a paid tier at its fair-use ceiling: no upsell
-            raise paywall_error("active_trips", limit, f"You have {limit} active trips. Archive one to make room.", upsell=False)
-        raise paywall_error("active_trips", limit, f"You have {limit} active trips. Archive one to make room, or upgrade.")
+        if limit > limit_of(
+            billing_free(session), "active_trips"
+        ):  # a paid tier at its fair-use ceiling: no upsell
+            raise paywall_error(
+                "active_trips",
+                limit,
+                f"You have {limit} active trips. Archive one to make room.",
+                upsell=False,
+            )
+        raise paywall_error(
+            "active_trips",
+            limit,
+            f"You have {limit} active trips. Archive one to make room, or upgrade.",
+        )
+
+
+CANCEL_URL = (
+    "https://apps.apple.com/account/subscriptions"  # 07 section 7.11: Apple's own subscription page
+)
+
+
+def get_entitlements(session: Session, user_id: uuid.UUID) -> Entitlements:
+    """04 section 5.19. Read only, never calls Apple. A lapsed tier reads as Free (`user_limits` agrees). Pass limits are per trip, so they are listed, not merged."""
+    e = (
+        session.execute(
+            text(
+                "SELECT e.tier_code, e.source, e.valid_until, e.in_grace, s.product_id, s.status::text AS sub_status, s.auto_renew "
+                "  FROM entitlements e LEFT JOIN subscriptions s ON s.id = e.subscription_id WHERE e.user_id = :u"
+            ),
+            {"u": user_id},
+        )
+        .mappings()
+        .first()
+    )
+    live = (
+        bool(e)
+        and e["tier_code"] != "free"
+        and (e["valid_until"] is None or e["valid_until"] > datetime.now(UTC))
+    )
+    limits = user_limits(session, user_id)
+    status = (
+        e["sub_status"]
+        if live and e["sub_status"]
+        else ("active" if live else ("expired" if e and e["tier_code"] != "free" else "none"))
+    )
+    passes = (
+        session.execute(
+            text(
+                "SELECT id, source, trip_id, starts_at, expires_at, status::text AS status, live_checks_max - live_checks_used AS left_, collaborators_max "
+                "  FROM trip_passes WHERE purchaser_user_id = :u ORDER BY created_at DESC"
+            ),
+            {"u": user_id},
+        )
+        .mappings()
+        .all()
+    )
+    grants = (
+        session.execute(
+            text(
+                "SELECT kind::text AS kind, remaining, expires_at, trip_id FROM credit_grants "
+                " WHERE user_id = :u AND remaining > 0 AND (expires_at IS NULL OR expires_at > now()) ORDER BY expires_at NULLS LAST"
+            ),
+            {"u": user_id},
+        )
+        .mappings()
+        .all()
+    )
+    by_kind = lambda k: sum(g["remaining"] for g in grants if g["kind"] == k)  # noqa: E731
+    blocked = bool(
+        session.execute(
+            text("SELECT 1 FROM credit_debts WHERE user_id = :u AND amount > 0"), {"u": user_id}
+        ).first()
+    )
+    taster_spent = session.execute(
+        text(
+            "SELECT 1 FROM credit_grants WHERE user_id = :u AND period_key = 'taster' AND remaining = 0"
+        ),
+        {"u": user_id},
+    ).first()
+    taster = limit_of(limits, "taster_agent_runs") > 0 and not taster_spent
+    reward_used = session.execute(
+        text("SELECT 1 FROM trip_imports WHERE user_id = :u AND reward_granted_at IS NOT NULL"),
+        {"u": user_id},
+    ).first()
+    return Entitlements(
+        tier="plus" if live else "free",
+        source=e["source"] if live else "none",
+        product_id=e["product_id"] if live else None,
+        status=status,
+        valid_until=e["valid_until"] if live else None,
+        auto_renew=e["auto_renew"] if live and e["source"] == "subscription" else None,
+        store="apple" if live and e["source"] == "subscription" else None,
+        manage_subscription_url=CANCEL_URL if live and e["source"] == "subscription" else None,
+        cancel_url=CANCEL_URL if live and e["source"] == "subscription" else None,
+        limits=limits,
+        usage=Usage(active_trips=count_active_owned(session, user_id)),
+        trip_passes=[
+            TripPassOut(
+                id=p["id"],
+                source="import_reward" if p["source"] == "import_reward" else "purchase",
+                trip_id=p["trip_id"],
+                starts_at=p["starts_at"],
+                expires_at=p["expires_at"],
+                status=p["status"],
+                live_checks_left=p["left_"],
+                collaborators_max=p["collaborators_max"],
+            )
+            for p in passes
+        ],
+        # shortcut: Free gets no agent runs beyond the taster; the paid-tier flag follows the tier until the agent gate (WF-0xx) owns it.
+        flags=Flags(
+            agent_runs=live or taster,
+            taster_available=taster,
+            import_reward_available=not reward_used,
+        ),
+        credits=CreditBalance(
+            total=sum(g["remaining"] for g in grants),
+            monthly=by_kind("monthly"),
+            trip_pass=by_kind("trip_pass"),
+            purchased=by_kind("purchase"),
+            grants=[CreditGrantOut(**g) for g in grants],
+            next_monthly_grant_at=None,  # shortcut: no monthly grants until the ledger lands; add the date in WF-044
+            blocked=blocked,
+        ),
+    )
