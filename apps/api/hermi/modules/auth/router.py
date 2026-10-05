@@ -5,10 +5,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
 
-from hermi.deps import CurrentUserOrPendingDeletion, DbSessionOrPendingDeletion, verified_token
+from hermi.deps import (
+    CurrentUserOrPendingDeletion,
+    DbSessionOrPendingDeletion,
+    identity_user,
+    verified_token,
+)
 from hermi.errors import ApiError
 from hermi.modules.auth import service
 from hermi.modules.auth.schemas import BootstrapIn, DevSessionIn, DevSessionOut, Me, PersonaOut
+from hermi.security import rate_limit
 from hermi.security.jwt import VerifiedToken
 
 router = APIRouter(tags=["auth"])
@@ -30,6 +36,8 @@ def bootstrap(
 ) -> Me:
     if request.app.state.engine is None:
         raise ApiError(500, "internal_error", "Something went wrong on our side. Try again.")
+    if identity_user(request, token) is None:
+        rate_limit.check_signup(request, token.email)
     me, created = service.bootstrap(request.app.state.engine, token, body)
     response.status_code = 201 if created else 200
     return me

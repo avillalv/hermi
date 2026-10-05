@@ -4,7 +4,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Query, Request, Response
+from fastapi import APIRouter, Depends, Path, Query, Request, Response
 from sqlalchemy.orm import Session
 
 from hermi.deps import CurrentUser, DbSession, TripAccess, require_trip
@@ -23,9 +23,11 @@ from hermi.modules.collaboration.schemas import (
     ShareLinkPatch,
     TransferIn,
 )
+from hermi.modules.notifications.waitlist import client_ip
 from hermi.modules.trips import repo
 from hermi.modules.trips.router import full_trip
 from hermi.modules.trips.schemas import Trip
+from hermi.security.rate_limit import digest, hit
 
 router = APIRouter(tags=["collaboration"])
 
@@ -138,9 +140,14 @@ def revoke_share_link(link_id: uuid.UUID, access: Annotated[TripAccess, require_
     return Response(status_code=204)
 
 
-@router.get("/shared/{token}", response_model=SharedTrip)
+def _limit_share_view(token: Token, request: Request) -> None:
+    hit(request.app.state.engine, "share_view", digest(token))
+    hit(request.app.state.engine, "share_view_ip", client_ip(request))
+
+
+@router.get("/shared/{token}", response_model=SharedTrip, dependencies=[Depends(_limit_share_view)])
 def shared_trip(token: Token, request: Request, response: Response) -> SharedTrip:
-    # shortcut: no per-IP and per-token limit yet (04 5.6); WF-028 adds the limiter.
+    # shortcut: every call counts, valid or not, in a fixed window (see security/rate_limit.py), so a scanner of unknown tokens burns its own IP budget only. Upgrade with the token bucket.
     page, indexable = service.view_shared(request.app.state.settings, token)
     response.headers["Cache-Control"] = "public, max-age=60"
     if not indexable:

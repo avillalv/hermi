@@ -86,7 +86,7 @@ def test_seed_rows_match_03_section_11(sysc):
         "store_products": 6,
         "credit_action_prices": 7,
         "affiliate_programs": 20,
-        "feature_flags": 21,
+        "feature_flags": 22,
         "kill_switches": 37 + 20,
     }
     free, plus, ppass = (

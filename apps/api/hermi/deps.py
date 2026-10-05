@@ -42,7 +42,7 @@ def verified_token(request: Request) -> VerifiedToken:
         ) from None
 
 
-def _identity_user(request: Request, token: VerifiedToken) -> AuthUser | None:
+def identity_user(request: Request, token: VerifiedToken) -> AuthUser | None:
     # app.user_id is not set yet and row-level security hides auth_identities, so the lookup is a definer function.
     with request.app.state.engine.connect() as conn:
         row = conn.execute(
@@ -56,7 +56,7 @@ def user_dependency(*, allow_pending_deletion: bool = False) -> Callable[..., Au
     def current_user(
         request: Request, token: Annotated[VerifiedToken, Depends(verified_token)]
     ) -> AuthUser:
-        user = _identity_user(request, token)
+        user = identity_user(request, token)
         if user is None:
             raise ApiError(
                 401,

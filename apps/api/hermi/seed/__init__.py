@@ -111,7 +111,9 @@ INSERT INTO feature_flags (key, kind, description, enabled, rollout_pct, rules, 
 ('setting_booked_fare_drop',       'setting', 'Booked-fare drop alert thresholds: at least min_drop_pct percent and at least min_drop_usd US dollars (converted) below what was paid, at most once per flight every min_days_between days; never a partner link', true, 100,
    '{"min_drop_pct":5,"min_drop_usd":10,"min_days_between":7,"max_age_hours":48}', '{}'),
 ('setting_calendar_polling',       'setting', 'Calendar feed polling: hours between polls (6), failures in a row before polling stops (3), polled feeds per person (3)', true, 100,
-   '{"interval_hours":6,"max_failures":3,"max_feeds_per_user":3}', '{}')
+   '{"interval_hours":6,"max_failures":3,"max_feeds_per_user":3}', '{}'),
+('setting_rate_limits',            'setting', 'Requests allowed per window for each rate limit route class (10 section 2.3); the window lengths are in code; a missing class keeps its built-in value', true, 100,
+   '{"ai":30,"places_search":30,"outbound":60,"import_preview":20,"import_ics_feed":5,"import_confirm":30,"link_preview":20,"export":1,"delete":1,"signup_ip":5,"share_view":60,"share_view_ip":120,"read_user":600,"read_ip":1200,"write_user":120,"write_ip":600}', '{}')
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO kill_switches (key, description, auto_rule) VALUES
