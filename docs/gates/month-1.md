@@ -1,6 +1,6 @@
 # Month 1 gate
 
-Date: 2026-10-05. Unit: 07. Verdict: JUDGE_PENDING.
+Date: 2026-10-05. Unit: 07. Verdict: fixed in this PR.
 
 ## Month exit
 
@@ -41,4 +41,4 @@ Routed: INDEX.md gained pointers to the repo docs and the 5 skills, 4 skill desc
 
 ## Judge
 
-JUDGE_PENDING
+Round 1 (opus-judge): fix now. The Playwright smoke project existed but nothing ran it, and the axe scans belong to the Month 2 gate (WF-036). Fixed in `ship: 07`: `test:e2e:smoke` runs the fetch checks then the Playwright smoke project, `e2e.yml` installs Chromium, Playwright reuses the dev servers in CI, and the log masking the 7.1 item needs was built (`APPROVE gate-1`). Round 2: pass. Cut list: not applied, the build is ahead of the week 4 exit. DECISIONS.md row: "Month 1 gate" dated 2026-10-05. The 7.1 smoke item is only fully proven when the `e2e` workflow on this PR is green.
