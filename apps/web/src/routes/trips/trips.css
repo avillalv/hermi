@@ -7,7 +7,7 @@
 .trips__skel { min-height: 120px; border: 1px solid transparent; border-radius: var(--radius-xl); background: var(--tp-sunken); }
 .trips__note { display: flex; align-items: center; gap: var(--tp-space-2); }
 .overview { display: flex; flex-direction: column; gap: var(--tp-space-3); }
-.overview__back { align-self: flex-start; }
+.overview__back, .overview__invite { align-self: flex-start; }
 .overview__row { display: flex; align-items: center; gap: var(--tp-space-3); }
 .overview__lead { display: block; padding: var(--tp-space-3) var(--tp-space-4) var(--tp-space-2); }
 .edit { display: flex; flex-direction: column; gap: var(--tp-space-4); }

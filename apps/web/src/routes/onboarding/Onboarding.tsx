@@ -5,6 +5,7 @@ import { t } from "../../lib/i18n"
 import { useOnline } from "../../lib/useOnline"
 import { api } from "../auth/api"
 import { useAuth } from "../auth/authStore"
+import { pendingInvite } from "../invite/collab"
 import { markOnboarded } from "./trips"
 import "../auth/auth.css"
 import "./onboarding.css"
@@ -52,7 +53,8 @@ export function Onboarding() {
       }
       if (r.error !== undefined) throw new Error(String(r.response.status))
       markOnboarded()
-      nav("/trips/new", { replace: true })
+      const back = pendingInvite.target() // an invite waiting to be joined comes before Create trip
+      nav(back === "/" ? "/trips/new" : back, { replace: true })
     } catch {
       setError(t("onboarding.failed"))
       setBusy(null)

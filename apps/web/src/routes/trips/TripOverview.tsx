@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Link, Navigate, useNavigate, useParams } from "react-router"
+import { useEffect, useState } from "react"
+import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router"
 import { Icon, StatusStub, TicketStub, TripTicket, Field } from "../../components/kit"
 import { timingLabel, tripTiming } from "../../lib/dates"
 import { t } from "../../lib/i18n"
@@ -124,7 +124,12 @@ export function TripOverview() {
   const online = useOnline()
   const q = useTrip(id, !!token)
   const nav = useNavigate()
-  const [notice, setNotice] = useState<Notice | null>(null)
+  const addedBy = (useLocation().state as { addedBy?: string } | null)?.addedBy
+  // Read once, then clear it from history so a reload or Back does not show the banner again.
+  useEffect(() => {
+    if (addedBy) nav(".", { replace: true, state: null })
+  }, [addedBy, nav])
+  const [notice, setNotice] = useState<Notice | null>(addedBy ? { kind: "ok", text: t("invite.landing.added", { name: addedBy }) } : null)
   if (!token) return <Navigate to="/welcome" replace />
   const trip = q.data
   return (
@@ -167,6 +172,12 @@ export function TripOverview() {
           <>
             <NoticeBar notice={notice} onChange={setNotice} />
             <Hero trip={trip} />
+            {(trip.my_role === "owner" || (trip.my_role === "editor" && trip.editors_can_invite)) && (
+              <Link to={`/trips/${trip.id}/group?invite=1`} className="h-btn h-btn--secondary h-btn--sm overview__invite">
+                <Icon name="plus" size={18} />
+                {t("group.invite")}
+              </Link>
+            )}
             <TripActions
               trip={trip}
               role={trip.my_role}

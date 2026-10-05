@@ -21,6 +21,7 @@ import {
   unlinkMe,
   type PersonIn,
 } from "./people";
+import { Members } from "../invite/Members";
 import { tripStrip } from "./TripStrip";
 import "./trips.css";
 
@@ -202,28 +203,6 @@ function Row({
         )}
       </div>
     </li>
-  );
-}
-
-/** shortcut: no members list endpoint exists yet (04 section 5.6, WF-025). Shows the caller only; Invite stays disabled until WF-025.3, which also brings the collaborator count line. */
-function Members({ trip }: { trip: Trip }) {
-  return (
-    <section className="h-listcard" aria-labelledby="group-members">
-      <h2 className="h-label h-listcard__title" id="group-members">
-        {t("group.membersTitle")}
-      </h2>
-      <div className="h-listcard__row">
-        <span className="h-listcard__text">{t("group.youChip")}</span>
-        <span className="h-chip">{t(`group.role.${trip.my_role}`)}</span>
-      </div>
-      {trip.my_role !== "viewer" && (
-        <div className="h-listcard__row">
-          <Btn variant="secondary" disabled>
-            {t("group.invite")}
-          </Btn>
-        </div>
-      )}
-    </section>
   );
 }
 

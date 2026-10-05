@@ -53,7 +53,7 @@ test("an empty trip says Just you so far", async () => {
   open()
   expect(await screen.findByText("Just you so far")).toBeInTheDocument()
   expect(screen.getByText("Add your travel partner so plans and fares are shared.")).toBeInTheDocument()
-  expect(screen.getByRole("button", { name: "Invite" })).toBeDisabled()
+  expect(screen.getByRole("button", { name: "Invite" })).toBeEnabled()
 })
 
 test("a load error shows the message and a retry", async () => {
@@ -82,6 +82,7 @@ test("there are no birthdate or email fields on the traveler form", async () => 
 test("adding a traveler creates the person and puts them on the trip", async () => {
   const f = mockApi(
     withTrip(trip(), (u, i) => {
+      if (u.endsWith("/members")) return Response.json([])
       if (u.endsWith("/v1/people") && i?.method === "POST") return Response.json({ ...sam, id: "p3", name: "Lea", home_airports: ["OPO"] }, { status: 201 })
       if (u.endsWith("/v1/trips/t1/travelers")) return Response.json([ana, sam])
     }),
@@ -138,6 +139,7 @@ test("a linked traveler can be unlinked, and the link prompt is gone", async () 
 test("the traveler cap shows an inline message with a link to Plan and credits, and no paywall sheet", async () => {
   mockApi(
     withTrip(trip(), (u, i) => {
+      if (u.endsWith("/members")) return Response.json([])
       if (u.endsWith("/v1/people") && i?.method === "POST") return Response.json({ ...sam, id: "p3" }, { status: 201 })
       if (u.endsWith("/v1/trips/t1/travelers")) return Response.json({ code: "limit_reached", paywall: { reason: "traveler_limit" } }, { status: 402 })
     }),
