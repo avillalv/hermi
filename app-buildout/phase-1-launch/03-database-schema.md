@@ -438,7 +438,7 @@ CREATE INDEX ix_places_cache_expires ON places_cache (expires_at);
 CREATE INDEX ix_places_cache_provider_kind ON places_cache (provider, kind, expires_at);
 
 -- Converts a minor-unit amount between currencies with the stored ECB rates. Returns NULL when either rate is missing,
--- so a caller never shows a made-up number. EUR is the base and has no row. Used at read time only; converted amounts are never stored.
+-- so a caller never shows a made-up number. Stays numeric with one division at the end, so exact halves round away from zero (the web app's convertMinor does the same). EUR is the base and has no row. Used at read time only; converted amounts are never stored.
 CREATE FUNCTION fx_convert_minor(p_minor bigint, p_from text, p_to text) RETURNS bigint
 LANGUAGE plpgsql STABLE AS $$
 DECLARE v_from numeric; v_to numeric;
@@ -447,7 +447,7 @@ BEGIN
   v_from := CASE WHEN p_from = 'EUR' THEN 1 ELSE (SELECT per_eur FROM fx_rates WHERE currency = p_from) END;
   v_to   := CASE WHEN p_to   = 'EUR' THEN 1 ELSE (SELECT per_eur FROM fx_rates WHERE currency = p_to) END;
   IF v_from IS NULL OR v_to IS NULL THEN RETURN NULL; END IF;
-  RETURN round(p_minor::numeric / power(10, currency_exponent(p_from)) / v_from * v_to * power(10, currency_exponent(p_to)))::bigint;
+  RETURN round((p_minor::numeric * v_to * power(10::numeric, currency_exponent(p_to))) / (v_from * power(10::numeric, currency_exponent(p_from))))::bigint;
 END $$;
 ```
 
@@ -3316,6 +3316,7 @@ The public token reads and synchronous writes that use a SystemSession, by purpo
 | `import_preview` | `POST /imports/ics-file`, `maps-file`, `places` | Writes the preview the worker sandbox returned |
 | `verify_extract` | `POST /trips/{id}/verify-plan` | Inserts `plan_verification_items` |
 | `places_cache` | Place search | Fills `places_cache` |
+| `fare_refresh` | `POST /trips/{id}/flights/refresh` | Writes shared `fare_observations`, the route's `trip_fare_links` and `flight_routes.last_checked_at` for the trip's own routes |
 | `dev_session` | `POST /dev/session` (`AUTH_MODE=dev`, `local` and `ci` only) | Creates the dev personas and their sessions |
 
 Every route is tested under the real roles: the route tests in 6.5 call the API as `hermi_api_login` (and the SystemSession purposes as `hermi_worker_login`), never as the owner, so a missing grant, policy or definer function shows up as a failing route test and not in production.
@@ -4030,7 +4031,7 @@ INSERT INTO feature_flags (key, kind, description, enabled, rollout_pct, rules, 
 ('setting_calendar_polling',       'setting', 'Calendar feed polling: hours between polls (6), failures in a row before polling stops (3), polled feeds per person (3)', true, 100,
    '{"interval_hours":6,"max_failures":3,"max_feeds_per_user":3}', '{}'),
 ('setting_rate_limits',            'setting', 'Requests allowed per window for each rate limit route class (10 section 2.3); the window lengths are in code; a missing class keeps its built-in value', true, 100,
-   '{"ai":30,"places_search":30,"outbound":60,"import_preview":20,"import_ics_feed":5,"import_confirm":30,"link_preview":20,"export":1,"delete":1,"signup_ip":5,"share_view":60,"share_view_ip":120,"read_user":600,"read_ip":1200,"write_user":120,"write_ip":600}', '{}')
+   '{"ai":30,"places_search":30,"outbound":60,"import_preview":20,"import_ics_feed":5,"import_confirm":30,"link_preview":20,"fare_refresh":10,"export":1,"delete":1,"signup_ip":5,"share_view":60,"share_view_ip":120,"read_user":600,"read_ip":1200,"write_user":120,"write_ip":600}', '{}')
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO kill_switches (key, description, auto_rule) VALUES

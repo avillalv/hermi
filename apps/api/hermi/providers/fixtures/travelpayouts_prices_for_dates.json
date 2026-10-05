@@ -1,0 +1,22 @@
+{
+  "success": true,
+  "currency": "usd",
+  "data": [
+    {"origin": "LAX", "destination": "TYO", "origin_airport": "LAX", "destination_airport": "NRT",
+     "departure_at": "2026-11-10T11:30:00-08:00", "return_at": "2026-11-17T10:55:00+09:00", "price": 760,
+     "airline": "MU", "flight_number": "586", "transfers": 1, "return_transfers": 1, "duration_to": 1020, "duration_back": 945,
+     "link": "/search/LAX1011TYO17111?t=abc&search_date=02102026&expected_price=760"},
+    {"origin": "LAX", "destination": "TYO", "origin_airport": "LAX", "destination_airport": "NRT",
+     "departure_at": "2026-11-10T09:00:00-08:00", "return_at": "2026-11-17T18:10:00+09:00", "price": 905,
+     "airline": "NH", "flight_number": "105", "transfers": 0, "return_transfers": 0, "duration_to": 690, "duration_back": 600,
+     "link": "/search/LAX1011TYO17111?t=def&search_date=02102026&expected_price=905"},
+    {"origin": "LAX", "destination": "TYO", "origin_airport": "LAX", "destination_airport": "HND",
+     "departure_at": "2026-11-12T13:15:00-08:00", "return_at": "2026-11-20T08:40:00+09:00", "price": 812,
+     "airline": "JL", "flight_number": "61", "transfers": 0, "return_transfers": 0, "duration_to": 675, "duration_back": 585,
+     "link": "/search/LAX1211TYO20111?t=ghi&search_date=03102026&expected_price=812"},
+    {"origin": "LAX", "destination": "TYO", "origin_airport": "LAX", "destination_airport": "NRT",
+     "departure_at": "2026-12-03T11:30:00-08:00", "return_at": "2026-12-10T10:55:00+09:00", "price": 700,
+     "airline": "MU", "flight_number": "586", "transfers": 1, "return_transfers": 1, "duration_to": 1020, "duration_back": 945,
+     "link": "/search/LAX0312TYO10121?t=jkl&search_date=03102026&expected_price=700"}
+  ]
+}

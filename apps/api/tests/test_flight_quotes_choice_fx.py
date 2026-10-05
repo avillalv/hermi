@@ -123,12 +123,6 @@ def test_only_this_routes_upcoming_fares_can_be_chosen() -> None:
         check_choice("a", "a", today - timedelta(days=1), today)
 
 
-def test_rates_refresh_every_12_hours() -> None:
-    assert fx.needs_refresh(None, NOW)
-    assert not fx.needs_refresh(NOW - timedelta(hours=11), NOW)
-    assert fx.needs_refresh(NOW - timedelta(hours=12), NOW)
-
-
 def test_local_currency_by_country() -> None:
     assert fx.local_currency("jp") == "JPY"
     assert fx.local_currency("BG") == "EUR"

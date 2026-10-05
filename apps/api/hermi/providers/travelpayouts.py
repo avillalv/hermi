@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Cached fares from the Aviasales Data API (Travelpayouts).
 
 These are prices other Aviasales users found in the last few days, so they cost nothing to
@@ -5,10 +6,12 @@ fetch and cover whole months at once, which makes them a good scan of flexible d
 are per adult.
 """
 
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -132,3 +135,24 @@ def prices_for_dates(
         raise ProviderError(f"Travelpayouts returned an error: {reason}")
     fares = (to_fare(row, body.get("currency") or currency) for row in body.get("data") or [])
     return [f for f in fares if f is not None]
+
+
+_FIXTURE = Path(__file__).parent / "fixtures" / "travelpayouts_prices_for_dates.json"
+
+
+def fixture_client() -> httpx.Client:
+    """A client that answers prices_for_dates from a recorded response: PROVIDERS_MODE=fake and tests, no network."""
+    body = json.loads(_FIXTURE.read_text(encoding="utf-8"))
+    return httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(200, json=body)))
+
+
+def client_for(settings) -> tuple[str, httpx.Client]:
+    """(token, client) for the configured mode. No token in PROVIDERS_MODE=fake serves the recorded response;
+    no token otherwise raises NotConfigured so the caller degrades. The caller closes the client."""
+    token = settings.travelpayouts_token.get_secret_value() if settings.travelpayouts_token else ""
+    if token:
+        return token, httpx.Client(timeout=httpx.Timeout(10.0, connect=5.0), follow_redirects=False)
+    if settings.providers_mode == "fake":
+        return "fixture", fixture_client()
+    settings.require("TRAVELPAYOUTS_TOKEN")  # raises NotConfigured
+    raise AssertionError("unreachable")

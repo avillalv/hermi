@@ -192,6 +192,7 @@ SYSTEM_SESSION_ALLOWLIST = frozenset(
         "import_preview",
         "verify_extract",
         "places_cache",
+        "fare_refresh",
         "dev_session",
     }
 )
