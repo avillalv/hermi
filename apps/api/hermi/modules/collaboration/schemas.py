@@ -1,3 +1,4 @@
+# ruff: noqa: E501  (long constraint lines)
 """Pydantic read schemas for membership, invites, share links and people (03 sections 5.4, 5.5).
 
 Token hashes are never exposed.
@@ -101,3 +102,43 @@ class Member(BaseModel):
     person_id: uuid.UUID | None
     joined_at: datetime
     invited_by: Attribution | None
+
+
+# --- 04 section 5.6: invites, roles, transfer ----------------------------------------------
+
+
+class MemberRolePatch(BaseModel):
+    role: Literal["editor", "viewer"]  # "owner" is a 422: use transfer
+
+
+class InviteCreate(BaseModel):
+    role: Literal["editor", "viewer"]
+    email: Annotated[str, StringConstraints(strip_whitespace=True, max_length=254, pattern=r"^[^@\s]+@[^@\s]+$")] | None = None
+    max_uses: Annotated[int, Field(ge=1, le=6)] = 1
+    expires_in_days: Annotated[int, Field(ge=1, le=14)] = 7
+
+
+class Invite(BaseModel):
+    id: uuid.UUID
+    role: Literal["editor", "viewer"]
+    email: str | None
+    url: str | None = None  # only in the create response
+    uses_left: int
+    expires_at: datetime
+    created_at: datetime
+    status: Literal["pending", "used", "expired", "revoked"]
+
+
+class InvitePreview(BaseModel):
+    trip_name: str
+    cover_url: str | None
+    inviter_name: str
+    role: Literal["editor", "viewer"]
+
+
+class InviteAccept(BaseModel):
+    person_id: uuid.UUID | None = None
+
+
+class TransferIn(BaseModel):
+    new_owner_id: uuid.UUID

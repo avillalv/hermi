@@ -10,6 +10,8 @@ def uvicorn_kwargs(port: int = 8100) -> dict:
     return {
         "host": HOST,
         "port": port,
+        # The access log would print raw invite tokens; 02 section 9 logs route templates only.
+        "access_log": False,
         "loop": "asyncio:SelectorEventLoop" if sys.platform == "win32" else "auto",
     }
 

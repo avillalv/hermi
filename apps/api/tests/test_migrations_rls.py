@@ -43,6 +43,7 @@ DEFINER_FUNCTIONS = [  # (signature, search_path pinned, app can execute, worker
     ("advance_trip_import(uuid,text)", True, True, False),
     ("link_my_traveler(uuid,uuid)", True, True, False),
     ("unlink_my_traveler(uuid)", True, True, False),
+    ("preview_trip_invite(bytea)", True, True, False),
     ("file_content_report(text,text,text,text)", True, True, False),
     ("clear_run_content(uuid)", True, True, False),
     ("clear_my_ai_history()", True, True, False),
@@ -110,7 +111,7 @@ def _member(c, trip, user, role):
 def test_chain_is_linear_and_0014_follows_0013():
     s = ScriptDirectory.from_config(_alembic_cfg())
     assert s.get_revision("0014_rls").down_revision == "0013_notifications_samples"
-    assert s.get_heads() == ["0018_unlink_my_traveler"]  # 0018 (WF-024.1) is the head now
+    assert s.get_heads() == ["0019_invite_preview"]  # 0019 (WF-025.1) is the head now
 
 
 # --- RLS on every tenant table ---------------------------------------------------------------------

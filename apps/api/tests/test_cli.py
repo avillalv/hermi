@@ -64,3 +64,7 @@ def test_seed_exits_when_migration_url_missing(monkeypatch):
     monkeypatch.setattr(config, "ROOT_ENV_FILE", config.ROOT_ENV_FILE.parent / "no-such.env")
     with pytest.raises(SystemExit, match="MIGRATION_DATABASE_URL"):
         cli.seed()
+
+
+def test_access_log_is_off_so_invite_tokens_stay_out_of_logs():
+    assert uvicorn_kwargs()["access_log"] is False
