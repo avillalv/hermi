@@ -1,4 +1,4 @@
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 // Kit projects (WF-130.2). All 390 by 844 at device scale factor 2; light and dark are looped inside the tests.
 const use = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, baseURL: "http://localhost:5173" };
@@ -12,6 +12,10 @@ export default defineConfig({
     { name: "kit", testMatch: "kit.spec.ts", use },
     { name: "kit-metrics", testMatch: "kit-metrics.spec.ts", use },
     { name: "kit-shell", testMatch: "shell.spec.ts", use },
+    // WF-036.3: layout sweep and axe, and the iPhone 15 profile.
+    // shortcut: the iPhone 15 profile runs on Chromium emulation, not WebKit (no WebKit browser is installed here). Upgrade: drop the defaultBrowserType override once WebKit is installed locally or in CI.
+    { name: "kit-layout", testMatch: "layout.spec.ts", use, timeout: 120_000 },
+    { name: "mobile", testMatch: "mobile.spec.ts", use: { ...devices["iPhone 15"], defaultBrowserType: "chromium", baseURL: "http://localhost:5173" } },
     // Smoke flows (WF-018.1): need the API too, so run `npm run dev` first, then `npx playwright test --project smoke`.
     { name: "smoke", testDir: "./e2e/smoke", use },
     { name: "kit-parity", testMatch: "kit-parity.spec.ts", use, timeout: 180_000 },

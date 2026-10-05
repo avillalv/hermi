@@ -151,3 +151,27 @@ describe('2.3 measured contrast', () => {
     })
   }
 })
+
+describe('2.3 contrast floors (WCAG 2.x)', () => {
+  // Body text 4.5 to 1, UI boundaries 3 to 1. "Warning on card" is large text only in light mode (4.36), so it is held to 3.
+  const floor = (pair: string, mode: Mode) =>
+    pair.includes('--tp-edge') ? 3 : pair === 'Warning on card' && mode === 'light' ? 3 : 4.5
+  for (const mode of ['light', 'dark'] as const) {
+    it(`every 2.3 pair meets its floor in ${mode} mode`, () => {
+      for (const [pair] of contrastRows) {
+        const r = pair.startsWith('Traveler initials')
+          ? Math.min(...[1, 2, 3, 4, 5, 6, 7, 8].map((i) => ratio(css[mode][`--tp-traveler-ink-${i}`], css[mode][`--tp-traveler-${i}`])))
+          : ratio(css[mode][PAIRS[pair][0]], css[mode][PAIRS[pair][1]])
+        expect(r, `${pair} ${mode}: ${r.toFixed(2)}`).toBeGreaterThanOrEqual(floor(pair, mode))
+      }
+    })
+  }
+
+  it('small warning text, control borders and the sky surface use the pairs that pass', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      expect(ratio(css[mode]['--tp-warning-ink'], css[mode]['--tp-sheet'])).toBeGreaterThanOrEqual(4.5)
+      expect(ratio(css[mode]['--tp-edge'], css[mode]['--tp-sheet'])).toBeGreaterThanOrEqual(3)
+      expect(ratio(css[mode]['--tp-sky-ink'], css[mode]['--tp-sky'])).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+})
