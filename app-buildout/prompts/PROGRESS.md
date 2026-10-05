@@ -46,7 +46,7 @@ Same status values as above.
 | 07 | [Entitlements, travelers, invites and roles](07-entitlements-and-collaboration.md) | WF-023, WF-024, WF-025, WF-026, WF-027, WF-028 | Done (#21) |
 | 08 | [Currency, cached fares and price alerts](08-fares-and-alerts.md) | WF-029, WF-030, WF-031 | Done (#22) |
 | 09 | [Itinerary, places, map, stays and notes](09-plan-and-stays.md) | WF-032, WF-033, WF-034, WF-035 | Done (#24) |
-| 10 | [Responsive layout, observability and sync indicator](10-layout-observability-sync.md) | WF-036, WF-037, WF-038, WF-039, WF-125 | In progress (phase1/p10-layout-observability-sync) |
+| 10 | [Responsive layout, observability and sync indicator](10-layout-observability-sync.md) | WF-036, WF-037, WF-038, WF-039, WF-125 | Done (#26) |
 | 11 | [Import the owner's existing Trip Planner data](11-owner-data-migration.md) | WF-040, WF-133 | Not started |
 | 12 | [AI schema, flags, metering, credits, ceilings, jobs and email](12-ai-and-credits-foundation.md) | WF-041, WF-042, WF-043, WF-044, WF-045, WF-046, WF-131, WF-047 | Not started |
 | 13 | [Claude features, agent loop, research, evidence and guest mode](13-ai-features.md) | WF-048, WF-049, WF-050, WF-053, WF-054, WF-055, WF-120, WF-132, WF-062 | Not started |
@@ -68,6 +68,7 @@ Same status values as above.
 
 ## Notes for later prompts
 
+- P10 ship (for prompts 11, 12, 22): see `knowledge/layout-observability-sync.md`. WF-089 must call `setQueued` and `markAccepted` and drop `window.__hermiSetQueued`; prompt 12 adds the `db_dump_offsite` job (dump is weekly, retention 35 days, DECISIONS rows override 02 and 03); Settings must read and write the `analytics` consent via the API; the iPhone 15 project runs on Chromium until WebKit is installed. Owner rows 41 to 44 (Sentry, PostHog, R2, real restore drill) stay open. `npm run gen:api` is still a stub.
 - WF-038.2 for the Settings and iOS prompts: the web opt-out is localStorage (`hermi.analytics.optout`) plus Global Privacy Control; Settings, Privacy must read and write the `analytics` consent through the API and call `setAnalyticsOptOut` (`/me` returns only granted consents today). `setAnalyticsUser` runs when `/v1/me` resolves, not at sign-in, so a first item added before that stores its once flag under `anonymous` and can fire `first_itinerary_item_added` twice; set the id at sign-in when auth is next touched. `member_removed` is in 05 but not in the 10 catalogue, so the web call was dropped; add it to `events.ts` and the API JSON to track removals. The web client has no PostHog host setting (US host, `shortcut:`).
 - WF-034.2 for WF-034.3: the Stays screen holds the "Later" list on the client (the API refuses the 9th stay with 402 `ninth_stay`; its `free_path` text is "Remove a stay to make room", align it or drop the override when the Later list lands). Still to build: bookmarklet, paste helper, compare UI (anchor distances are a `shortcut:` in compare), smoke flows 5 and 21. Migration 0022 adds a partial unique index for one Booked stay per trip (would fail on data with two; none existed).
 - WF-033.2 reviewer minors left for a later pass: quota copy should show the number (05 6.13); one-letter search shows a generic error (API needs 2 chars); failed remove of an idea is silent (`places.removeFailed` unused); `fitBounds` maxZoom 15 exceeds `clusterMaxZoom` 14; consider stubbing tiles in e2e.
