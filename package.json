@@ -16,7 +16,7 @@
     "test:api": "node scripts/test-api.mjs",
     "test:web": "npm run test --workspace apps/web",
     "gen:api": "node scripts/stub.mjs gen:api",
-    "gen:shared": "node scripts/stub.mjs gen:shared",
+    "gen:shared": "node scripts/gen-shared.mjs",
     "test:kit": "npm run test:kit --workspace apps/web",
     "test:e2e": "node scripts/stub.mjs test:e2e WF-130",
     "test:e2e:smoke": "node --test scripts/e2e-smoke.mjs && npm run test:smoke -w apps/web",

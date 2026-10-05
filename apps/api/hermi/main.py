@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from hermi import api_v1, db, errors, health
+from hermi import analytics, api_v1, db, errors, health
 from hermi.config import LOCAL_ENVIRONMENTS, Settings, load_settings
 from hermi.logging_setup import setup_logging
 from hermi.modules.auth.router import dev_router
@@ -42,6 +42,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     init_sentry(settings.sentry_dsn, release=settings.release_sha, environment=settings.environment)
     app = FastAPI(title="Hermi API", lifespan=_lifespan)
     app.state.settings = settings
+    analytics.configure(settings)
     app.state.verifier = TokenVerifier(settings)
     errors.register(app)
 

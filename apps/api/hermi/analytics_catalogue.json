@@ -1,0 +1,950 @@
+{
+ "events": {
+  "app_opened": {
+   "source": [
+    "icon",
+    "push",
+    "universal_link"
+   ]
+  },
+  "signup_started": {
+   "method": [
+    "apple",
+    "google",
+    "email_code"
+   ]
+  },
+  "signup_completed": {
+   "method": [
+    "apple",
+    "google",
+    "email_code"
+   ],
+   "from_invite": "bool",
+   "from_referral": "bool",
+   "was_guest": "bool"
+  },
+  "sign_in_completed": {
+   "method": [
+    "apple",
+    "google",
+    "email_code"
+   ]
+  },
+  "guest_trip_created": {},
+  "guest_claimed": {
+   "trip_count_bucket": "str"
+  },
+  "onboarding_step_completed": {
+   "step": [
+    "profile",
+    "home_airport",
+    "first_trip"
+   ]
+  },
+  "trip_created": {
+   "source": [
+    "blank",
+    "template",
+    "import"
+   ],
+   "destination_count": "int",
+   "has_dates": "bool"
+  },
+  "first_itinerary_item_added": {
+   "minutes_since_signup_bucket": "str"
+  },
+  "itinerary_item_added": {
+   "category": [
+    "sights",
+    "museum",
+    "food",
+    "nature",
+    "nightlife",
+    "shopping",
+    "travel",
+    "other"
+   ],
+   "source": [
+    "manual",
+    "place_search",
+    "ai_draft",
+    "agent",
+    "import"
+   ]
+  },
+  "flight_route_added": {
+   "route_type": [
+    "one_way",
+    "round_trip"
+   ],
+   "days_to_departure_bucket": "str"
+  },
+  "fare_alert_created": {
+   "kind": [
+    "cached",
+    "live"
+   ]
+  },
+  "price_alert_delivered": {
+   "channel": [
+    "push",
+    "email",
+    "in_app"
+   ]
+  },
+  "price_alert_opened": {
+   "channel": [
+    "push",
+    "email",
+    "in_app"
+   ]
+  },
+  "lodging_option_added": {
+   "source": [
+    "paste",
+    "bookmarklet",
+    "partner_search",
+    "agent",
+    "manual"
+   ]
+  },
+  "lodging_voted": {
+   "voted": "bool"
+  },
+  "present_mode_started": {
+   "slide_count_bucket": "str"
+  },
+  "invite_sent": {
+   "channel": [
+    "link",
+    "email",
+    "sms_share"
+   ],
+   "role": "str"
+  },
+  "invite_opened": {
+   "platform_before_install": [
+    "installed",
+    "not_installed"
+   ]
+  },
+  "invite_accepted": {
+   "role": "str",
+   "minutes_to_accept_bucket": "str"
+  },
+  "collaborator_limit_hit": {
+   "role_requested": "str"
+  },
+  "share_link_created": {
+   "redaction_level": "str",
+   "indexable": "bool"
+  },
+  "share_link_viewed": {
+   "surface": [
+    "web"
+   ]
+  },
+  "ai_consent_shown": {},
+  "ai_consent_granted": {
+   "version": "str"
+  },
+  "ai_consent_declined": {},
+  "ai_action_started": {
+   "action": [
+    "explain",
+    "live_search",
+    "draft_day",
+    "draft_trip",
+    "research",
+    "agent_run",
+    "verify_plan"
+   ],
+   "feature": [
+    "explain",
+    "packing_list",
+    "booking_import",
+    "verify_extract",
+    "verify_plan",
+    "recheck",
+    "fare_hunt",
+    "deep_research"
+   ],
+   "credits": "int",
+   "from_cache": "bool",
+   "taster": "bool"
+  },
+  "ai_action_completed": {
+   "action": [
+    "explain",
+    "live_search",
+    "draft_day",
+    "draft_trip",
+    "research",
+    "agent_run",
+    "verify_plan"
+   ],
+   "feature": [
+    "explain",
+    "packing_list",
+    "booking_import",
+    "verify_extract",
+    "verify_plan",
+    "recheck",
+    "fare_hunt",
+    "deep_research"
+   ],
+   "outcome": [
+    "ok",
+    "partial",
+    "failed",
+    "refunded"
+   ],
+   "taster": "bool",
+   "duration_seconds_bucket": "str"
+  },
+  "ai_feedback_given": {
+   "action": [
+    "explain",
+    "live_search",
+    "draft_day",
+    "draft_trip",
+    "research",
+    "agent_run",
+    "verify_plan"
+   ],
+   "rating": [
+    "up",
+    "down"
+   ],
+   "reason": "str"
+  },
+  "fare_marked_wrong": {},
+  "credits_low_shown": {
+   "balance_bucket": "str"
+  },
+  "paywall_viewed": {
+   "placement": [
+    "collaborators",
+    "track_live",
+    "third_trip",
+    "credits",
+    "out_of_credits_verify",
+    "trip_pass",
+    "settings",
+    "onboarding"
+   ],
+   "offer_shown": "strs"
+  },
+  "paywall_dismissed": {
+   "placement": [
+    "collaborators",
+    "track_live",
+    "third_trip",
+    "credits",
+    "out_of_credits_verify",
+    "trip_pass",
+    "settings",
+    "onboarding"
+   ]
+  },
+  "purchase_started": {
+   "product": [
+    "plus",
+    "trip_pass",
+    "credits_50",
+    "credits_150",
+    "credits_400"
+   ],
+   "period": "str"
+  },
+  "purchase_completed": {
+   "product": [
+    "plus",
+    "trip_pass",
+    "credits_50",
+    "credits_150",
+    "credits_400"
+   ],
+   "period": "str",
+   "is_trial": "bool"
+  },
+  "purchase_failed": {
+   "product": [
+    "plus",
+    "trip_pass",
+    "credits_50",
+    "credits_150",
+    "credits_400"
+   ],
+   "reason": [
+    "cancelled",
+    "pending",
+    "error"
+   ]
+  },
+  "restore_tapped": {
+   "result": [
+    "restored",
+    "nothing"
+   ]
+  },
+  "trip_pass_applied": {
+   "source": [
+    "purchase",
+    "import_reward"
+   ]
+  },
+  "subscription_canceled": {
+   "product": [
+    "plus",
+    "trip_pass",
+    "credits_50",
+    "credits_150",
+    "credits_400"
+   ],
+   "days_active_bucket": "str"
+  },
+  "subscription_expired": {
+   "product": [
+    "plus",
+    "trip_pass",
+    "credits_50",
+    "credits_150",
+    "credits_400"
+   ],
+   "reason": [
+    "voluntary",
+    "billing",
+    "refund"
+   ]
+  },
+  "partner_card_viewed": {
+   "program": "str",
+   "placement": [
+    "flight",
+    "stay",
+    "activity",
+    "esim",
+    "car",
+    "insurance",
+    "checklist"
+   ]
+  },
+  "partner_link_tapped": {
+   "program": "str",
+   "placement": [
+    "flight",
+    "stay",
+    "activity",
+    "esim",
+    "car",
+    "insurance",
+    "checklist"
+   ]
+  },
+  "affiliate_conversion_imported": {
+   "program": "str",
+   "status": [
+    "pending",
+    "approved",
+    "reversed"
+   ]
+  },
+  "push_prompt_shown": {
+   "context": [
+    "after_invite",
+    "after_alert"
+   ]
+  },
+  "push_permission_result": {
+   "result": [
+    "granted",
+    "denied"
+   ]
+  },
+  "offline_trip_saved": {
+   "trigger": [
+    "manual",
+    "auto_departure"
+   ]
+  },
+  "offline_trip_opened": {
+   "connection": [
+    "offline",
+    "online"
+   ]
+  },
+  "export_requested": {},
+  "export_ready": {},
+  "account_deletion_requested": {
+   "had_subscription": "bool"
+  },
+  "account_deletion_cancelled": {},
+  "review_prompt_shown": {},
+  "error_shown": {
+   "code": "str",
+   "screen": "str"
+  },
+  "kill_switch_banner_shown": {
+   "switch": "str"
+  },
+  "screen_viewed": {
+   "screen": "str"
+  },
+  "onboarding_started": {},
+  "onboarding_choice_made": {
+   "choice": [
+    "plan",
+    "sign_in",
+    "invite"
+   ]
+  },
+  "onboarding_switch_answered": {
+   "answer": [
+    "tripit",
+    "tripsy",
+    "wanderlog",
+    "other_app",
+    "fresh",
+    "skipped"
+   ]
+  },
+  "onboarding_step_skipped": {
+   "step": [
+    "profile",
+    "home_airport",
+    "first_trip"
+   ]
+  },
+  "sign_in_failed": {
+   "method": [
+    "apple",
+    "google",
+    "email_code"
+   ],
+   "reason": [
+    "wrong_code",
+    "expired_code",
+    "rate_limited",
+    "cancelled",
+    "error"
+   ]
+  },
+  "save_prompt_shown": {
+   "trigger": [
+    "invite",
+    "sync",
+    "ai",
+    "export",
+    "alert",
+    "purchase",
+    "banner"
+   ]
+  },
+  "save_prompt_dismissed": {
+   "trigger": [
+    "invite",
+    "sync",
+    "ai",
+    "export",
+    "alert",
+    "purchase",
+    "banner"
+   ]
+  },
+  "trips_home_viewed": {
+   "trip_count_bucket": "str",
+   "active_count": "int"
+  },
+  "trip_opened": {
+   "source": [
+    "home",
+    "link",
+    "push",
+    "switcher"
+   ]
+  },
+  "trip_archived": {},
+  "trip_create_started": {},
+  "trip_overview_viewed": {},
+  "next_step_tapped": {
+   "step": [
+    "dates",
+    "flight",
+    "stay",
+    "first_day"
+   ]
+  },
+  "section_opened": {
+   "section": [
+    "flights",
+    "stays",
+    "plan",
+    "notes",
+    "checklist",
+    "ai_activity"
+   ]
+  },
+  "invite_sheet_opened": {},
+  "traveler_linked": {},
+  "fare_chip_tapped": {
+   "source": [
+    "live",
+    "cached",
+    "agent",
+    "google"
+   ]
+  },
+  "fare_detail_viewed": {
+   "age_hours_bucket": "str"
+  },
+  "fare_marked_booked": {
+   "price_entered": "bool"
+  },
+  "flight_chosen": {},
+  "booked_fare_watch_created": {
+   "kind": [
+    "cached",
+    "live"
+   ]
+  },
+  "booked_fare_alert_delivered": {
+   "channel": [
+    "push",
+    "email",
+    "in_app"
+   ],
+   "drop_bucket": "str"
+  },
+  "booked_fare_alert_opened": {
+   "channel": [
+    "push",
+    "email",
+    "in_app"
+   ]
+  },
+  "lodging_compare_opened": {
+   "count": "int"
+  },
+  "lodging_booked": {},
+  "plan_viewed": {
+   "mode": [
+    "days",
+    "calendar",
+    "map"
+   ]
+  },
+  "itinerary_item_moved": {
+   "method": [
+    "drag",
+    "move_to_sheet",
+    "actions"
+   ]
+  },
+  "itinerary_item_deleted": {},
+  "edit_conflict_shown": {
+   "resolution": [
+    "keep_mine",
+    "use_theirs",
+    "dismissed"
+   ]
+  },
+  "place_searched": {
+   "result_count_bucket": "str"
+  },
+  "map_opened": {},
+  "map_pin_selected": {},
+  "maps_handoff": {
+   "app": [
+    "apple",
+    "google"
+   ]
+  },
+  "ai_sheet_opened": {},
+  "agent_finding_saved": {
+   "kind": [
+    "fare",
+    "note"
+   ]
+  },
+  "taster_offered": {},
+  "taster_upsell_shown": {},
+  "note_added": {
+   "scope": [
+    "trip",
+    "day",
+    "item",
+    "stay"
+   ],
+   "private": "bool"
+  },
+  "evidence_opened": {
+   "surface": [
+    "fare",
+    "note",
+    "research",
+    "import"
+   ]
+  },
+  "finding_saved_to_notes": {},
+  "present_mode_printed": {},
+  "pdf_exported": {
+   "footer": "bool"
+  },
+  "checklist_item_shown": {
+   "kind": "str"
+  },
+  "checklist_item_updated": {
+   "kind": "str",
+   "status": [
+    "done",
+    "skipped",
+    "not_needed",
+    "todo"
+   ]
+  },
+  "discover_viewed": {},
+  "sample_trip_opened": {
+   "slug": "str"
+  },
+  "activity_viewed": {
+   "unread_bucket": "str"
+  },
+  "activity_item_opened": {
+   "kind": [
+    "alert",
+    "change",
+    "run",
+    "invite"
+   ]
+  },
+  "account_viewed": {},
+  "setting_changed": {
+   "key": "str"
+  },
+  "booking_links_hidden": {
+   "value": "bool"
+  },
+  "manage_subscription_tapped": {},
+  "notification_opened": {
+   "type": [
+    "price_alert",
+    "booked_fare",
+    "trip_change",
+    "reminder",
+    "run_done",
+    "calendar_changes",
+    "verify_done"
+   ]
+  },
+  "subscription_started": {
+   "product": [
+    "plus",
+    "trip_pass",
+    "credits_50",
+    "credits_150",
+    "credits_400"
+   ],
+   "period": "str",
+   "is_trial": "bool"
+  },
+  "subscription_renewed": {
+   "product": [
+    "plus",
+    "trip_pass",
+    "credits_50",
+    "credits_150",
+    "credits_400"
+   ],
+   "period": "str"
+  },
+  "trial_converted": {
+   "product": [
+    "plus",
+    "trip_pass",
+    "credits_50",
+    "credits_150",
+    "credits_400"
+   ]
+  },
+  "subscription_changed": {
+   "direction": [
+    "upgrade",
+    "downgrade"
+   ],
+   "from": "str",
+   "to": "str"
+  },
+  "trip_pass_moved": {},
+  "trip_pass_expired": {
+   "product": [
+    "plus",
+    "trip_pass",
+    "credits_50",
+    "credits_150",
+    "credits_400"
+   ],
+   "source": [
+    "purchase",
+    "import_reward"
+   ]
+  },
+  "credits_expired": {
+   "credits_bucket": "str"
+  },
+  "import_started": {
+   "method": [
+    "ics_file",
+    "ics_feed",
+    "pasted",
+    "maps_file",
+    "places"
+   ],
+   "source_app": [
+    "tripit",
+    "tripsy",
+    "wanderlog",
+    "google_calendar",
+    "google_maps",
+    "other",
+    "unknown"
+   ]
+  },
+  "import_previewed": {
+   "method": [
+    "ics_file",
+    "ics_feed",
+    "pasted",
+    "maps_file",
+    "places"
+   ],
+   "item_count_bucket": "str"
+  },
+  "import_completed": {
+   "method": [
+    "ics_file",
+    "ics_feed",
+    "pasted",
+    "maps_file",
+    "places"
+   ],
+   "saved_count_bucket": "str"
+  },
+  "import_failed": {
+   "method": [
+    "ics_file",
+    "ics_feed",
+    "pasted",
+    "maps_file",
+    "places"
+   ],
+   "reason": [
+    "too_large",
+    "invalid_file",
+    "blocked_url",
+    "list_link_not_readable",
+    "fetch_failed",
+    "no_items",
+    "rate_limited",
+    "consent_required",
+    "redaction_failed",
+    "error"
+   ]
+  },
+  "import_reward_granted": {
+   "method": [
+    "ics_file",
+    "ics_feed",
+    "pasted",
+    "maps_file",
+    "places"
+   ]
+  },
+  "calendar_feed_enabled": {},
+  "calendar_feed_rotated": {},
+  "calendar_feed_read": {},
+  "public_page_viewed": {
+   "kind": [
+    "sample",
+    "shared"
+   ],
+   "referrer_bucket": [
+    "search",
+    "social",
+    "direct",
+    "other"
+   ]
+  },
+  "sample_trip_copied": {
+   "slug": "str",
+   "was_guest": "bool"
+  },
+  "share_indexing_toggled": {
+   "value": "bool"
+  },
+  "content_reported": {
+   "surface": [
+    "shared_trip",
+    "sample_trip",
+    "ai_answer",
+    "research"
+   ],
+   "reason": "str"
+  },
+  "vs_page_viewed": {
+   "competitor": [
+    "tripit",
+    "wanderlog",
+    "tripsy"
+   ]
+  },
+  "referral_link_shared": {
+   "channel": [
+    "share_sheet",
+    "copy"
+   ]
+  },
+  "referral_signup_attributed": {},
+  "referral_reward_granted": {
+   "side": [
+    "referrer",
+    "referred"
+   ]
+  },
+  "referral_blocked": {
+   "reason": [
+    "self",
+    "duplicate",
+    "cap",
+    "abuse",
+    "unverified"
+   ]
+  },
+  "calendar_polling_enabled": {},
+  "calendar_changes_found": {
+   "change_count_bucket": "str"
+  },
+  "calendar_changes_applied": {
+   "applied_count_bucket": "str"
+  },
+  "verify_started": {
+   "label": [
+    "chatgpt",
+    "gemini",
+    "layla",
+    "mindtrip",
+    "other"
+   ],
+   "text_length_bucket": "str"
+  },
+  "verify_items_read": {
+   "item_count_bucket": "str"
+  },
+  "verify_checked": {
+   "selected_count_bucket": "str",
+   "green_bucket": "str",
+   "amber_bucket": "str",
+   "red_bucket": "str",
+   "unchecked_bucket": "str",
+   "credits": "int"
+  },
+  "verify_imported": {
+   "item_count_bucket": "str"
+  },
+  "verify_discarded": {},
+  "evidence_stale_shown": {
+   "age_bucket": [
+    "15_to_30",
+    "over_30"
+   ]
+  },
+  "evidence_rechecked": {
+   "result": [
+    "confirmed",
+    "changed",
+    "not_shown",
+    "unreachable"
+   ],
+   "credits": "int"
+  },
+  "cancel_link_tapped": {
+   "surface": [
+    "account",
+    "paywall",
+    "email",
+    "billing_page"
+   ]
+  },
+  "how_we_earn_viewed": {
+   "source": [
+    "settings",
+    "paywall",
+    "vs",
+    "link"
+   ]
+  },
+  "billing_page_viewed": {
+   "source": [
+    "settings",
+    "paywall",
+    "link",
+    "listing"
+   ]
+  },
+  "sync_indicator_tapped": {
+   "state": [
+    "synced",
+    "syncing",
+    "offline",
+    "failing"
+   ]
+  },
+  "status_banner_shown": {
+   "component": [
+    "web",
+    "api",
+    "ai",
+    "fares",
+    "push"
+   ]
+  },
+  "status_page_opened": {
+   "source": [
+    "banner",
+    "settings",
+    "link"
+   ]
+  },
+  "android_install_card_shown": {},
+  "android_install_prompted": {
+   "result": [
+    "accepted",
+    "dismissed"
+   ]
+  },
+  "android_install_guide_viewed": {
+   "source": [
+    "card",
+    "settings",
+    "link"
+   ]
+  },
+  "pwa_installed": {}
+ },
+ "common": {
+  "app_version": "str",
+  "platform": [
+   "ios",
+   "web"
+  ],
+  "tier": [
+   "free",
+   "plus"
+  ],
+  "is_guest": "bool",
+  "locale": "str",
+  "env": "str",
+  "session_id": "str"
+ }
+}
