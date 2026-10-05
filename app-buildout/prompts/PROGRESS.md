@@ -4,22 +4,25 @@ The build's memory. Every autopilot session updates this file in its pull reques
 
 ## Current prompt
 
-06 in progress on `phase1/p06-web-app-and-trips`. Steps in order:
+07 in progress on `phase1/p07-entitlements-and-collaboration`. Plan gate: `month-1` (the month 1 gate runs in this prompt's ship session). No migration: 0004, 0006, 0012 and 0015 already create and seed `plans`, `entitlements`, `trip_members`, `trip_invites`, `trip_share_links`, `people`, `trip_people`, `activity_log` and `rate_limit_counters`. Steps in order:
 
-1. WF-017: `npm run gen:api` for real (`hermi.tools.dump_openapi` to `apps/web/src/lib/api/openapi.json`, `openapi-typescript` to `schema.d.ts`), `client.ts` on `openapi-fetch` (bearer only, one refresh on 401 then sign-out, `ApiError` from problem+json, the 04 section 7 headers), `env.ts`, CORS origins and a preflight test. Vitest client tests on a mock server.
-2. WF-130.1: `packages/tokens` gets `hermi.css` verbatim next to `tokens.css` (values from 05 section 2); Logo from `app-buildout/brand/`, `generate_logo.py` extended for transparent lockups, light wordmark and web icons in `apps/web/public/`.
-3. WF-130.2: Playwright (Chromium, WebKit), kit fixture, frozen clock, fonts routed to the bundled files, pixelmatch in one run, `kit-metrics`, `npm run test:kit` and `npm run test:e2e`; stylelint `declaration-strict-value`.
-4. WF-130.3: React wrappers in `apps/web/src/components/kit/` emitting the `h-` classes (Logo, RoutePattern, ticket, sheet, tab bar, section strip as `nav` with `aria-current`), component parity for every `components.html` block.
-5. WF-130.4: React Router 7 and the scrolling shell in `apps/web/src/shell/` (strip, sheet, tab bar, rail 768 to 1199 px, 248 px sidebar from 1200 px, placeholder tabs), layout tests at 390 to 1440 px, fonts and network check, focus rings.
-6. WF-018.1: sign-in screens (Apple, Google, email code via supabase-js; persona picker when `AUTH_MODE=dev` via `POST /v1/dev/session`), sign-out clears state, `locales/en.json`, Playwright smoke flow 1.
-7. WF-018.2: auth guard (signed-out visits go to Welcome per 05 6.1 or guest mode, with a signed-in fixture for the shell tests), intro, age gate, first-trip wizard, profile sheet (05 6.4), plus `GET` and `POST /v1/trips` so the wizard creates a trip.
-8. WF-019.1: rest of the trips and destinations API (04 section 5.4), archive as `PATCH` status, duplicate, trash and restore, `route_policy.py` entries, tenancy and viewer-refused tests.
-9. WF-019.2: Trips home (05 6.5) and Overview (6.7) with "Happening now".
-10. WF-019.3: edit, archive, duplicate, trash and restore, trip switcher, place autocomplete and destination time zone, Playwright smoke flow 26 and the prompt's sign-in plus create-trip smoke test.
+1. WF-023.1: `apps/api/hermi/modules/billing/` resolver (best of owner tier and any pass on the trip, invitees get the owner's tier on that trip only), limit keys read from the `plans` seed, never constants; `trip_capabilities()` in `modules/trips/service.py`; fold the interim `active_trip_limit()` and `_check_trip_limit` (trips `repo.py`, `router.py`) into it. Archived trips do not count.
+2. WF-023.2: `GET /v1/me/entitlements`, paywall triggers (`third_trip`, `invite`, `track_live`, `out_of_credits_*` and 07 section 6.2), `packages/shared/src/entitlements.ts`, table-driven tier, pass and invitee tests covering every limit key.
+3. WF-024.1: people and trip_people routes (04), link and unlink a user, removal keeps history, no birthdate or email fields, traveler cap Free 2, Plus and pass 8 (07 and 05 6.21) through the resolver.
+4. WF-024.2: Group screen (05 6.21) in `apps/web/src/routes/trips/`.
+5. WF-025.1: invites by link (128-bit tokens stored as SHA-256, 7 days), accept via `redeem_trip_invite`, roles owner, editor and viewer, leave, transfer; owner cannot be removed without transfer.
+6. WF-025.2: share links (read-only on every tier, default 90 days, max 365, 5 active per trip), revoke stops at once, public read-only page data with the "Made with Hermi" footer.
+7. WF-025.3: Invite sheet (05 6.8), `routes/invite/` landing, role management in Group.
+8. WF-026: Free one-collaborator rule (pending invites count), 402 `limit_reached` reason `sharing` trigger `invite`, lapse demotes extras to viewers with `limited: true`, paywall sheet with a visible close, smoke flows 3 and 4 (10 section 1.6) in Playwright.
+9. WF-027.1: write activity on change, feed API (04 `ActivityEvent`), private notes excluded, deleted users shown as "Deleted user".
+10. WF-027.2: Activity screen (05 6.24), ticket scope only (trip changes).
+11. WF-028: `apps/api/hermi/security/rate_limit.py`, Postgres bucket on `rate_limit_counters` per account and route class, limits from settings, 429 problem+json with `Retry-After`, signup velocity 5 per IP per day, disposable email blocking, the `/v1/me/bootstrap` 30 per IP per 10 minutes limit (WF-013.2 note), `infra/cloudflare/rules.md`.
 
-Risks: 04 has no duplicate endpoint; WF-019.1 adds `POST /v1/trips/{id}/duplicate` with a `DECISIONS.md` row. The wizard needs trip creation before WF-019, so WF-018.2 carries the create and list routes. New dependencies, all named in the stack (README, 02, 04): react-router, openapi-fetch, openapi-typescript, @supabase/supabase-js, @playwright/test, pixelmatch, stylelint. Paths: the ticket says `brand/generate_logo.py`, the file is `app-buildout/brand/`; 04 says `frontend/src/lib/api/`, 02 and the roadmap say `apps/web/`. The kit still calls the section strip a `tablist`; 05 (`nav`) wins and parity tests must allow it. Every new route goes in `apps/api/tests/route_policy.py`.
+Tests: table-driven resolver tests, people link, unlink and remove, invite lifecycle, role change, link revoke, Free, Plus, pass and lapse, invitee on Free, paywall body, activity write and privacy, fake-clock bucket and signup velocity; every new route in `apps/api/tests/route_policy.py`; `npm run gen:api` after route steps.
 
-Owner verification pending: the three "on staging" criteria (WF-017 client, WF-018 under 2 minutes, WF-019 create a trip).
+Risks: rate limit numbers differ, the ticket says AI 10 a minute, places 30, outbound 60 an hour, 10 section 2.3 says AI 30 per hour, read 600 and write 120 a minute, invites 30 a day with 20 pending; 10 outranks 09, so 10 wins where they overlap and the ticket numbers fill the rest, with a `DECISIONS.md` row. The traveler cap is in 07 and 05 but not the ticket. 05 6.24 shows a richer inbox (alerts, AI, undo) than WF-027; build the ticket scope and note the rest. No kit mockup exists for 6.8, 6.21 or 6.24 (follow DL section 11). Invite 402 copy: 04 body for the API, 05 6.8 for UI copy. No new dependency (no Redis at launch, 02).
+
+Owner verification pending: WF-028 Cloudflare rules applied to the production zone.
 
 ## Setup prompts
 
@@ -43,7 +46,7 @@ Same status values as above.
 | 04 | [Database foundation and schemas](04-database-foundation.md) | WF-011, WF-012, WF-022, WF-021, WF-020 | Done (#15) |
 | 05 | [Sign-in, tenancy and row-level security](05-auth-and-tenancy.md) | WF-013, WF-014, WF-015, WF-016 | Done (#17) |
 | 06 | [Web app platform, sign-in and trips](06-web-app-and-trips.md) | WF-017, WF-130, WF-018, WF-019 | Done (#18) |
-| 07 | [Entitlements, travelers, invites and roles](07-entitlements-and-collaboration.md) | WF-023, WF-024, WF-025, WF-026, WF-027, WF-028 | Not started |
+| 07 | [Entitlements, travelers, invites and roles](07-entitlements-and-collaboration.md) | WF-023, WF-024, WF-025, WF-026, WF-027, WF-028 | In progress (phase1/p07-entitlements-and-collaboration) |
 | 08 | [Currency, cached fares and price alerts](08-fares-and-alerts.md) | WF-029, WF-030, WF-031 | Not started |
 | 09 | [Itinerary, places, map, stays and notes](09-plan-and-stays.md) | WF-032, WF-033, WF-034, WF-035 | Not started |
 | 10 | [Responsive layout, observability and sync indicator](10-layout-observability-sync.md) | WF-036, WF-037, WF-038, WF-039, WF-125 | Not started |
