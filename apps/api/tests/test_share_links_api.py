@@ -109,8 +109,9 @@ def test_indexable_only_while_sensitive_redaction_stays_on(client):
     assert client.patch(f"{url}/{ok['id']}", json={"redact": {"notes": False}}, headers=h).status_code == 422
 
 
-def test_only_the_owner_manages_links(client):
-    owner, _ = _user(client)
+def test_only_the_owner_manages_links(client, system_conn):
+    owner, ou = _user(client)
+    system_conn.execute("UPDATE entitlements SET tier_code = 'plus', valid_until = NULL WHERE user_id = %s", (ou["id"],))
     editor, _ = _user(client)
     viewer, _ = _user(client)
     trip = _trip(client, owner)

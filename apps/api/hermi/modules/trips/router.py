@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from hermi.deps import CurrentUser, DbSession, TripAccess, require_trip
 from hermi.errors import ApiError, NotFound
 from hermi.modules.billing import service as billing
+from hermi.modules.collaboration.service import reconcile_collaborators
 from hermi.modules.trips import repo
 from hermi.modules.trips.people import trip_travelers
 from hermi.modules.trips.schemas import (
@@ -53,7 +54,7 @@ def _decode(cursor: str) -> tuple[datetime, uuid.UUID]:
 
 def full_trip(session: Session, trip, role: str, me: uuid.UUID) -> Trip:
     return Trip(
-        **{k: getattr(trip, k) for k in Trip.model_fields if k not in ("destinations", "my_role", "travelers")},
+        **{k: getattr(trip, k) for k in Trip.model_fields if k not in ("destinations", "my_role", "travelers", "limited")},
         destinations=[TripDestinationOut.model_validate(d) for d in repo.destinations_of(session, trip.id)],
         my_role=role,
         travelers=trip_travelers(session, trip.id, me),
@@ -88,8 +89,13 @@ def list_trips(
     rows = repo.list_summaries(session, user.id, limit=limit, after=_decode(cursor) if cursor else None, status=status)
     page = rows[:limit]
     more = len(rows) > limit
+    items = [TripSummary(**r) for r in page]
+    # shortcut: one query set per owned shared trip (N+1). Ceiling: 25 active trips fair use. Batch it if the list grows.
+    for it in items:  # lapse handling runs for trips the caller owns and shares (WF-026)
+        if it.my_role == "owner" and it.member_count > 1:
+            it.limited = reconcile_collaborators(session, it.id)
     return TripPage(
-        items=[TripSummary(**r) for r in page],
+        items=items,
         next_cursor=_encode(page[-1]["updated_at"], page[-1]["id"]) if more else None,
         has_more=more,
     )
@@ -120,7 +126,9 @@ def create_trip(body: TripCreate, user: CurrentUser, session: DbSession, respons
 @router.get("/trips/{trip_id}", response_model=Trip)
 def get_trip(access: Annotated[TripAccess, require_trip("viewer")], session: DbSession, response: Response) -> Trip:
     response.headers["ETag"] = f'"{access.trip.version}"'
-    return full_trip(session, access.trip, access.role, access.member.user_id)
+    trip = full_trip(session, access.trip, access.role, access.member.user_id)
+    trip.limited = reconcile_collaborators(session, access.trip.id)
+    return trip
 
 
 @router.patch("/trips/{trip_id}", response_model=Trip)

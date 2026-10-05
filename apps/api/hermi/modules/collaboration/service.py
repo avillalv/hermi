@@ -29,6 +29,10 @@ from hermi.modules.collaboration.schemas import (
 )
 from hermi.modules.trips import service as trips_service
 
+# The invite and join slot lock, a transaction-level advisory lock per trip. A row lock would not do: a join's trip_members
+# insert holds FOR KEY SHARE on the trip (FOR UPDATE would deadlock two joins), and FOR NO KEY UPDATE is filtered by the
+# trips_update RLS policy for viewers, so it takes no lock for them. The advisory lock ignores RLS and clashes with neither.
+LOCK_TRIP = "SELECT pg_advisory_xact_lock(hashtextextended(CAST(:t AS text) || '/collab', 0))"
 MAX_PENDING_INVITES = 20
 MAX_INVITES_PER_DAY = 30
 RANK = {"viewer": 0, "editor": 1, "owner": 2}
@@ -140,10 +144,44 @@ def list_invites(session: Session, trip_id: uuid.UUID) -> list[Invite]:
     return [Invite(**r) for r in rows]
 
 
+def _no_slot(session: Session, limit: int) -> ApiError:
+    """402 for a full trip. A paid owner at their ceiling has nothing to buy, so no paywall hint then."""
+    top = limit > billing.limit_of(billing.billing_free(session), "collaborators")
+    msg = (
+        f"This trip has {limit} collaborators. Remove one to make room."
+        if top
+        else f"Free trips have {limit} collaborator. Upgrade to Plus or a Trip Pass to add more, or share a read-only link for free."
+    )
+    return billing.paywall_error("collaborators", limit, msg, upsell=not top)
+
+
+def reconcile_collaborators(session: Session, trip_id: uuid.UUID) -> bool:
+    """Lapse handling (WF-026). When the owner's plan or pass no longer covers the members, those beyond the limit
+    (latest joined first) become viewers. Nobody is removed. Returns the `limited` banner flag. Only the owner's
+    session can write, so a collaborator's read just reports the flag."""
+    # shortcut: lazy demotion. It runs only when the owner reads the trip, the trip list or the members, so extras keep editor
+    # rights until then. Upgrade to a billing webhook or a worker sweep when plan lapses become events.
+    _, limits = billing.trip_limits(session, trip_id)
+    max_collab = billing.limit_of(limits, "collaborators")
+    members = session.execute(text("SELECT count(*) FROM trip_members WHERE trip_id = :t AND role <> 'owner'"), {"t": trip_id}).scalar_one()
+    if members <= max_collab:
+        return False
+    session.execute(
+        text(
+            "UPDATE trip_members SET role = 'viewer' WHERE trip_id = :t AND role = 'editor' AND user_id NOT IN "
+            "(SELECT user_id FROM trip_members WHERE trip_id = :t AND role <> 'owner' ORDER BY joined_at, user_id LIMIT :n)"
+        ),
+        {"t": trip_id, "n": max_collab},
+    )
+    return True
+
+
 def create_invite(session: Session, access: TripAccess, user_id: uuid.UUID, body, web_url: str) -> Invite:
     if access.role != "owner" and not (body.role == "viewer" and access.trip.editors_can_invite):
         raise ApiError(403, "insufficient_role", "You do not have permission to do that.")
-    # shortcut: counted here until the rate-limit layer lands (WF-028). A race can overshoot by a few; the real ceiling is the slot check of WF-026.
+    # The trip row lock makes two concurrent invites count one after the other, so the slot check below cannot be raced.
+    # shortcut: the 20 open and 30 a day counts live here until the rate-limit layer lands (WF-028).
+    session.execute(text(LOCK_TRIP), {"t": access.trip.id})
     pending, today = session.execute(
         text(
             "SELECT count(*) FILTER (WHERE trip_id = :t AND revoked_at IS NULL AND expires_at > now() AND use_count < max_uses), "
@@ -155,7 +193,11 @@ def create_invite(session: Session, access: TripAccess, user_id: uuid.UUID, body
         raise ApiError(429, "rate_limited", f"This trip has {MAX_PENDING_INVITES} open invites. Revoke one first.")
     if today >= MAX_INVITES_PER_DAY:
         raise ApiError(429, "rate_limited", "You have sent a lot of invites today. Try again tomorrow.", {"Retry-After": "86400"})
-    # Seam for WF-026: the collaborator slot check goes here (trips_service.trip_capabilities(...).can_invite, 402 `limit_reached`, reason `sharing`).
+    caps = trips_service.trip_capabilities(session, access.trip)
+    if not caps.can_invite:
+        raise _no_slot(session, caps.max_collaborators)
+    # An open link may only admit as many people as there are free slots, so one link cannot slip past a Free trip's limit.
+    max_uses = min(body.max_uses, max(caps.max_collaborators - caps.collaborators_used, 1))
     # shortcut: no email is sent yet (no mail sender exists); the owner shares the url. Send when `email` is set once notifications can mail.
     token = secrets.token_urlsafe(16)  # 128 bits
     row = (
@@ -170,7 +212,7 @@ def create_invite(session: Session, access: TripAccess, user_id: uuid.UUID, body
                 "h": token_hash(token),
                 "r": body.role,
                 "e": body.email,
-                "m": 1 if body.email else body.max_uses,
+                "m": 1 if body.email else max_uses,
                 "d": body.expires_in_days,
             },
         )
@@ -211,6 +253,13 @@ def accept(session: Session, token: str, person_id: uuid.UUID | None) -> uuid.UU
             detail = getattr(getattr(e.orig, "diag", None), "message_detail", None)
             raise ApiError(409, "already_member", "You are already on this trip.", extra={"trip_id": detail}) from None
         raise
+    # A link can outlive the plan that issued it: lock the trip and refuse a join that would pass the limit (rolls the redeem back).
+    session.execute(text(LOCK_TRIP), {"t": trip_id})
+    _, limits = billing.trip_limits(session, trip_id)
+    limit = billing.limit_of(limits, "collaborators")
+    members = session.execute(text("SELECT count(*) FROM trip_members WHERE trip_id = :t AND role <> 'owner'"), {"t": trip_id}).scalar_one()
+    if members > limit:
+        raise _no_slot(session, limit)
     if person_id:  # best effort: a traveler that is not on the trip is ignored, the join stands
         session.execute(text("SELECT link_my_traveler(:t, :p)"), {"t": trip_id, "p": person_id})
     return trip_id

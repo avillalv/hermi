@@ -38,6 +38,7 @@ def _trip_for(session: Session, trip_id: uuid.UUID, me: uuid.UUID) -> Trip:
 
 @router.get("/trips/{trip_id}/members", response_model=list[Member])
 def list_members(access: Annotated[TripAccess, require_trip("viewer")], session: DbSession) -> list[Member]:
+    service.reconcile_collaborators(session, access.trip.id)
     return service.list_members(session, access.trip.id)
 
 

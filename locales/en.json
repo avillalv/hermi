@@ -197,12 +197,15 @@
     "leave": "Leave trip",
     "leaveConfirm": "Leave this trip? You lose access to it.",
     "leaveYes": "Yes, leave",
+    "limitedBanner": "Your plan no longer covers every collaborator. Extra collaborators can view this trip, and nothing is deleted. Upgrade or remove someone to give them edit access again.",
     "memberFailed": "We could not update members. Try again."
   },
   "invite": {
     "sheet": "Invite people",
     "close": "Close",
     "role": "Role",
+    "slots": "{n} of {max} on Free",
+    "slotsPaid": "{n} of {max} collaborators on this trip",
     "free": "They join free. You share your trip's features with them on this trip.",
     "shareLink": "Share link",
     "shareAria": "Share invite link",

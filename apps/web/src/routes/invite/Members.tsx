@@ -60,6 +60,11 @@ export function Members({ trip }: { trip: Trip & { editors_can_invite?: boolean 
           <Btn variant="secondary" onClick={() => void members.refetch()}>{t("trips.retry")}</Btn>
         </div>
       )}
+      {owner && trip.limited && (
+        <p role="status" className="h-soft trips__note">
+          {t("group.limitedBanner")}
+        </p>
+      )}
       {done && (
         <p role="status" className="trips__note">
           {done}
@@ -131,7 +136,7 @@ export function Members({ trip }: { trip: Trip & { editors_can_invite?: boolean 
           )}
         </div>
       )}
-      {open && canInvite && <InviteSheet trip={trip} owner={owner} ownerName={ownerName} pending={invites.data ?? []} onClose={() => setOpen(false)} />}
+      {open && canInvite && <InviteSheet trip={trip} owner={owner} ownerName={ownerName} pending={invites.data ?? []} slots={max === undefined ? undefined : { used: collaborators + (invites.data ?? []).filter((i) => i.status === "pending").length, max }} onClose={() => setOpen(false)} />}
     </section>
   )
 }

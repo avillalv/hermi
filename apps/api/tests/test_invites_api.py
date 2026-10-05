@@ -59,6 +59,11 @@ def _join(client, h_owner, trip, h_user, role="editor"):
     return r.json()
 
 
+def _plus(system_conn, user):
+    """A Plus owner has 6 collaborator slots (WF-026); Free has 1."""
+    system_conn.execute("UPDATE entitlements SET tier_code = 'plus', valid_until = NULL WHERE user_id = %s", (user["id"],))
+
+
 # --- invites ----------------------------------------------------------------------------------
 
 
@@ -76,8 +81,9 @@ def test_create_returns_url_once_and_stores_only_the_hash(client, system_conn):
     assert [i["id"] for i in listed] == [inv["id"]] and "url" not in listed[0] and token not in str(listed)
 
 
-def test_invite_validation_and_roles(client):
-    owner, _ = _user(client)
+def test_invite_validation_and_roles(client, system_conn):
+    owner, ou = _user(client)
+    _plus(system_conn, ou)
     editor, _ = _user(client)
     viewer, _ = _user(client)
     trip = _trip(client, owner)
@@ -93,7 +99,8 @@ def test_invite_validation_and_roles(client):
 
 
 def test_editor_may_invite_viewers_only_when_the_owner_allows(client, system_conn):
-    owner, _ = _user(client)
+    owner, ou = _user(client)
+    _plus(system_conn, ou)
     editor, _ = _user(client)
     trip = _trip(client, owner)
     _join(client, owner, trip, editor, "editor")
@@ -161,7 +168,8 @@ def test_accept_links_the_chosen_traveler(client, system_conn):
 
 
 def test_already_member_is_409_with_the_trip_id_and_does_not_consume(client, system_conn):
-    owner, _ = _user(client)
+    owner, ou = _user(client)
+    _plus(system_conn, ou)
     joiner, _ = _user(client)
     trip = _trip(client, owner)
     _join(client, owner, trip, joiner)
@@ -172,8 +180,9 @@ def test_already_member_is_409_with_the_trip_id_and_does_not_consume(client, sys
     assert system_conn.execute("SELECT use_count FROM trip_invites WHERE id = %s", (inv["id"],)).fetchone()[0] == 0
 
 
-def test_link_invite_counts_uses_up_to_max_uses(client):
-    owner, _ = _user(client)
+def test_link_invite_counts_uses_up_to_max_uses(client, system_conn):
+    owner, ou = _user(client)
+    _plus(system_conn, ou)
     trip = _trip(client, owner)
     inv = _invite(client, owner, trip, max_uses=2)
     assert inv["uses_left"] == 2
@@ -195,11 +204,12 @@ def test_revoke_and_unknown_invite_ids(client):
     assert client.get(f"/v1/trips/{trip['id']}/invites", headers=owner).json()[0]["status"] == "revoked"
 
 
-def test_pending_cap_is_20(client):
-    owner, _ = _user(client)
+def test_pending_cap_is_20(client, system_conn):
+    owner, ou = _user(client)
+    _plus(system_conn, ou)
     trip = _trip(client, owner)
-    for _i in range(20):
-        _invite(client, owner, trip)
+    for _i in range(20):  # straight into the table: a plan's slots stop the API at 6, this is the cap behind them
+        system_conn.execute("INSERT INTO trip_invites (trip_id, invited_by, token_hash) VALUES (%s, %s, %s)", (trip["id"], ou["id"], uuid.uuid4().bytes))
     r = client.post(f"/v1/trips/{trip['id']}/invites", json={"role": "editor"}, headers=owner)
     assert r.status_code == 429 and r.json()["code"] == "rate_limited"
 
@@ -225,12 +235,14 @@ def test_list_members_and_role_change(client):
 
 
 def test_limited_trip_cannot_raise_a_role(client, system_conn):
-    owner, _ = _user(client)
+    owner, ou = _user(client)
     a, au = _user(client)
     b, _bu = _user(client)
     trip = _trip(client, owner)
+    _plus(system_conn, ou)
     _join(client, owner, trip, a, "viewer")
-    _join(client, owner, trip, b, "viewer")  # two collaborators on a Free trip (limit 1): limited
+    _join(client, owner, trip, b, "viewer")
+    system_conn.execute("UPDATE entitlements SET tier_code = 'free' WHERE user_id = %s", (ou["id"],))  # the plan lapses: two collaborators on a Free trip (limit 1)
     r = client.patch(f"/v1/trips/{trip['id']}/members/{au['id']}", json={"role": "editor"}, headers=owner)
     assert r.status_code == 402 and r.json()["code"] == "limit_reached" and r.json()["paywall"]["reason"] == "sharing"
     system_conn.execute("UPDATE trip_members SET role = 'editor' WHERE trip_id = %s AND user_id = %s", (trip["id"], au["id"]))

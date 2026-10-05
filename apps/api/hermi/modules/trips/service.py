@@ -21,7 +21,7 @@ def trip_capabilities(session: Session, trip: Trip) -> Capabilities:
     used = session.execute(
         text(
             "SELECT (SELECT count(*) FROM trip_members WHERE trip_id = :t AND role <> 'owner'), "
-            "       (SELECT count(*) FROM trip_invites WHERE trip_id = :t AND revoked_at IS NULL AND expires_at > now() AND use_count < max_uses), "
+            "       (SELECT COALESCE(sum(max_uses - use_count), 0) FROM trip_invites WHERE trip_id = :t AND revoked_at IS NULL AND expires_at > now() AND use_count < max_uses), "
             "       (SELECT count(*) FROM flight_routes WHERE trip_id = :t AND is_live AND active)"
         ),
         {"t": trip.id},

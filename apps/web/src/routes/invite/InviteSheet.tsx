@@ -31,7 +31,7 @@ async function share(url: string): Promise<"shared" | "copied"> {
  * Escape closes it. Upgrade when the shared sheet lands with the paywall sheet (WF-064). The API sends no mail yet, so
  * "Create invite" with an email makes the link to share, and Resend is the same call as Regenerate.
  */
-export function InviteSheet({ trip, owner, ownerName, pending, onClose }: { trip: Trip; owner: boolean; ownerName: string; pending: Invite[]; onClose: () => void }) {
+export function InviteSheet({ trip, owner, ownerName, pending, slots, onClose }: { trip: Trip; owner: boolean; ownerName: string; pending: Invite[]; slots?: { used: number; max: number }; onClose: () => void }) {
   const online = useOnline()
   const panel = useRef<HTMLElement>(null)
   const [role, setRole] = useState<"editor" | "viewer">(owner ? "editor" : "viewer")
@@ -125,6 +125,7 @@ export function InviteSheet({ trip, owner, ownerName, pending, onClose }: { trip
           </label>
         ))}
       </div>
+      {owner && slots && <p className="h-soft">{t(slots.max <= 1 ? "invite.slots" : "invite.slotsPaid", { n: slots.used, max: slots.max })}</p>}
       <p className="h-soft">{t("invite.free")}</p>
       <Btn variant="primary" busy={busy === "link"} disabled={off && busy !== "link"} aria-label={t("invite.shareAria")} onClick={() => void send("link")}>
         <Icon name="external-link" size={18} />

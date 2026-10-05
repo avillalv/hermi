@@ -17,6 +17,7 @@ export type Person = { id: string; name: string; color: string; home_airports: s
 export type Trip = Pick<TripSummary, "id" | "version" | "name" | "status" | "start_date" | "end_date" | "my_role"> & {
   home_currency: string
   editors_can_invite?: boolean
+  limited?: boolean
   travelers: Person[]
   destinations: (TripDestination & { lat?: number; lon?: number; country_code?: string | null })[]
 }

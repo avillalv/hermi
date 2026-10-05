@@ -124,6 +124,7 @@ class Trip(BaseModel):
     editors_can_invite: bool
     created_at: datetime
     updated_at: datetime
+    limited: bool = False  # the owner's plan no longer covers the collaborators: extras are viewers (WF-026)
 
 
 class TripSummary(BaseModel):

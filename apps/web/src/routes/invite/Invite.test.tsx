@@ -285,3 +285,23 @@ test("a signed-in person with no account is sent to onboarding before the invite
   expect(called(f, "POST", "/accept")).toBe(false)
   expect(sessionStorage.getItem("hermi.invite")).toBe("abc")
 })
+
+test("the Invite sheet shows the Free slot count with the free path in view", async () => {
+  mockApi(api())
+  open("?invite=1")
+  expect(await screen.findByText("1 of 1 on Free")).toBeInTheDocument()
+  expect(screen.getByText(/They join free/)).toBeInTheDocument()
+})
+
+test("a trip over its collaborator limit tells the owner extras are viewers and nothing is deleted", async () => {
+  mockApi(api({ trip: trip({ limited: true }) }))
+  open()
+  expect(await screen.findByText(/nothing is deleted/)).toBeInTheDocument()
+})
+
+test("a collaborator does not see the lapse banner", async () => {
+  mockApi(api({ trip: trip({ limited: true, my_role: "viewer" }) }))
+  open()
+  await screen.findByRole("group", { name: "Sam, editor" })
+  expect(screen.queryByText(/nothing is deleted/)).not.toBeInTheDocument()
+})
