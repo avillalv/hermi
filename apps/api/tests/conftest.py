@@ -31,7 +31,8 @@ def _db_urls() -> dict[str, str]:
     if all(urls.values()):
         return urls
     msg = "TEST_MIGRATION_DATABASE_URL, TEST_DATABASE_URL and TEST_DATABASE_URL_SYSTEM are not set (npm run test:api loads them from .env)"
-    if os.environ.get("CI"):
+    # The Windows nightly has no PostgreSQL 18 service; it sets HERMI_TESTS_WITHOUT_DB=1 and the Linux api-tests job runs these.
+    if os.environ.get("CI") and not os.environ.get("HERMI_TESTS_WITHOUT_DB"):
         pytest.fail(msg)
     pytest.skip(msg)
 
