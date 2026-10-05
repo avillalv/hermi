@@ -2236,6 +2236,8 @@ CREATE TABLE saved_place_votes (                              -- a heart on a sa
 CREATE INDEX ix_saved_place_votes_trip ON saved_place_votes (trip_id);
 ```
 
+**Hearts after removal of a traveler (migration 0022, WF-034.2).** The two vote tables above are as 0010 created them. `0022_vote_tombstone` gives each a surrogate `id uuid PRIMARY KEY DEFAULT uuidv7()`, makes `person_id` nullable, replaces the `trip_people` foreign key's `ON DELETE CASCADE` with `ON DELETE SET NULL (person_id)` so a heart outlives its traveler (the client shows "Former traveler"), keeps `UNIQUE (lodging_id, person_id)` and `UNIQUE (saved_place_id, person_id)`, and adds a unique index on the stay (or place) and `user_id` where `user_id IS NOT NULL` (one heart per member). It also adds `uq_lodging_options_one_booked ON lodging_options (trip_id) WHERE status = 'booked'`, one Booked stay per trip.
+
 ### 5.15 Checklist and notes
 
 `checklist_items` stores the "Before you go" state per trip: one row per kind from the checklist rules (`source = 'rules'`), any number of custom items (`kind = 'custom'`, `source = 'user'`) and the lines of an accepted AI packing list (`kind = 'packing'`, `source = 'ai'`, one row per line). Official visa and entry links come first; at least half of the kinds are unmonetized; only kinds linked to a partner create `link_clicks`. `notes` holds both user notes and agent findings, and can be attached to a day or an itinerary item; an agent note must carry at least one source URL. `notes.checked_at` is the date on the evidence label: it is the day the agent saw the fact on its source page, and a one-tap recheck (06 5.12) moves it forward.
@@ -3859,6 +3861,8 @@ Practical rules for the revisions: functions, triggers, partitions, policies and
 | `0017_trip_effective_limits` | `trip_effective_limits(uuid)`, the 7.1 merge as a definer function | 0016 |
 | `0018_unlink_my_traveler` | `unlink_my_traveler(uuid)`, the undo of `link_my_traveler` as a definer function (WF-024.1) | 0017 |
 | `0020_share_link_book_slide` | `trip_share_links.show_book_slide boolean NOT NULL DEFAULT true`, the "Book the plan" setting of `ShareLinkCreate` (WF-025.2) | 0019 |
+| `0021_fx_convert_exact_rounding` | `fx_convert_minor()` rounds exact halves away from zero (WF-029) | 0020 |
+| `0022_vote_tombstone` | `lodging_votes` and `saved_place_votes`: surrogate `id`, nullable `person_id` cleared (not cascaded) when a traveler is removed, one heart per member; `uq_lodging_options_one_booked` (WF-034.2) | 0021 |
 
 Airports and FX are loaded by jobs, not by a migration: `hermi seed-airports` reads the OurAirports CSV and `hermi refresh-fx` pulls Frankfurter. CI runs `npm run db:init`, then the full chain on an empty database as `hermi_migrate_login`, runs the tenant-isolation tests and the role checks as `hermi_api_login` (never as the owner), then runs `alembic downgrade base` and `upgrade head` once to prove the chain is reversible in a scratch database (production never downgrades).
 

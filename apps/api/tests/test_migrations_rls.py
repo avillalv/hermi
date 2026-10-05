@@ -111,7 +111,7 @@ def _member(c, trip, user, role):
 def test_chain_is_linear_and_0014_follows_0013():
     s = ScriptDirectory.from_config(_alembic_cfg())
     assert s.get_revision("0014_rls").down_revision == "0013_notifications_samples"
-    assert s.get_heads() == ["0021_fx_convert_exact_rounding"]  # 0021 (WF-029) is the head now
+    assert s.get_heads() == ["0022_vote_tombstone"]  # 0022 (WF-034.2) is the head now
 
 
 # --- RLS on every tenant table ---------------------------------------------------------------------

@@ -1,5 +1,6 @@
 # ruff: noqa: E501  (long SQL strings and comments)
 import os
+import socket
 
 import pytest
 
@@ -17,6 +18,26 @@ os.environ["AI_PROVIDER"] = "fake"
 def _no_root_env(monkeypatch, tmp_path):
     # A developer's root .env must not leak into create_app() or cli tests.
     monkeypatch.setattr("hermi.config.ROOT_ENV_FILE", tmp_path / "no-such.env")
+
+
+@pytest.fixture(autouse=True)
+def _network_blocked(monkeypatch):
+    """No test reaches the network: DNS and outbound TCP to anything but this machine fail loudly."""
+    real_getaddrinfo, real_connect = socket.getaddrinfo, socket.create_connection
+    local = {None, "", "localhost", "127.0.0.1", "::1"}
+
+    def getaddrinfo(host, *a, **k):
+        if host not in local:
+            raise AssertionError(f"network used in a test: DNS for {host}")
+        return real_getaddrinfo(host, *a, **k)
+
+    def create_connection(address, *a, **k):
+        if address[0] not in local:
+            raise AssertionError(f"network used in a test: {address[0]}")
+        return real_connect(address, *a, **k)
+
+    monkeypatch.setattr(socket, "create_connection", create_connection)
+    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
 
 
 # --- shared database fixtures (a real PostgreSQL 18 prepared by `npm run db:init`) -------------------------------------

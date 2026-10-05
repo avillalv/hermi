@@ -290,6 +290,7 @@ type Trip = {
 | 428 | `precondition_required` | Versioned write without `If-Match` | Bug |
 | 429 | `rate_limited` | Limit hit | Back off per `Retry-After` |
 | 429 | `provider_budget_exhausted` | Daily or monthly provider-spend ceiling | Explain, show cached data |
+| 429 | `quota_exceeded` | Daily place search cap (`places_searches_per_day`) reached; cached results and saved places keep working | Show the 05 6.13 limit copy and "Add by hand" |
 | 500 | `internal_error` | Unhandled | Retry, report `request_id` |
 | 502 | `provider_error` | Upstream (Anthropic, SerpApi, Travelpayouts) failed; credits released | Retry later |
 | 502 | `feed_fetch_failed` | The calendar feed host answered with an error, timed out or returned something that is not a calendar | Retry later or upload the file |
@@ -655,7 +656,7 @@ Lodging covers options the user saves or pastes, votes, comparison, and rental s
 | Endpoint | Auth | Gate and cost | Request and response | Errors and side effects |
 |---|---|---|---|---|
 | `GET /trips/{trip_id}/lodging` | viewer | none | `?status=&sort=created&limit&cursor&updated_since` to `Page<Lodging>` | `sort` accepts `created`, `price`, `rating`, `votes`. The response states the sort in `sorted_by`. |
-| `POST /trips/{trip_id}/lodging` | editor | none | `LodgingIn` to 201 `Lodging` | Writes `lodging_options`. Stores `site` from the host of `url`. `added_via`: `paste`, `bookmarklet`, `partner_search`, `agent`, `manual`. Activity feed entry. |
+| `POST /trips/{trip_id}/lodging` | editor | `saved_lodging_per_trip` (402 `limit_reached`, trigger `ninth_stay`) | `LodgingIn` to 201 `Lodging` | Writes `lodging_options`. Stores `site` from the host of `url`. `added_via`: `paste`, `bookmarklet`, `partner_search`, `agent`, `manual`. Activity feed entry. |
 | `GET /lodging/{option_id}` | viewer | none | none to `Lodging` | |
 | `PATCH /lodging/{option_id}` | editor | versioned | `Partial<LodgingIn>` to `Lodging` | `status` moving to `booked` also offers to add the stay to the itinerary days (client prompt; no server side effect). |
 | `DELETE /lodging/{option_id}` | editor | none | 204 | Removes votes. |

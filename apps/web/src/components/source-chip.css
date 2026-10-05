@@ -1,0 +1,6 @@
+/* Source chip (components/SourceChip.tsx): the label links out; the stale note is amber with an icon and words. Tokens only. */
+.source-chip { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--tp-space-2); }
+.source-chip__link { display: inline-flex; align-items: center; gap: var(--tp-space-1); min-height: 44px; color: var(--tp-brand); font: 600 0.8125rem/1.3 var(--tp-font-body); overflow-wrap: anywhere; }
+.source-chip__link:focus-visible { outline: 3px solid var(--tp-brand); outline-offset: 2px; }
+.source-chip__text { font: 600 0.8125rem/1.3 var(--tp-font-body); }
+.source-chip__stale { display: inline-flex; align-items: center; gap: var(--tp-space-1); padding: 2px var(--tp-space-2); border: 1.5px solid var(--tp-warning); border-radius: 11px; color: var(--tp-warning-ink); font: 600 0.75rem/1.2 var(--tp-font-body); }

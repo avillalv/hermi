@@ -24,7 +24,7 @@ from hermi.modules.billing.schemas import (
 )
 
 # The paywall trigger a limit key fires (04 section 2.2, 07 section 6.2); reason and free path come from `paywall.TRIGGERS`.
-_PAYWALLS = {"active_trips": "third_trip", "collaborators": "invite", "routes_per_trip": "second_route", "live_routes": "track_live", "price_alerts": "alert_limit"}
+_PAYWALLS = {"active_trips": "third_trip", "collaborators": "invite", "routes_per_trip": "second_route", "live_routes": "track_live", "price_alerts": "alert_limit", "saved_lodging_per_trip": "ninth_stay"}
 
 
 def user_limits(session: Session, user_id: uuid.UUID) -> dict[str, Any]:

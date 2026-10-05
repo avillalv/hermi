@@ -40,6 +40,9 @@ limits and the SSRF guard), `02-architecture.md` sections 3 and 5.4, and `06-ai-
   literal, at most 2,048 characters; refuse blocked hosts and Hermi's own; resolve DNS ourselves and refuse unless
   every answer is public; connect to the validated address (pinned); at most 3 redirects, each hop revalidated
   from the start.
+- Link preview (10 section 2.5) allows `http` on port 80 as well as `https` on 443; the feed fetcher is `https` and
+  443 only. Each caller passes its own `SsrfPolicy` (`LINK_PREVIEW_POLICY`, `FEED_POLICY`). The total time limit is
+  enforced by a watchdog in `providers/pinned_http.py`, not by httpx read timeouts.
 - The table-driven suite of hostile addresses stays green in CI. The fake feed host is allowed only when
   `ENVIRONMENT` is `local` or `ci`.
 - Raw files and pasted text are never stored. A feed address is stored encrypted only while polling is on, and

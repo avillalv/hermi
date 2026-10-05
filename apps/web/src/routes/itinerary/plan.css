@@ -1,0 +1,24 @@
+/* Plan, Days view (WF-032.2, 05 6.12 and 4.7 and 4.8). Tokens only; the timeline, ticket, day chips, day head, buttons, inputs and list cards come from the kit (hermi.css). */
+.plan__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-space-3); }
+.plan__bar-actions { display: flex; flex-wrap: wrap; gap: var(--tp-space-2); }
+.plan__skel { min-height: 6rem; border-radius: var(--radius-xl); background: var(--tp-sunken); }
+.plan__free { margin: 0; padding: var(--tp-space-6) 0; text-align: center; }
+/* The kit's 56 px stop is for a title and a category. A stop with a Move button on its stub is taller, through the kit's own --h-side-h knob. */
+.plan__timeline .h-timeline__row:not(.h-timeline__row--link-short, .h-timeline__row--link-end, .h-timeline__row--add) { height: auto; }
+.plan__timeline .h-timeline__row .h-ticket { --h-side-h: 6rem; }
+.plan__timeline .h-timeline__row .h-ticket.plan__nostub { --h-side-h: 3.5rem; }
+.plan__timeline .h-timeline__row[draggable="true"] { cursor: grab; }
+.plan__lifted { opacity: 0.85; filter: drop-shadow(var(--tp-shadow-2)); }
+.plan__over .h-ticket__card { outline: 2px dashed var(--tp-edge); outline-offset: -2px; }
+.plan__form { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.plan__versions { display: flex; flex-direction: column; gap: var(--tp-space-2); }
+.plan__version { display: flex; flex-direction: column; gap: var(--tp-space-1); padding: var(--tp-space-3) var(--tp-space-4); }
+/* Modal bottom sheet: pinned to the bottom on phones, centered from 768 px (05 4.19). */
+.plan__modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; }
+.plan__scrim { position: absolute; inset: 0; background: var(--tp-scrim); }
+.plan__dialog { position: relative; display: flex; flex-direction: column; gap: var(--tp-space-3); box-sizing: border-box; width: 100%; max-height: 90dvh; overflow-y: auto; padding: 0 var(--tp-space-4) var(--tp-space-6); border-radius: var(--radius-xl) var(--radius-xl) 0 0; background: var(--tp-sheet); box-shadow: var(--tp-shadow-3); }
+.plan__dialog:focus { outline: none; }
+@media (min-width: 768px) {
+  .plan__modal { align-items: center; }
+  .plan__dialog { width: 28rem; padding-bottom: var(--tp-space-4); border-radius: var(--radius-xl); }
+}

@@ -25,7 +25,7 @@ import { Members } from "../invite/Members";
 import { tripStrip } from "./TripStrip";
 import "./trips.css";
 
-const tone = (color: string): Tone =>
+export const tone = (color: string): Tone =>
   `t${
     Math.max(
       0,
