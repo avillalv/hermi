@@ -290,6 +290,7 @@ type Trip = {
 | 428 | `precondition_required` | Versioned write without `If-Match` | Bug |
 | 429 | `rate_limited` | Limit hit | Back off per `Retry-After` |
 | 429 | `provider_budget_exhausted` | Daily or monthly provider-spend ceiling | Explain, show cached data |
+| 429 | `quota_exceeded` | Daily place search cap (`places_searches_per_day`) reached; cached results and saved places keep working | Show the 05 6.13 limit copy and "Add by hand" |
 | 500 | `internal_error` | Unhandled | Retry, report `request_id` |
 | 502 | `provider_error` | Upstream (Anthropic, SerpApi, Travelpayouts) failed; credits released | Retry later |
 | 502 | `feed_fetch_failed` | The calendar feed host answered with an error, timed out or returned something that is not a calendar | Retry later or upload the file |

@@ -6,7 +6,6 @@ Every write runs through RLS (editors and the owner write, viewers cannot), and 
 Items list in the order day, start time, `sort_order`, id, with no-day items last; reorder and move renumber `sort_order` from 1.
 """
 
-import base64
 import hashlib
 import json
 import re
@@ -38,6 +37,7 @@ from hermi.modules.itinerary.schemas import (
     ReorderIn,
     check_times,
 )
+from hermi.pagination import decode_offset, encode_offset
 from hermi.security.preconditions import resolve_version, version_conflict
 
 router = APIRouter(tags=["itinerary"])
@@ -142,18 +142,6 @@ def _insert(session: Session, trip_id: uuid.UUID, user_id: uuid.UUID, body: Item
 # --- items ----------------------------------------------------------------------------------------------------------------
 
 
-def _cursor(value: str | None) -> int:
-    if not value:
-        return 0
-    try:
-        n = int(base64.urlsafe_b64decode(value.encode()).decode())
-        if n < 0 or n > 10**9:
-            raise ValueError
-        return n
-    except ValueError:
-        raise _invalid("cursor", "That page cursor is not valid.") from None
-
-
 @router.get("/trips/{trip_id}/items", response_model=ItemPage)
 def list_items(
     access: Annotated[TripAccess, require_trip("viewer")],
@@ -166,7 +154,7 @@ def list_items(
     updated_since: datetime | None = None,
 ) -> ItemPage:
     # shortcut: the cursor is an offset (unsigned base64). A write between two page fetches can shift a row across the page edge; keyset paging if that matters.
-    start = _cursor(cursor)
+    start = decode_offset(cursor)
     rows = session.execute(
         text(
             _SELECT + """WHERE i.trip_id = :t AND (CAST(:day AS date) IS NULL OR i.day = :day) AND (NOT :uns OR i.day IS NULL)
@@ -176,7 +164,7 @@ def list_items(
         {"t": access.trip.id, "day": day, "uns": unscheduled, "cat": category, "since": updated_since, "n": limit + 1, "o": start},
     ).mappings().all()
     more = len(rows) > limit
-    nxt = base64.urlsafe_b64encode(str(start + limit).encode()).decode() if more else None
+    nxt = encode_offset(start + limit) if more else None
     return ItemPage(items=[_item(r) for r in rows[:limit]], next_cursor=nxt, has_more=more)
 
 
