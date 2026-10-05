@@ -122,3 +122,12 @@ export function formatMoneyPair(
     rateDate: rates?.rateDate ?? null,
   }
 }
+
+/** "480.00" to integer minor units in the currency's own digits, or null when it is not a positive amount. */
+export function toMinor(text: string, currency: string): number | null {
+  const s = text.trim().replace(/,/g, "")
+  const d = minorDigits(currency)
+  if (!new RegExp(d === 0 ? "^\\d+$" : `^\\d+(\\.\\d{1,${d}})?$`).test(s)) return null
+  const n = Math.round(Number(s) * 10 ** d)
+  return n > 0 ? n : null
+}

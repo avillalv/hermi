@@ -30,3 +30,9 @@
 .flights__row { display: flex; align-items: center; gap: var(--tp-space-3); }
 .flights__note { display: flex; align-items: center; gap: var(--tp-space-2); }
 .flights__warn { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-space-2); margin: 0; color: var(--tp-warning-ink); font: 600 0.8125rem/1.3 var(--tp-font-body); }
+.flights__alert { display: flex; flex-direction: column; gap: var(--tp-space-2); }
+.flights__switch { min-width: 44px; min-height: 44px; padding: 0 var(--tp-space-3); border: 1px solid var(--tp-rule); border-radius: 22px; background: var(--tp-paper); color: var(--tp-ink); font: 600 0.8125rem/1.2 var(--tp-font-body); cursor: pointer; }
+.flights__switch--on { border-color: var(--tp-brand); background: var(--tp-sunken); }
+.flights__switch:focus-visible { outline: 3px solid var(--tp-brand); outline-offset: 2px; }
+.flights__switch:disabled { opacity: 0.5; cursor: not-allowed; }
+.flights__check { display: flex; align-items: center; gap: var(--tp-space-2); min-height: 44px; font: 400 0.9375rem/1.3 var(--tp-font-body); }

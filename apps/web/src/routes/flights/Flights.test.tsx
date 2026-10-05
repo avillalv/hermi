@@ -36,6 +36,7 @@ const api = ({ role = "owner", routes = [route()], fares = [fare()], hist = hist
     if (u.includes("/flights/best")) return Response.json(fares)
     if (u.includes("/price-history")) return Response.json(hist)
     if (u.includes("/date-grid")) return Response.json(grid)
+    if (u.endsWith("/price-alerts")) return Response.json([])
     return undefined
   }
 const open = () => show(<Flights />, "/trips/:id/flights", "/trips/t1/flights")

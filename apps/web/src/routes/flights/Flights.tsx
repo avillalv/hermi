@@ -12,6 +12,7 @@ import { NotFound, useTrip } from "../trips/api"
 import { tripStrip } from "../trips/TripStrip"
 import "../trips/trips.css"
 import { AddRoute } from "./AddRoute"
+import { AlertList, AlertSwitch } from "./Alerts"
 import { chooseFare, refreshRoute, useAirportsPerSide, useOptions, useRoutes, useSummary, type Fare, type FareSort, type Route, type RouteSummary } from "./api"
 import { DateGrid } from "./DateGrid"
 import { PriceChart } from "./PriceChart"
@@ -114,7 +115,7 @@ function Options({ tripId, route, chosen, canEdit, online }: { tripId: string; r
 type View = "chart" | "grid" | "options"
 
 /** One route card (05 6.9): codes, window, travelers, chips, then Chart, Grid or Options. */
-function RouteCard({ tripId, route, sum, canEdit, online }: { tripId: string; route: Route; sum: RouteSummary | undefined; canEdit: boolean; online: boolean }) {
+function RouteCard({ tripId, route, sum, canEdit, online, home }: { home: string; tripId: string; route: Route; sum: RouteSummary | undefined; canEdit: boolean; online: boolean }) {
   const [view, setView] = useState<View>("chart")
   const [busy, setBusy] = useState(false)
   const [checkFail, setCheckFail] = useState<"failed" | "rate" | null>(null)
@@ -141,6 +142,7 @@ function RouteCard({ tripId, route, sum, canEdit, online }: { tripId: string; ro
       {view === "chart" && <PriceChart tripId={tripId} routeId={route.id} />}
       {view === "grid" && <DateGrid tripId={tripId} routeId={route.id} />}
       {view === "options" && <Options tripId={tripId} route={route} chosen={sum?.chosen?.id} canEdit={canEdit} online={online} />}
+      <AlertSwitch tripId={tripId} routeId={route.id} currency={cheapest?.price.currency ?? home} canEdit={canEdit} online={online} />
       <p className="h-soft">{t("flights.disclosure")}</p>
       <p className="h-soft">{t("flights.cachedFrom")}</p>
       {canEdit && (
@@ -167,7 +169,7 @@ function RouteCard({ tripId, route, sum, canEdit, online }: { tripId: string; ro
   )
 }
 
-/** 05 6.9 Flights: route cards for the trip with cached fares. Live checks and alerts arrive with WF-031. */
+/** 05 6.9 Flights: route cards for the trip with cached fares. Live checks arrive with WF-051; alerts are in Alerts.tsx. */
 export function Flights() {
   const { token } = useAuth()
   const { id = "" } = useParams()
@@ -236,7 +238,8 @@ export function Flights() {
             {trip.data && !canEdit && <span className="h-soft">{t("flights.viewerNote")}</span>}
           </div>
         )}
-        {trip.data && routes.data?.map((r) => <RouteCard key={r.id} tripId={id} route={r} sum={sums.data?.find((s) => s.route_id === r.id)} canEdit={canEdit} online={online} />)}
+        {trip.data && routes.data?.map((r) => <RouteCard key={r.id} tripId={id} route={r} sum={sums.data?.find((s) => s.route_id === r.id)} canEdit={canEdit} online={online} home={trip.data.home_currency} />)}
+        {canEdit && !!routes.data?.length && <AlertList tripId={id} routes={routes.data} name={routeName} />}
       </div>
     </AppShell>
   )

@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate, useParams } from "react-route
 import { Btn, Field, Icon, RoutePath, TextField, TicketStub, TripTicket } from "../../components/kit"
 import { formatDateRange } from "../../lib/dates"
 import { t } from "../../lib/i18n"
-import { formatDuration, formatMoney, minorDigits } from "../../lib/money"
+import { formatDuration, formatMoney, toMinor } from "../../lib/money"
 import { track } from "../../lib/track"
 import { useOnline } from "../../lib/useOnline"
 import { AppShell } from "../../shell/AppShell"
@@ -11,6 +11,7 @@ import { useAuth } from "../auth/authStore"
 import { useTrip } from "../trips/api"
 import { tripStrip } from "../trips/TripStrip"
 import "../trips/trips.css"
+import { AlertSwitch } from "./Alerts"
 import { ageText, chooseFare, refreshRoute, useHistory, useRoutes, useRouteFares, useSummary, type Fare, type Money } from "./api"
 import { PriceChart, daily, shortDay } from "./PriceChart"
 import "./flights.css"
@@ -18,15 +19,6 @@ import "./flights.css"
 const HOUR = 3600_000
 const bucket = (h: number) => (h < 6 ? "0-6" : h < 24 ? "6-24" : "24+")
 const stopsText = (n: number | null) => (n === null ? "" : n === 0 ? t("flights.nonstop") : n === 1 ? t("flights.stop") : t("flights.stops", { n }))
-
-/** "480.00" to integer minor units in the currency's own digits, or null when it is not a positive amount. */
-export function toMinor(text: string, currency: string): number | null {
-  const s = text.trim().replace(/,/g, "")
-  const d = minorDigits(currency)
-  if (!new RegExp(d === 0 ? "^\\d+$" : `^\\d+(\\.\\d{1,${d}})?$`).test(s)) return null
-  const n = Math.round(Number(s) * 10 ** d)
-  return n > 0 ? n : null
-}
 
 /** 6.32 "What did you pay?": the total in the fare's currency, Save or Skip. Both mark the flight booked; Skip sends no amount. */
 function PaySheet({ currency, travelers, onSave, onClose }: { currency: string; travelers: number; onSave: (paid: Money | null) => Promise<boolean>; onClose: () => void }) {
@@ -278,6 +270,7 @@ export function FareDetail() {
                     </Btn>
                   </div>
                 ))}
+              <AlertSwitch tripId={id} routeId={routeId} currency={fare.price.currency} canEdit={canEdit} online={online} />
               {failed && (
                 <p role="alert" className="h-input__error">
                   {t("flights.chooseFailed")}

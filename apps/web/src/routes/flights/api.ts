@@ -87,13 +87,18 @@ export const useGrid = (id: string, route: string, on: boolean) => useRead<GridC
 export const useOptions = (id: string, route: string, sort: FareSort, on: boolean) =>
   useRead<Fare[]>(key(id, route, "options", sort), `${base(id)}/flights/best`, on, { route_id: route, sort, limit: "20" })
 
-export type Result = { ok: true } | { ok: false; reason: "limit" | "forbidden" | "invalid" | "unavailable" | "rate" | "failed" }
+/** A 402 carries the server's message and its paywall trigger so the screen can tell an upgrade from a plain limit. */
+export type Result = { ok: true } | { ok: false; reason: "limit" | "forbidden" | "invalid" | "unavailable" | "rate" | "conflict" | "failed"; message?: string; trigger?: string }
 
 async function write(id: string, send: () => ReturnType<typeof api.post>): Promise<Result> {
   try {
     const r = await send()
     const s = r.response.status
-    if (s === 402) return { ok: false, reason: "limit" }
+    if (s === 402) {
+      const e = r.error as { detail?: string; paywall?: { trigger?: string } } | undefined
+      return { ok: false, reason: "limit", message: e?.detail, trigger: e?.paywall?.trigger }
+    }
+    if (s === 409) return { ok: false, reason: "conflict" }
     if (s === 403) return { ok: false, reason: "forbidden" }
     if (s === 422) return { ok: false, reason: "invalid" }
     if (s === 503) return { ok: false, reason: "unavailable" }
@@ -122,26 +127,33 @@ export const useRouteFares = (id: string, route: string, on: boolean) =>
 /** Cached refresh: free, never spends credits (01 section 5.8). */
 export const refreshRoute = (id: string, route?: string) => write(id, () => api.post(`${base(id)}/flights/refresh`, route ? { route_ids: [route] } : {}))
 
-/** airports_per_side from the plan, or 2 (the Free cap) until it loads. */
-export function useAirportsPerSide(on: boolean): number {
-  return (
-    useQuery(
-      {
-        queryKey: ["entitlements", "airports"],
-        enabled: on,
-        queryFn: async () => {
-          const r = await api.get<{ limits: { airports_per_side?: number } }>("/v1/me/entitlements")
-          if (r.error !== undefined || !r.data) throw new Error("entitlements")
-          return r.data
-        },
+export const useEntitlements = (on: boolean) =>
+  useQuery(
+    {
+      queryKey: ["entitlements", "airports"],
+      enabled: on,
+      queryFn: async () => {
+        const r = await api.get<{ tier?: string; limits: { airports_per_side?: number } }>("/v1/me/entitlements")
+        if (r.error !== undefined || !r.data) throw new Error("entitlements")
+        return r.data
       },
-      queryClient,
-    ).data?.limits.airports_per_side ?? 2
-  )
-}
+    },
+    queryClient,
+  ).data
+
+/** airports_per_side from the plan, or 2 (the Free cap) until it loads. */
+export const useAirportsPerSide = (on: boolean): number => useEntitlements(on)?.limits.airports_per_side ?? 2
 
 /** "3 h ago", the same wording as the API's age_label. */
 export function ageText(iso: string, now = Date.now()): string {
   const sec = Math.max(0, Math.floor((now - Date.parse(iso)) / 1000))
   return sec < 60 ? "just now" : sec < 3600 ? `${Math.floor(sec / 60)} min ago` : sec < 172800 ? `${Math.floor(sec / 3600)} h ago` : `${Math.floor(sec / 86400)} d ago`
 }
+
+export type Alert = { id: string; route_id: string; target_price: Money; notify: { push: boolean; email: boolean }; active: boolean; last_notified_at: string | null; last_notified_price: Money | null }
+export type AlertIn = { target_price: Money; notify: { push: boolean; email: boolean } }
+/** The caller's own alerts on this trip (alerts are personal, 04 section 5.8). */
+export const useAlerts = (id: string, on: boolean) => useRead<Alert[]>(key(id, "alerts"), `${base(id)}/price-alerts`, on)
+export const createAlert = (id: string, route: string, body: AlertIn) => write(id, () => api.post(`/v1/routes/${encodeURIComponent(route)}/price-alerts`, body))
+export const updateAlert = (id: string, alert: string, body: Partial<AlertIn> & { active?: boolean }) => write(id, () => api.patch(`/v1/price-alerts/${encodeURIComponent(alert)}`, body))
+export const deleteAlert = (id: string, alert: string) => write(id, () => api.delete(`/v1/price-alerts/${encodeURIComponent(alert)}`))

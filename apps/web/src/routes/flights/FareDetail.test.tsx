@@ -2,7 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter, Route, Routes } from "react-router"
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { bodyOf, mockApi, reset, show, type Handler } from "../onboarding/testing"
-import { FareDetail, toMinor } from "./FareDetail"
+import { toMinor } from "../../lib/money"
+import { FareDetail } from "./FareDetail"
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString()
 const fare = (over: Record<string, unknown> = {}) => ({
