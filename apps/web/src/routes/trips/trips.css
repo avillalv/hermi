@@ -7,7 +7,7 @@
 .trips__skel { min-height: 120px; border: 1px solid transparent; border-radius: var(--radius-xl); background: var(--tp-sunken); }
 .trips__note { display: flex; align-items: center; gap: var(--tp-space-2); }
 .overview { display: flex; flex-direction: column; gap: var(--tp-space-3); }
-.overview__back { align-self: flex-start; }
+.overview__back, .overview__invite { align-self: flex-start; }
 .overview__row { display: flex; align-items: center; gap: var(--tp-space-3); }
 .overview__lead { display: block; padding: var(--tp-space-3) var(--tp-space-4) var(--tp-space-2); }
 .edit { display: flex; flex-direction: column; gap: var(--tp-space-4); }
@@ -19,3 +19,18 @@
 .actions__panel { margin-top: var(--tp-space-2); }
 .actions__panel .h-listcard__row { width: 100%; box-sizing: border-box; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
 .trips__item { display: flex; flex-direction: column; }
+.group__row { display: flex; flex: 1; align-items: center; min-width: 0; gap: var(--tp-space-2); }
+.group__airport { color: var(--tp-ink-soft); }
+.group__empty { flex-direction: column; align-items: flex-start; }
+.group__skel { min-height: 56px; }
+.group__form, .group__choose { display: flex; flex-direction: column; gap: var(--tp-space-3); padding: var(--tp-space-3) var(--tp-space-4); }
+.group__choose { flex-direction: row; flex-wrap: wrap; }
+.group__colors { display: flex; flex-wrap: wrap; gap: var(--tp-space-2); }
+.group__swatch { display: inline-flex; width: 44px; height: 44px; align-items: center; justify-content: center; border-radius: 50%; cursor: pointer; }
+.group__swatch input { width: 100%; height: 100%; margin: 0; border-radius: 50%; appearance: none; background: inherit; cursor: pointer; }
+.group__swatch input:checked { outline: 3px solid var(--tp-ink); outline-offset: 2px; }
+.group__swatch input:focus-visible { outline: 3px solid var(--tp-brand); outline-offset: 2px; }
+.group__swatch--t1 { background: var(--tp-traveler-1); } .group__swatch--t2 { background: var(--tp-traveler-2); }
+.group__swatch--t3 { background: var(--tp-traveler-3); } .group__swatch--t4 { background: var(--tp-traveler-4); }
+.group__swatch--t5 { background: var(--tp-traveler-5); } .group__swatch--t6 { background: var(--tp-traveler-6); }
+.group__swatch--t7 { background: var(--tp-traveler-7); } .group__swatch--t8 { background: var(--tp-traveler-8); }

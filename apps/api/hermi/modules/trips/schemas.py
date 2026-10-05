@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from hermi.modules.collaboration.schemas import Person
+
 
 class TripOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -117,10 +119,12 @@ class Trip(BaseModel):
     notes: str
     destinations: list[TripDestinationOut]
     my_role: Literal["owner", "editor", "viewer"]
+    travelers: list[Person]
     ai_enabled: bool
     editors_can_invite: bool
     created_at: datetime
     updated_at: datetime
+    limited: bool = False  # the owner's plan no longer covers the collaborators: extras are viewers (WF-026)
 
 
 class TripSummary(BaseModel):
@@ -209,3 +213,19 @@ class DestinationPatch(BaseModel):
 
 class DestinationOrder(BaseModel):
     ids: list[uuid.UUID] = Field(max_length=12)
+
+
+class Capabilities(BaseModel):
+    """04 section 2.3. Computed per trip by trips.service.trip_capabilities; every number comes from the merged plan limits."""
+
+    effective_tier: Literal["free", "plus", "trip_pass"]
+    source: Literal["owner_tier", "trip_pass"]
+    can_invite: bool
+    collaborators_used: int
+    max_collaborators: int
+    live_routes_max: int
+    live_routes_used: int
+    live_checks_left: int | None
+    agent_enabled: bool
+    limited: bool
+    pass_expires_at: datetime | None

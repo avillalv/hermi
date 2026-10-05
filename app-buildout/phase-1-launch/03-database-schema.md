@@ -2860,9 +2860,9 @@ GRANT  EXECUTE ON FUNCTION my_referral_code(), redeem_referral(text), set_import
 -- transfer_trip_owner are defined in 5.4; the others are written in 0014 beside these grants. Each checks app_user_id() itself, has a fixed
 -- search_path and is owned by hermi_definer. A name without an argument list matches the function's one overload.
 REVOKE EXECUTE ON FUNCTION redeem_trip_invite, transfer_trip_owner, request_account_deletion, cancel_account_deletion,
-  advance_trip_import, link_my_traveler, file_content_report, clear_run_content, clear_my_ai_history, my_provider_spend_micros FROM PUBLIC;
+  advance_trip_import, link_my_traveler, unlink_my_traveler (0018), file_content_report, clear_run_content, clear_my_ai_history, my_provider_spend_micros FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION redeem_trip_invite, transfer_trip_owner, request_account_deletion, cancel_account_deletion,
-  advance_trip_import, link_my_traveler, file_content_report, clear_run_content, clear_my_ai_history, my_provider_spend_micros TO hermi_app;
+  advance_trip_import, link_my_traveler, unlink_my_traveler (0018), file_content_report, clear_run_content, clear_my_ai_history, my_provider_spend_micros TO hermi_app;
 -- Procrastinate: the API defers jobs through the library's own function; workers hold full rights on the procrastinate_* tables.
 GRANT EXECUTE ON FUNCTION procrastinate_defer_jobs_v1 TO hermi_app;
 -- The retention sweep is the only deleter of expired audit rows (5.16); only the scheduler's worker role runs it.
@@ -2911,6 +2911,7 @@ Walked route by route from `04-api-spec.md` section 5 and the jobs it names. "RL
 | `POST /trips/{id}/transfer` | `transfer_trip_owner()` (5.4) | Definer |
 | `POST /trips/{id}/leave`, `PATCH` and `DELETE /trips/{id}/members/{user_id}` | `trip_members` | RLS |
 | `PUT /trips/{id}/members/me/traveler` | `link_my_traveler(trip, person)` sets `people.linked_user_id` (the person may belong to the owner) | Definer |
+| `DELETE /trips/{id}/members/me/traveler` | `unlink_my_traveler(trip)` clears the caller's own `people.linked_user_id` on that trip (0018) | Definer |
 | `POST` and `DELETE /trips/{id}/invites` | `trip_invites` | RLS |
 | `POST /invites/{token}/accept` | `redeem_trip_invite()` (5.4): inserts `trip_members`, bumps `use_count` | Definer |
 | `POST`, `PATCH` and `DELETE /trips/{id}/share-links` | `trip_share_links` | RLS |
@@ -2919,6 +2920,7 @@ Walked route by route from `04-api-spec.md` section 5 and the jobs it names. "RL
 | `POST /trips/{id}/ai/*`, `agent-runs`, `notes/{id}/recheck`, `items/{id}/recheck`, `flights/live-search`, `lodging/rental-search`, `imports/paste` | `reserve_credits()`, `settle_credits()`; insert `runs` (queued) and `provider_calls`; defer the job | Definer for credits; RLS for `runs`; direct insert grant for `provider_calls`; `procrastinate_defer_jobs_v1` for the job |
 | `POST /agent-runs/{id}/cancel`, `POST /ai/jobs/{id}/cancel` | `runs.cancel_requested` (column grant); credits through `settle_credits()` | RLS, Definer |
 | AI spend ceiling check on every AI route | `my_provider_spend_micros()` reads `provider_calls` | Definer |
+| Trip capabilities and plan-limit checks for a trip | `trip_effective_limits(trip)` (7.1) reads the owner's `entitlements`, `plans` and `trip_passes` | Definer (row-level security hides the owner's entitlement from invitees) |
 | `POST /reports` | `file_content_report()`: inserts `content_reports`, expires the cached answer, counts distinct reporters and sets `shared_research_cache.flagged_at` at three | Definer |
 | `POST /shared/{token}/report` | `content_reports` with `reporter_user_id` null | SystemSession (`share_report`) |
 | `POST /purchases/sync`, `/purchases/restore`, `/credits/packs/claim`, `/me/passes/{id}/bind` and `/move` | `subscriptions`, `entitlements`, `store_transactions`, `trip_passes`, `credit_grants`, `credit_ledger` (the same code as the webhook) | SystemSession (`billing_sync`), after the route checks ownership |
@@ -3359,6 +3361,8 @@ FROM (
    GROUP BY l.key
 ) m;
 ```
+
+The API calls this query as the `SECURITY DEFINER` function `trip_effective_limits(p_trip uuid)` (migration `0017_trip_effective_limits`), which returns `(sources text[], limits jsonb)`. It is owned by `hermi_definer`, has a pinned `search_path`, is executable by `hermi_app` only (not `PUBLIC`, not the worker) and answers only for trips in `visible_trip_ids()`; for any other trip it returns no rows. It exists because row-level security hides the owner's `entitlements` row from invitees, who must still get the owner's tier on that trip.
 
 The owner-tier limit `credits_*` and the ceilings are not used for trip features; credits and ceilings belong to the acting user (7.2 and 7.4). When the owner's tier lapses or the pass expires, the query simply returns the Free limits: data is never deleted, and members beyond the collaborator limit are treated as viewers by the API.
 
@@ -3850,6 +3854,10 @@ Practical rules for the revisions: functions, triggers, partitions, policies and
 | `0013_notifications_samples` | `notifications`, `sample_trips`, `plan_verifications`, `plan_verification_items` | 0004, 0005, 0010 |
 | `0014_rls` | Helper functions, `trip_member_profiles`, `purge_trash`, `retention_sweep`, `maintain_partitions`, `drop_old_log_partitions`, `partition_default_rows`, policies for every table, grants and `SECURITY DEFINER` changes (section 6). Any table added after this revision must include its own `GRANT`, `ENABLE ROW LEVEL SECURITY` and policies in the same migration; the test in 6.5 fails otherwise | all tables exist |
 | `0015_seed` | Seed data (section 11), idempotent `INSERT ... ON CONFLICT DO NOTHING` | 0014 |
+| `0016_bootstrap_subject` | `bootstrap_user` writes `auth_identities.provider_subject`; `resolve_identity` | 0015 |
+| `0017_trip_effective_limits` | `trip_effective_limits(uuid)`, the 7.1 merge as a definer function | 0016 |
+| `0018_unlink_my_traveler` | `unlink_my_traveler(uuid)`, the undo of `link_my_traveler` as a definer function (WF-024.1) | 0017 |
+| `0020_share_link_book_slide` | `trip_share_links.show_book_slide boolean NOT NULL DEFAULT true`, the "Book the plan" setting of `ShareLinkCreate` (WF-025.2) | 0019 |
 
 Airports and FX are loaded by jobs, not by a migration: `hermi seed-airports` reads the OurAirports CSV and `hermi refresh-fx` pulls Frankfurter. CI runs `npm run db:init`, then the full chain on an empty database as `hermi_migrate_login`, runs the tenant-isolation tests and the role checks as `hermi_api_login` (never as the owner), then runs `alembic downgrade base` and `upgrade head` once to prove the chain is reversible in a scratch database (production never downgrades).
 
@@ -4020,7 +4028,9 @@ INSERT INTO feature_flags (key, kind, description, enabled, rollout_pct, rules, 
 ('setting_booked_fare_drop',       'setting', 'Booked-fare drop alert thresholds: at least min_drop_pct percent and at least min_drop_usd US dollars (converted) below what was paid, at most once per flight every min_days_between days; never a partner link', true, 100,
    '{"min_drop_pct":5,"min_drop_usd":10,"min_days_between":7,"max_age_hours":48}', '{}'),
 ('setting_calendar_polling',       'setting', 'Calendar feed polling: hours between polls (6), failures in a row before polling stops (3), polled feeds per person (3)', true, 100,
-   '{"interval_hours":6,"max_failures":3,"max_feeds_per_user":3}', '{}')
+   '{"interval_hours":6,"max_failures":3,"max_feeds_per_user":3}', '{}'),
+('setting_rate_limits',            'setting', 'Requests allowed per window for each rate limit route class (10 section 2.3); the window lengths are in code; a missing class keeps its built-in value', true, 100,
+   '{"ai":30,"places_search":30,"outbound":60,"import_preview":20,"import_ics_feed":5,"import_confirm":30,"link_preview":20,"export":1,"delete":1,"signup_ip":5,"share_view":60,"share_view_ip":120,"read_user":600,"read_ip":1200,"write_user":120,"write_ip":600}', '{}')
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO kill_switches (key, description, auto_rule) VALUES

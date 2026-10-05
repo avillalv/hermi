@@ -1,6 +1,6 @@
 ---
 name: prepare-pr
-description: "Finish a build unit's pull request in the autopilot ship session. Pushes every step commit, regenerates API types, writes the PR body, sets the PROGRESS row to Done, marks the PR ready and adds the e2e label. Never merges."
+description: "Use when finishing a build unit's pull request in the autopilot ship session. Pushes every step commit, regenerates API types, writes the PR body, sets the PROGRESS row to Done, marks the PR ready and adds the e2e label. Never merges."
 ---
 
 # Prepare the pull request

@@ -74,3 +74,13 @@ test("409 email_in_use says the email already has an account", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Skip for now" }))
   expect(await screen.findByRole("alert")).toHaveTextContent("That email already has an account. Sign in with the method you used before.")
 })
+
+test("with an invite waiting, saving returns to the invite instead of Create trip", async () => {
+  sessionStorage.setItem("hermi.invite", "abc")
+  mockApi(boot)
+  show(<Onboarding />, "/onboarding")
+  fireEvent.click(screen.getByLabelText(/I am 13 or older/))
+  fireEvent.click(screen.getByRole("button", { name: "Skip for now" }))
+  await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/invite/abc"))
+  sessionStorage.removeItem("hermi.invite")
+})

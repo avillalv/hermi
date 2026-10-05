@@ -1,6 +1,4 @@
-// npm run test:e2e:smoke: smoke checks against the running dev servers (npm run dev). Needs no browser.
-// shortcut: plain fetch checks until Playwright arrives (WF-130 kit projects, then the smoke flows of
-// 10 section 1.6). Replace this file's checks with the Playwright smoke project then.
+// Fetch checks against the running dev servers (npm run dev). npm run test:e2e:smoke runs these, then the Playwright smoke project.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 

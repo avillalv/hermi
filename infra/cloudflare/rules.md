@@ -33,3 +33,16 @@ Add `hermi.world` as a sending domain in Resend, copy the DKIM and SPF values in
 ## Redirect
 
 `heyhermi.com` and `www.heyhermi.com`: proxied, with a Redirect Rule to `https://hermi.world` (301, preserve path and query).
+
+## Auth and public route rate rules (WF-028)
+
+The per-IP rate limiting rules live in `waf.md` ("Rate limiting rules"). WF-028 adds these on top, in the same Cloudflare dashboard. For the signup and share view rows the app enforces the same numbers in `apps/api/hermi/security/rate_limit.py` (10 section 2.3), and the app limits are changeable without a deploy or restart in the `setting_rate_limits` row (admin console, 08 section 6.16). Change the dashboard value by hand when you change that row, because Cloudflare does not read it. The `/go` and webhook signature failure limits get Cloudflare rules here; the referral open limit stays app only (`waf.md`).
+
+| Name | Match | Limit | Action |
+|---|---|---|---|
+| Account bootstrap | `POST /v1/me/bootstrap` | 30 per 10 minutes per IP | Block 10 minutes. Same numbers as the session bootstrap row in `waf.md` (10 section 2.3); the app counts new accounts per IP (5 a day) on top |
+| Share link views | `GET /v1/shared/*` | 120 per minute per IP | Block 1 minute |
+| Affiliate redirect | `GET /go/*` on host `go` | 120 per minute per IP | Block 1 minute |
+| Webhook signature failures | `POST /v1/webhooks/*` with a 4xx response | 30 per minute per IP | Block 1 hour |
+
+Log-only for one week on staging before turning each rule on. Turnstile stays on signup (`waf.md`).

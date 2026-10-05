@@ -1,4 +1,5 @@
 import { Link, Navigate } from "react-router"
+import { pendingInvite } from "../invite/collab"
 import { Sprite, TicketStub, TripTicket } from "../../components/kit"
 import { t } from "../../lib/i18n"
 import { useAuth } from "../auth/authStore"
@@ -12,7 +13,7 @@ import "./onboarding.css"
  */
 export function Welcome() {
   const { token } = useAuth()
-  if (token) return <Navigate to="/" replace />
+  if (token) return <Navigate to={pendingInvite.target()} replace />
   return (
     <main className="h-screen">
       <Sprite />

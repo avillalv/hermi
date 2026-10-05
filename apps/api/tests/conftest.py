@@ -74,8 +74,20 @@ def make_user(system_conn):
             (f"{subject[:10]}@example.com", status),
         ).fetchone()[0]
         system_conn.execute(
-            "INSERT INTO auth_identities (user_id, provider, subject) VALUES (%s, %s, %s)", (uid, provider, subject)
+            "INSERT INTO auth_identities (user_id, provider, subject) VALUES (%s, %s, %s)",
+            (uid, provider, subject),
         )
         return uid, subject
 
     return make
+
+
+@pytest.fixture(autouse=True)
+def _rate_limit_test_hook():
+    """Many tests create accounts from one test-client IP, so signup_ip is lifted here. test_rate_limit.py clears it."""
+    from hermi.security import rate_limit
+
+    rate_limit.reset_cache()
+    rate_limit.TEST_LIMITS = {"signup_ip": 100000}
+    yield
+    rate_limit.TEST_LIMITS = {}

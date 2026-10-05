@@ -27,6 +27,7 @@ DEFINER_FUNCTIONS = [  # (signature, search_path pinned, app can execute, worker
     ("is_trip_owner(uuid)", True, True, True),
     ("bootstrap_user(text,text,citext,boolean,text,text)", True, True, False),
     ("resolve_identity(text,text)", True, True, False),
+    ("trip_effective_limits(uuid)", True, True, False),
     ("purge_trash(interval)", True, False, True),
     ("retention_sweep()", True, False, True),
     ("maintain_partitions()", True, False, True),
@@ -41,6 +42,8 @@ DEFINER_FUNCTIONS = [  # (signature, search_path pinned, app can execute, worker
     ("cancel_account_deletion()", True, True, False),
     ("advance_trip_import(uuid,text)", True, True, False),
     ("link_my_traveler(uuid,uuid)", True, True, False),
+    ("unlink_my_traveler(uuid)", True, True, False),
+    ("preview_trip_invite(bytea)", True, True, False),
     ("file_content_report(text,text,text,text)", True, True, False),
     ("clear_run_content(uuid)", True, True, False),
     ("clear_my_ai_history()", True, True, False),
@@ -108,7 +111,7 @@ def _member(c, trip, user, role):
 def test_chain_is_linear_and_0014_follows_0013():
     s = ScriptDirectory.from_config(_alembic_cfg())
     assert s.get_revision("0014_rls").down_revision == "0013_notifications_samples"
-    assert s.get_heads() == ["0016_bootstrap_subject"]  # 0016 (WF-013.1) is the head now
+    assert s.get_heads() == ["0020_share_link_book_slide"]  # 0020 (WF-025.2) is the head now
 
 
 # --- RLS on every tenant table ---------------------------------------------------------------------
@@ -222,7 +225,7 @@ def test_definer_function(sysc, sig, pinned, app_exec, worker_exec):
     can = lambda role: sysc.execute("SELECT has_function_privilege(%s, %s::oid, 'EXECUTE')", (role, row[3])).fetchone()[0]  # noqa: E731
     assert can("hermi_api_login") is app_exec, (name, "app")
     assert can("hermi_worker_login") is worker_exec or name in ("visible_trip_ids", "can_edit_trip", "is_trip_owner"), (name, "worker")
-    if name in ("ensure_month_partitions", "drop_old_partitions", "retention_sweep", "purge_trash"):
+    if name in ("ensure_month_partitions", "drop_old_partitions", "retention_sweep", "purge_trash", "trip_effective_limits"):
         assert sysc.execute("SELECT has_function_privilege('public', %s::oid, 'EXECUTE')", (row[3],)).fetchone()[0] is False
 
 

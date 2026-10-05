@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
+import { pendingInvite } from "../invite/collab"
 import { Navigate } from "react-router"
 import { Btn, Icon, Logo, TextField } from "../../components/kit"
 import { t } from "../../lib/i18n"
@@ -113,7 +114,7 @@ export function SignIn({ adapter = identity }: { adapter?: IdentityAdapter }) {
       {error}
     </p>
   ) : null
-  if (token) return <Navigate to="/" replace />
+  if (token) return <Navigate to={pendingInvite.target()} replace />
 
   return (
     <main className="auth">

@@ -15,7 +15,11 @@ from sqlalchemy.orm import Session
 
 from hermi.deps import CurrentUser, DbSession, TripAccess, require_trip
 from hermi.errors import ApiError, NotFound
+from hermi.modules.billing import service as billing
+from hermi.modules.collaboration.activity import record
+from hermi.modules.collaboration.service import reconcile_collaborators
 from hermi.modules.trips import repo
+from hermi.modules.trips.people import trip_travelers
 from hermi.modules.trips.schemas import (
     DestinationIn,
     DestinationOrder,
@@ -49,11 +53,12 @@ def _decode(cursor: str) -> tuple[datetime, uuid.UUID]:
         raise ApiError(400, "bad_request", "That page cursor is not valid. Start from the first page.") from None
 
 
-def _full(session: Session, trip, role: str) -> Trip:
+def full_trip(session: Session, trip, role: str, me: uuid.UUID) -> Trip:
     return Trip(
-        **{k: getattr(trip, k) for k in Trip.model_fields if k not in ("destinations", "my_role")},
+        **{k: getattr(trip, k) for k in Trip.model_fields if k not in ("destinations", "my_role", "travelers", "limited")},
         destinations=[TripDestinationOut.model_validate(d) for d in repo.destinations_of(session, trip.id)],
         my_role=role,
+        travelers=trip_travelers(session, trip.id, me),
     )
 
 
@@ -62,21 +67,7 @@ def _invalid(field: str, message: str) -> ApiError:
 
 
 def _check_trip_limit(session: Session, user_id: uuid.UUID) -> None:
-    limit = repo.active_trip_limit(session, user_id)
-    if repo.count_active_owned(session, user_id) >= limit:
-        raise ApiError(
-            402,
-            "limit_reached",
-            f"You have {limit} active trips. Archive one to make room, or upgrade.",
-            extra={
-                "paywall": {
-                    "trigger": "third_trip",
-                    "reason": "trip_limit",
-                    "offer_url": "/v1/paywall/offer?reason=trip_limit",
-                    "free_path": "Archive a trip or join trips other people plan",
-                }
-            },
-        )
+    billing.require_active_trip_slot(session, user_id)
 
 
 def _my_travelers(session: Session, user_id: uuid.UUID, asked: list[uuid.UUID] | None) -> list[uuid.UUID]:
@@ -99,8 +90,13 @@ def list_trips(
     rows = repo.list_summaries(session, user.id, limit=limit, after=_decode(cursor) if cursor else None, status=status)
     page = rows[:limit]
     more = len(rows) > limit
+    items = [TripSummary(**r) for r in page]
+    # shortcut: one query set per owned shared trip (N+1). Ceiling: 25 active trips fair use. Batch it if the list grows.
+    for it in items:  # lapse handling runs for trips the caller owns and shares (WF-026)
+        if it.my_role == "owner" and it.member_count > 1:
+            it.limited = reconcile_collaborators(session, it.id)
     return TripPage(
-        items=[TripSummary(**r) for r in page],
+        items=items,
         next_cursor=_encode(page[-1]["updated_at"], page[-1]["id"]) if more else None,
         has_more=more,
     )
@@ -110,6 +106,7 @@ def list_trips(
 def create_trip(body: TripCreate, user: CurrentUser, session: DbSession, response: Response) -> Trip:
     _check_trip_limit(session, user.id)
     people = _my_travelers(session, user.id, body.traveler_ids)
+    billing.require_traveler_slots(session, None, len(people), user.id)
     trip = repo.create_trip(
         session,
         user.id,
@@ -123,14 +120,17 @@ def create_trip(body: TripCreate, user: CurrentUser, session: DbSession, respons
         [d.model_dump(exclude_none=True, exclude={"id"}) for d in body.destinations],
         people,
     )
+    record(session, trip.id, user.id, "created", "trip", trip.id, "created the trip")
     response.headers["Location"] = f"/v1/trips/{trip.id}"
-    return _full(session, trip, "owner")
+    return full_trip(session, trip, "owner", user.id)
 
 
 @router.get("/trips/{trip_id}", response_model=Trip)
 def get_trip(access: Annotated[TripAccess, require_trip("viewer")], session: DbSession, response: Response) -> Trip:
     response.headers["ETag"] = f'"{access.trip.version}"'
-    return _full(session, access.trip, access.role)
+    trip = full_trip(session, access.trip, access.role, access.member.user_id)
+    trip.limited = reconcile_collaborators(session, access.trip.id)
+    return trip
 
 
 @router.patch("/trips/{trip_id}", response_model=Trip)
@@ -163,8 +163,10 @@ def update_trip(
     if sent & {"start_date", "end_date"}:
         values["start_date"], values["end_date"] = start, end
     people = _my_travelers(session, user.id, body.traveler_ids) if body.traveler_ids is not None else None
+    if people is not None:  # the caller's new set plus the travelers other members put on the trip
+        billing.require_traveler_slots(session, trip.id, len(people) + repo.others_travelers_count(session, trip.id, user.id))
     if not repo.update_trip(session, trip, version, values):
-        raise version_conflict(_full(session, trip, access.role).model_dump(mode="json"))
+        raise version_conflict(full_trip(session, trip, access.role, user.id).model_dump(mode="json"))
     # shortcut: changing dates does not re-derive itinerary_days yet; the itinerary module (WF-032) owns days and hooks in here.
     if body.destinations is not None and not repo.replace_destinations(
         session, trip.id, [d.model_dump(exclude_unset=True) for d in body.destinations]
@@ -172,8 +174,11 @@ def update_trip(
         raise _invalid("destinations", "One of the destinations is not part of this trip.")
     if people is not None:
         repo.sync_my_travelers(session, trip.id, user.id, people)
+    changed = sorted(sent & {"name", "notes", "start_date", "end_date", "status", "destinations", "traveler_ids", "home_currency"})
+    if changed:  # field names only: note text is never copied into the feed
+        record(session, trip.id, user.id, "updated", "trip", trip.id, "updated the trip (" + ", ".join(c.replace("_", " ") for c in changed) + ")")
     response.headers["ETag"] = f'"{trip.version}"'
-    return _full(session, trip, access.role)
+    return full_trip(session, trip, access.role, user.id)
 
 
 @router.delete("/trips/{trip_id}", status_code=204)
@@ -189,7 +194,7 @@ def restore_trip(access: Annotated[TripAccess, require_trip("owner", trashed=Tru
     if access.trip.status in ("planning", "booked"):
         _check_trip_limit(session, access.trip.owner_user_id)  # a restored active trip takes a slot again
     repo.restore_trip(session, access.trip)
-    return _full(session, access.trip, "owner")
+    return full_trip(session, access.trip, "owner", access.member.user_id)
 
 
 @router.post("/trips/{trip_id}/duplicate", response_model=Trip, status_code=201)
@@ -220,7 +225,7 @@ def duplicate_trip(
         _my_travelers(session, user.id, None),
     )
     response.headers["Location"] = f"/v1/trips/{trip.id}"
-    return _full(session, trip, "owner")
+    return full_trip(session, trip, "owner", user.id)
 
 
 # --- Destinations (04 section 5.5) ----------------------------------------------------------------------------------
@@ -232,25 +237,28 @@ def list_destinations(access: Annotated[TripAccess, require_trip("viewer")], ses
 
 
 @router.post("/trips/{trip_id}/destinations", response_model=TripDestinationOut, status_code=201)
-def add_destination(body: DestinationIn, access: Annotated[TripAccess, require_trip("editor")], session: DbSession):
+def add_destination(body: DestinationIn, access: Annotated[TripAccess, require_trip("editor")], user: CurrentUser, session: DbSession):
     # shortcut: the summary and image fetch is not enqueued (info_status stays pending) until the destination job lands (WF-032),
     # and PATCH does not set the cover from the first destination image until then either (WF-032).
     # shortcut: two parallel adds can pass the cap together; lock the trip row (SELECT ... FOR UPDATE) if that ever shows up.
     if len(repo.destinations_of(session, access.trip.id)) >= MAX_DESTINATIONS:
         raise _invalid("destinations", f"A trip can have up to {MAX_DESTINATIONS} destinations.")
-    return repo.add_destination(session, access.trip.id, body.model_dump(exclude_none=True, exclude={"id"}))
+    row = repo.add_destination(session, access.trip.id, body.model_dump(exclude_none=True, exclude={"id"}))
+    record(session, access.trip.id, user.id, "added", "destination", row.id, f"added {row.name} to the trip")
+    return row
 
 
 @router.put("/trips/{trip_id}/destinations/order", response_model=list[TripDestinationOut])
-def order_destinations(body: DestinationOrder, access: Annotated[TripAccess, require_trip("editor")], session: DbSession):
+def order_destinations(body: DestinationOrder, access: Annotated[TripAccess, require_trip("editor")], user: CurrentUser, session: DbSession):
     if not repo.order_destinations(session, access.trip.id, body.ids):
         raise _invalid("ids", "Send every destination of the trip exactly once.")
+    record(session, access.trip.id, user.id, "moved", "destination", None, "reordered the destinations")
     return repo.destinations_of(session, access.trip.id)
 
 
 @router.patch("/trips/{trip_id}/destinations/{destination_id}", response_model=TripDestinationOut)
 def update_destination(
-    destination_id: uuid.UUID, body: DestinationPatch, access: Annotated[TripAccess, require_trip("editor")], session: DbSession
+    destination_id: uuid.UUID, body: DestinationPatch, access: Annotated[TripAccess, require_trip("editor")], user: CurrentUser, session: DbSession
 ):
     row = repo.get_destination(session, access.trip.id, destination_id)
     if row is None:
@@ -259,13 +267,15 @@ def update_destination(
         setattr(row, k, getattr(body, k))
     session.flush()
     session.refresh(row)
+    record(session, access.trip.id, user.id, "updated", "destination", row.id, f"updated {row.name}")
     return row
 
 
 @router.delete("/trips/{trip_id}/destinations/{destination_id}", status_code=204)
-def delete_destination(destination_id: uuid.UUID, access: Annotated[TripAccess, require_trip("editor")], session: DbSession) -> Response:
+def delete_destination(destination_id: uuid.UUID, access: Annotated[TripAccess, require_trip("editor")], user: CurrentUser, session: DbSession) -> Response:
     row = repo.get_destination(session, access.trip.id, destination_id)
     if row is None:
         raise NotFound()
+    record(session, access.trip.id, user.id, "removed", "destination", row.id, f"removed {row.name} from the trip")
     repo.remove_destination(session, row)
     return Response(status_code=204)

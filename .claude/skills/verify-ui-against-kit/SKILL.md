@@ -1,6 +1,6 @@
 ---
 name: verify-ui-against-kit
-description: "Check a built screen or component against the Hermi design kit, in ticket mode for UI steps. Runs the kit tests, collects screenshots and diffs for opus-reviewer, runs the copy lint, and lists the 05 states with their tests. Use after sonnet-coder finishes a UI step and before opus-reviewer."
+description: "Use when checking a built screen or component against the Hermi design kit, in ticket mode for UI steps, after sonnet-coder finishes a UI step and before opus-reviewer. Runs the kit tests, collects screenshots and diffs for opus-reviewer, runs the copy lint, and lists the 05 states with their tests."
 ---
 
 # Verify a UI step against the kit

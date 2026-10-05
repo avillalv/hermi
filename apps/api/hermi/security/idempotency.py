@@ -24,7 +24,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from hermi.db import request_transaction
-from hermi.deps import _identity_user, verified_token
+from hermi.deps import identity_user, verified_token
 from hermi.errors import ApiError, problem
 
 # 04 section 1.6 required list, as route templates relative to /v1. `*` matches the rest of the path.
@@ -193,7 +193,7 @@ class IdempotencyMiddleware:
 
         request = Request(scope)
         try:
-            user = await run_in_threadpool(lambda: _identity_user(request, verified_token(request)))
+            user = await run_in_threadpool(lambda: identity_user(request, verified_token(request)))
         except ApiError:
             user = None  # the route's own auth answers 401
         except Exception:  # noqa: BLE001

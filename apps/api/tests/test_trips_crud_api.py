@@ -354,3 +354,19 @@ def test_patch_destination_keeps_fields_the_client_did_not_send(client, world, s
     t = client.get(f"/v1/trips/{t['id']}", headers=h).json()
     client.patch(f"/v1/trips/{t['id']}", json={"destinations": [{"id": did, "name": "Oporto", "lat": 41.15, "lon": -8.61, "timezone": None}]}, headers=_ifm(h, t))
     assert system_conn.execute("SELECT timezone, kind FROM trip_destinations WHERE id = %s", (did,)).fetchone() == (None, "city")
+
+
+def test_get_lists_the_trip_travelers_with_is_me_per_caller(client, world, system_conn):
+    t, me_person = world["t"], None
+    r = client.get(f"/v1/trips/{t['id']}", headers=world["o"])
+    assert [p["is_me"] for p in r.json()["travelers"]] == [True]
+    me_person = r.json()["travelers"][0]
+    assert set(me_person) == {"id", "name", "color", "home_airports", "linked_user_id", "is_me"}
+    # a person I own who is not on the trip stays out
+    extra = client.post("/v1/people", json={"name": "Zed", "color": "#2BBFAD", "home_airports": []}, headers=world["o"]).json()
+    assert extra["id"] not in [p["id"] for p in client.get(f"/v1/trips/{t['id']}", headers=world["o"]).json()["travelers"]]
+    # a co-member sees the same traveler, and it is not theirs
+    assert [p["is_me"] for p in client.get(f"/v1/trips/{t['id']}", headers=world["v"]).json()["travelers"]] == [False]
+    # a person only in another trip never shows
+    other = _trip(client, world["s"])
+    assert me_person["id"] not in [p["id"] for p in client.get(f"/v1/trips/{other['id']}", headers=world["s"]).json()["travelers"]]
