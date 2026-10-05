@@ -11,6 +11,7 @@ from hermi.modules.flights.reads import router as reads_router
 from hermi.modules.flights.router import router as flights_router
 from hermi.modules.geo.router import router as geo_router
 from hermi.modules.itinerary.router import router as itinerary_router
+from hermi.modules.lodging.router import router as lodging_router
 from hermi.modules.places.router import router as places_router
 from hermi.modules.trips.people import router as people_router
 from hermi.modules.trips.router import router as trips_router
@@ -28,3 +29,4 @@ router.include_router(choice_router)
 router.include_router(alerts_router)
 router.include_router(itinerary_router)
 router.include_router(places_router)
+router.include_router(lodging_router)

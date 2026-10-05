@@ -157,8 +157,7 @@ def delete_person(person_id: uuid.UUID, user: CurrentUser, session: DbSession) -
             "state_conflict",
             "This traveler cannot be removed while they are the only traveler on a trip you do not own.",
         )
-    # trip_people rows cascade from people. shortcut: lodging_votes and saved_place_votes reference trip_people with ON DELETE
-    # CASCADE (0010), so a vote by a removed traveler goes with them until a later migration keeps it as "Former traveler".
+    # trip_people rows cascade from people. A heart by the removed traveler stays, with its person cleared (0022: "Former traveler").
     session.execute(text("DELETE FROM people WHERE id = :i"), {"i": person_id})
     return Response(status_code=204)
 

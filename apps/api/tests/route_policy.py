@@ -68,6 +68,14 @@ POLICY: dict[str, str] = {
     "PUT /v1/trips/{trip_id}/days/{day}": "tenant",
     "POST /v1/trips/{trip_id}/days/{day}/reorder": "tenant",
     "GET /v1/trips/{trip_id}/itinerary.ics": "tenant",
+    "GET /v1/trips/{trip_id}/lodging": "tenant",
+    "POST /v1/trips/{trip_id}/lodging": "tenant",
+    "GET /v1/trips/{trip_id}/lodging/compare": "tenant",
+    "GET /v1/lodging/{option_id}": "tenant",
+    "PATCH /v1/lodging/{option_id}": "tenant",
+    "DELETE /v1/lodging/{option_id}": "tenant",
+    "PUT /v1/lodging/{option_id}/votes/me": "tenant",
+    "POST /v1/lodging/parse-link": "user_scoped",
     "GET /v1/people": "user_scoped",
     "POST /v1/people": "user_scoped",
     "PUT /v1/people/{person_id}": "user_scoped",
@@ -102,4 +110,4 @@ POLICY: dict[str, str] = {
 }
 
 # Tenant write routes a viewer may call (04 role table: a viewer can read and heart). "METHOD /path" keys.
-VIEWER_WRITE_OK: set[str] = {"POST /v1/trips/{trip_id}/leave", "PUT /v1/trips/{trip_id}/members/me/traveler", "DELETE /v1/trips/{trip_id}/members/me/traveler"}  # a viewer says which traveler they are
+VIEWER_WRITE_OK: set[str] = {"PUT /v1/lodging/{option_id}/votes/me", "POST /v1/trips/{trip_id}/leave", "PUT /v1/trips/{trip_id}/members/me/traveler", "DELETE /v1/trips/{trip_id}/members/me/traveler"}  # a viewer says which traveler they are

@@ -70,6 +70,7 @@ Same status values as above.
 
 ## Notes for later prompts
 
+- WF-034.2 for WF-034.3: the Stays screen holds the "Later" list on the client (the API refuses the 9th stay with 402 `ninth_stay`; its `free_path` text is "Remove a stay to make room", align it or drop the override when the Later list lands). Still to build: bookmarklet, paste helper, compare UI (anchor distances are a `shortcut:` in compare), smoke flows 5 and 21. Migration 0022 adds a partial unique index for one Booked stay per trip (would fail on data with two; none existed).
 - WF-033.2 reviewer minors left for a later pass: quota copy should show the number (05 6.13); one-letter search shows a generic error (API needs 2 chars); failed remove of an idea is silent (`places.removeFailed` unused); `fitBounds` maxZoom 15 exceeds `clusterMaxZoom` 14; consider stubbing tiles in e2e.
 
 Things a later prompt must know (a helper that exists, a pattern to reuse, a known limitation).
