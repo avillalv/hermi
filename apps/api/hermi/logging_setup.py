@@ -16,7 +16,7 @@ _SECRET = re.compile(
     # Emails, calendar feed URLs (the token is in the path) and our own feed route.
     r"|[\w.+-]+@[\w-]+(?:\.[\w-]+)+"
     r"|(?:(?:webcal|https?)://|/v1/calendar/)[^\s\"',;]*\.ics[^\s\"',;]*"
-    r"|/(?:v1/)?(?:invites?|shared)/[^\s/{}\"',;?#]+"
+    r"|/(?:v1/)?(?:invites?|shared|claim)/[^\s/{}\"',;?#]+"
     r"|webcal://[^\s\"',;]+"
     r"|https?://[^/\s]*icloud\.com/published/[^\s\"',;]+"
 )

@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router";
 import { Activity } from "../routes/activity/Activity";
 import { SessionControl } from "../routes/auth/SessionControl";
 import { SignIn } from "../routes/auth/SignIn";
+import { Claim } from "../routes/claim/Claim";
 import { InviteLanding } from "../routes/invite/InviteLanding";
 import { CreateTrip } from "../routes/onboarding/CreateTrip";
 import { Onboarding } from "../routes/onboarding/Onboarding";
@@ -35,6 +36,7 @@ export function AppRoutes() {
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/sign-in" element={<SignIn />} />
       <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/claim/:token" element={<Claim />} />
       <Route path="/invite/:token" element={<InviteLanding />} />
       <Route path="/trips/new" element={<CreateTrip />} />
       <Route path="/trips/:id/edit" element={<TripEdit />} />

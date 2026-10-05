@@ -12,7 +12,7 @@ const SECRET = new RegExp(
     String.raw`[\w-]*(?:key|token|secret|password)[\w-]*=[^&\s"',;]+`,
     String.raw`[\w.+-]+@[\w-]+(?:\.[\w-]+)+`,
     String.raw`(?:(?:webcal|https?)://|/v1/calendar/)[^\s"',;]*\.ics[^\s"',;]*`,
-    String.raw`/(?:v1/)?(?:invites?|shared)/[^\s/{}"',;?#]+`,
+    String.raw`/(?:v1/)?(?:invites?|shared|claim)/[^\s/{}"',;?#]+`,
     String.raw`webcal://[^\s"',;]+`,
     String.raw`https?://[^/\s]*icloud\.com/published/[^\s"',;]+`,
   ].join("|"),

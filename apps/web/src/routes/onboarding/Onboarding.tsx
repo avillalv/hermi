@@ -48,7 +48,8 @@ export function Onboarding() {
     try {
       const r = await api.post("/v1/me/bootstrap", body)
       if (r.response.status === 409) {
-        setError(t("onboarding.emailInUse"))
+        const pending = (r.error as { legacy_claim_pending?: boolean } | undefined)?.legacy_claim_pending === true
+        setError(t(pending ? "onboarding.claimPending" : "onboarding.emailInUse"))
         return setBusy(null)
       }
       if (r.error !== undefined) throw new Error(String(r.response.status))

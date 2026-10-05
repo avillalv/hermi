@@ -203,6 +203,14 @@ def test_signup_velocity_blocks_the_third_new_account_from_one_ip_but_not_sign_i
     )  # existing account
 
 
+def test_legacy_claim_shares_the_signup_limiter(client):
+    for _ in range(2):
+        r = client.post("/v1/me/legacy-claim", json={"token": "x" * 43}, headers=_h(client))
+        assert r.status_code == 410
+    r = client.post("/v1/me/legacy-claim", json={"token": "x" * 43}, headers=_h(client))
+    assert r.status_code == 429 and r.json()["code"] == "rate_limited"
+
+
 def test_disposable_email_cannot_sign_up(client):
     r = client.post(
         "/v1/me/bootstrap", json={"age_confirmed": True}, headers=_h(client, "x@mailinator.com")

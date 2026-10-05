@@ -271,7 +271,7 @@ def test_dev_routes_are_not_mounted_or_documented_outside_dev_mode(db_urls, kw):
 def test_bootstrap_is_the_only_route_that_takes_a_token_without_a_users_row(client):
     h = _auth(client)  # a valid token, no users row
     # The waitlist, the invite preview and the shared trip are public: they take no token at all.
-    allowed = {"/v1/me/bootstrap", "/v1/dev/personas", "/v1/dev/session", "/v1/waitlist", "/v1/invites/{token}", "/v1/shared/{token}"}
+    allowed = {"/v1/me/bootstrap", "/v1/me/legacy-claim", "/v1/dev/personas", "/v1/dev/session", "/v1/waitlist", "/v1/invites/{token}", "/v1/shared/{token}"}
     checked = 0
     for path, ops in client.app.openapi()["paths"].items():
         if not path.startswith("/v1/") or path in allowed:

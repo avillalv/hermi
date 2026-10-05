@@ -14,7 +14,14 @@ from hermi.deps import (
 )
 from hermi.errors import ApiError
 from hermi.modules.auth import service
-from hermi.modules.auth.schemas import BootstrapIn, DevSessionIn, DevSessionOut, Me, PersonaOut
+from hermi.modules.auth.schemas import (
+    BootstrapIn,
+    DevSessionIn,
+    DevSessionOut,
+    LegacyClaimIn,
+    Me,
+    PersonaOut,
+)
 from hermi.security import rate_limit
 from hermi.security.jwt import VerifiedToken
 
@@ -55,9 +62,25 @@ def bootstrap(
                 "tier": me.tier,
                 "is_guest": False,
             },
-            opted_out=request.headers.get("sec-gpc") == "1",  # Global Privacy Control (10 section 4)
+            opted_out=request.headers.get("sec-gpc")
+            == "1",  # Global Privacy Control (10 section 4)
         )
     return me
+
+
+@router.post(
+    "/me/legacy-claim", response_model=Me, responses={410: {"description": "claim_link_expired"}}
+)
+def legacy_claim(
+    body: LegacyClaimIn,
+    request: Request,
+    token: Annotated[VerifiedToken, Depends(verified_token)],
+) -> Me:
+    """No users row needed, like bootstrap. Attaches the signed-in identity to the pre-created legacy account."""
+    if request.app.state.engine is None:
+        raise ApiError(500, "internal_error", "Something went wrong on our side. Try again.")
+    rate_limit.check_signup(request, None)  # shortcut: shares the signup_ip bucket; give it its own class if claims and signups need different limits
+    return service.redeem_legacy_claim(request.app.state.engine, token, body)
 
 
 @router.get("/me", response_model=Me)

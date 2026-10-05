@@ -19,6 +19,7 @@ POLICY: dict[str, str] = {
     "GET /health/ready": "public",
     "POST /v1/waitlist": "public",
     "POST /v1/me/bootstrap": "user_scoped",
+    "POST /v1/me/legacy-claim": "user_scoped",
     "GET /v1/me": "user_scoped",
     "GET /v1/me/entitlements": "user_scoped",
     "GET /v1/geo/destinations": "user_scoped",

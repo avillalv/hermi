@@ -20,13 +20,15 @@ from hermi import db
 SYSTEM_URL = os.environ.get("TEST_DATABASE_URL_SYSTEM")
 
 # Tables with a trip_id or user_id column that 03 section 6.5 allows to have no RLS (closed by grants).
-NO_POLICY = {"identity_hashes", "device_attestations", "guest_allowances"}
+NO_POLICY = {"identity_hashes", "device_attestations", "guest_allowances", "legacy_claims"}
 DEFINER_FUNCTIONS = [  # (signature, search_path pinned, app can execute, worker can execute)
     ("visible_trip_ids()", True, True, True),
     ("can_edit_trip(uuid)", True, True, True),
     ("is_trip_owner(uuid)", True, True, True),
     ("bootstrap_user(text,text,citext,boolean,text,text)", True, True, False),
     ("resolve_identity(text,text)", True, True, False),
+    ("redeem_legacy_claim(bytea,text,text,citext,boolean,text)", True, True, False),
+    ("legacy_claim_pending(citext)", True, True, False),
     ("trip_effective_limits(uuid)", True, True, False),
     ("purge_trash(interval)", True, False, True),
     ("retention_sweep()", True, False, True),
@@ -111,7 +113,7 @@ def _member(c, trip, user, role):
 def test_chain_is_linear_and_0014_follows_0013():
     s = ScriptDirectory.from_config(_alembic_cfg())
     assert s.get_revision("0014_rls").down_revision == "0013_notifications_samples"
-    assert s.get_heads() == ["0022_vote_tombstone"]  # 0022 (WF-034.2) is the head now
+    assert s.get_heads() == ["0023_legacy_claims"]  # 0023 (WF-040.1) is the head now
 
 
 # --- RLS on every tenant table ---------------------------------------------------------------------
@@ -225,7 +227,7 @@ def test_definer_function(sysc, sig, pinned, app_exec, worker_exec):
     can = lambda role: sysc.execute("SELECT has_function_privilege(%s, %s::oid, 'EXECUTE')", (role, row[3])).fetchone()[0]  # noqa: E731
     assert can("hermi_api_login") is app_exec, (name, "app")
     assert can("hermi_worker_login") is worker_exec or name in ("visible_trip_ids", "can_edit_trip", "is_trip_owner"), (name, "worker")
-    if name in ("ensure_month_partitions", "drop_old_partitions", "retention_sweep", "purge_trash", "trip_effective_limits"):
+    if name in ("ensure_month_partitions", "drop_old_partitions", "retention_sweep", "purge_trash", "trip_effective_limits", "redeem_legacy_claim", "legacy_claim_pending"):
         assert sysc.execute("SELECT has_function_privilege('public', %s::oid, 'EXECUTE')", (row[3],)).fetchone()[0] is False
 
 

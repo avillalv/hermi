@@ -41,6 +41,10 @@ class DeviceOut(BaseModel):
 # --- WF-013.2: sign-in bootstrap and GET /me (04 section 5.1) ------------------------------------------------------
 
 
+class LegacyClaimIn(BaseModel):
+    token: str = Field(min_length=16, max_length=200)
+
+
 class BootstrapIn(BaseModel):
     """BootstrapIn of 04 section 5.1. `device`, `claim` and `referral_code` arrive with WF-040 and the referral ticket;
     unknown fields are ignored, as 04 section 1.1 asks of clients and servers alike."""

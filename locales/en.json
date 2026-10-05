@@ -58,7 +58,17 @@
     "offline": "You are offline. Your answers stay here until you connect.",
     "airportInvalid": "Use a 3 letter airport code, like LIS.",
     "currencyInvalid": "Use a 3 letter currency code, like USD.",
-    "emailInUse": "That email already has an account. Sign in with the method you used before."
+    "emailInUse": "That email already has an account. Sign in with the method you used before.",
+    "claimPending": "Your account is waiting for you. Open the claim link we emailed you. If it has expired, ask for a new link."
+  },
+  "claim": {
+    "title": "Claim your account",
+    "redeeming": "Claiming your trips.",
+    "expired": "This claim link has expired or was already used. Ask for a new link.",
+    "has_account": "This sign-in already has its own account, so it cannot claim these trips. Sign out and use the sign-in from your claim email.",
+    "failed": "We could not claim your account. Check your connection and try again.",
+    "retry": "Try again",
+    "toTrips": "Go to Trips"
   },
   "trips": {
     "title": "Trips",
