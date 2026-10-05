@@ -186,6 +186,12 @@ export function TripOverview() {
             />
             {tripStatus(trip).now && <HappeningNow trip={trip} />}
             {trip.my_role !== "viewer" && <NextSteps trip={trip} />}
+            <section className="h-listcard" aria-label={t("notes.title")}>
+              <Link className="h-listcard__row" to={`/trips/${trip.id}/notes`}>
+                <span className="h-listcard__text">{t("notes.link")}</span>
+                <Icon name="chevron-right" size={20} className="h-listcard__go" />
+              </Link>
+            </section>
           </>
         )}
       </div>

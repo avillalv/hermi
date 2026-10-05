@@ -1,0 +1,14 @@
+/* Notes and evidence (WF-035.2, 05 6.18). Tokens only; chips, buttons, avatar and segmented control come from the kit (hermi.css). */
+.notes__skel { min-height: 5rem; border-radius: var(--radius-xl); background: var(--tp-sunken); }
+.notes__item { display: flex; flex-direction: column; gap: var(--tp-space-2); padding: var(--tp-space-3) var(--tp-space-4); border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-sheet); }
+.notes__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-space-2); }
+.notes__scope { margin-left: auto; }
+.notes__private { gap: var(--tp-space-1); }
+.notes__body { margin: 0; font: 400 1rem/1.5 var(--tp-font-body); white-space: pre-wrap; overflow-wrap: anywhere; }
+.notes__body a { color: var(--tp-brand); }
+.notes__actions { display: flex; flex-wrap: wrap; gap: var(--tp-space-2); }
+.notes__quote { margin: 0; padding: var(--tp-space-2) var(--tp-space-3); border-left: 3px solid var(--tp-rule); font: 400 0.9375rem/1.5 var(--tp-font-body); overflow-wrap: anywhere; }
+.notes__toggle { display: flex; align-items: flex-start; gap: var(--tp-space-3); min-height: 44px; font: 600 0.875rem/1.3 var(--tp-font-body); }
+.notes__toggle input { width: 1.5rem; height: 1.5rem; flex: none; accent-color: var(--tp-brand); }
+.notes__help { display: block; font-weight: 400; }
+.notes__danger { background: var(--tp-danger); color: var(--tp-brand-ink); }
