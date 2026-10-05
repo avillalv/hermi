@@ -64,6 +64,17 @@ def _own(session: Session, person_id: uuid.UUID, me: uuid.UUID):
     return row
 
 
+def trip_travelers(session: Session, trip_id: uuid.UUID, me: uuid.UUID) -> list[Person]:
+    """The people on a trip (`trip_people`), in the order PUT /trips/{id}/travelers returns them. Row-level security applies as for GET /people."""
+    rows = session.execute(
+        text(
+            f"SELECT {_COLS} FROM people WHERE id IN (SELECT person_id FROM trip_people WHERE trip_id = :t) ORDER BY is_self DESC, created_at, id"
+        ),
+        {"t": trip_id},
+    ).mappings()
+    return [_out(r, me) for r in rows]
+
+
 @router.get("/people", response_model=list[Person])
 def list_people(user: CurrentUser, session: DbSession) -> list[Person]:
     # Row-level security returns the caller's own people plus those on trips they belong to (co-members only).
@@ -179,13 +190,7 @@ def set_travelers(
         ),
         {"t": access.trip.id, "u": user.id, "ids": ids},
     )
-    rows = session.execute(
-        text(
-            f"SELECT {_COLS} FROM people WHERE id IN (SELECT person_id FROM trip_people WHERE trip_id = :t) ORDER BY is_self DESC, created_at, id"
-        ),
-        {"t": access.trip.id},
-    ).mappings()
-    return [_out(r, user.id) for r in rows]
+    return trip_travelers(session, access.trip.id, user.id)
 
 
 def _member(session: Session, access: TripAccess, me: uuid.UUID) -> Member:

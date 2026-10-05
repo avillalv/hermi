@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from hermi.modules.collaboration.schemas import Person
+
 
 class TripOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -117,6 +119,7 @@ class Trip(BaseModel):
     notes: str
     destinations: list[TripDestinationOut]
     my_role: Literal["owner", "editor", "viewer"]
+    travelers: list[Person]
     ai_enabled: bool
     editors_can_invite: bool
     created_at: datetime

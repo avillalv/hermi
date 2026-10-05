@@ -3,6 +3,7 @@ import { SessionControl } from "../routes/auth/SessionControl";
 import { SignIn } from "../routes/auth/SignIn";
 import { CreateTrip } from "../routes/onboarding/CreateTrip";
 import { Onboarding } from "../routes/onboarding/Onboarding";
+import { TripGroup } from "../routes/trips/TripGroup";
 import { TripEdit } from "../routes/trips/TripEdit";
 import { TripOverview } from "../routes/trips/TripOverview";
 import { TripsHome } from "../routes/trips/TripsHome";
@@ -28,6 +29,7 @@ export function AppRoutes() {
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/trips/new" element={<CreateTrip />} />
       <Route path="/trips/:id/edit" element={<TripEdit />} />
+      <Route path="/trips/:id/group" element={<TripGroup />} />
       <Route path="/trips/:id" element={<TripOverview />} />
       <Route path="/" element={<TripsHome />} />
       {TABS.filter((t) => t.key !== "trips").map((t) => (

@@ -17,6 +17,7 @@ from hermi.deps import CurrentUser, DbSession, TripAccess, require_trip
 from hermi.errors import ApiError, NotFound
 from hermi.modules.billing import service as billing
 from hermi.modules.trips import repo
+from hermi.modules.trips.people import trip_travelers
 from hermi.modules.trips.schemas import (
     DestinationIn,
     DestinationOrder,
@@ -50,11 +51,12 @@ def _decode(cursor: str) -> tuple[datetime, uuid.UUID]:
         raise ApiError(400, "bad_request", "That page cursor is not valid. Start from the first page.") from None
 
 
-def _full(session: Session, trip, role: str) -> Trip:
+def _full(session: Session, trip, role: str, me: uuid.UUID) -> Trip:
     return Trip(
-        **{k: getattr(trip, k) for k in Trip.model_fields if k not in ("destinations", "my_role")},
+        **{k: getattr(trip, k) for k in Trip.model_fields if k not in ("destinations", "my_role", "travelers")},
         destinations=[TripDestinationOut.model_validate(d) for d in repo.destinations_of(session, trip.id)],
         my_role=role,
+        travelers=trip_travelers(session, trip.id, me),
     )
 
 
@@ -112,13 +114,13 @@ def create_trip(body: TripCreate, user: CurrentUser, session: DbSession, respons
         people,
     )
     response.headers["Location"] = f"/v1/trips/{trip.id}"
-    return _full(session, trip, "owner")
+    return _full(session, trip, "owner", user.id)
 
 
 @router.get("/trips/{trip_id}", response_model=Trip)
 def get_trip(access: Annotated[TripAccess, require_trip("viewer")], session: DbSession, response: Response) -> Trip:
     response.headers["ETag"] = f'"{access.trip.version}"'
-    return _full(session, access.trip, access.role)
+    return _full(session, access.trip, access.role, access.member.user_id)
 
 
 @router.patch("/trips/{trip_id}", response_model=Trip)
@@ -154,7 +156,7 @@ def update_trip(
     if people is not None:  # the caller's new set plus the travelers other members put on the trip
         billing.require_traveler_slots(session, trip.id, len(people) + repo.others_travelers_count(session, trip.id, user.id))
     if not repo.update_trip(session, trip, version, values):
-        raise version_conflict(_full(session, trip, access.role).model_dump(mode="json"))
+        raise version_conflict(_full(session, trip, access.role, user.id).model_dump(mode="json"))
     # shortcut: changing dates does not re-derive itinerary_days yet; the itinerary module (WF-032) owns days and hooks in here.
     if body.destinations is not None and not repo.replace_destinations(
         session, trip.id, [d.model_dump(exclude_unset=True) for d in body.destinations]
@@ -163,7 +165,7 @@ def update_trip(
     if people is not None:
         repo.sync_my_travelers(session, trip.id, user.id, people)
     response.headers["ETag"] = f'"{trip.version}"'
-    return _full(session, trip, access.role)
+    return _full(session, trip, access.role, user.id)
 
 
 @router.delete("/trips/{trip_id}", status_code=204)
@@ -179,7 +181,7 @@ def restore_trip(access: Annotated[TripAccess, require_trip("owner", trashed=Tru
     if access.trip.status in ("planning", "booked"):
         _check_trip_limit(session, access.trip.owner_user_id)  # a restored active trip takes a slot again
     repo.restore_trip(session, access.trip)
-    return _full(session, access.trip, "owner")
+    return _full(session, access.trip, "owner", access.member.user_id)
 
 
 @router.post("/trips/{trip_id}/duplicate", response_model=Trip, status_code=201)
@@ -210,7 +212,7 @@ def duplicate_trip(
         _my_travelers(session, user.id, None),
     )
     response.headers["Location"] = f"/v1/trips/{trip.id}"
-    return _full(session, trip, "owner")
+    return _full(session, trip, "owner", user.id)
 
 
 # --- Destinations (04 section 5.5) ----------------------------------------------------------------------------------

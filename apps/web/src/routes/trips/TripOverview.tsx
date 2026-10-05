@@ -8,6 +8,7 @@ import { AppShell } from "../../shell/AppShell"
 import { useAuth } from "../auth/authStore"
 import { NotFound, useTrip, type Trip } from "./api"
 import { nights, tripStatus, when } from "./TripCard"
+import { tripStrip } from "./TripStrip"
 import { NoticeBar, TripActions, type Notice } from "./TripActions"
 import "./trips.css"
 
@@ -127,7 +128,7 @@ export function TripOverview() {
   if (!token) return <Navigate to="/welcome" replace />
   const trip = q.data
   return (
-    <AppShell active="trips">
+    <AppShell active="trips" strip={id ? tripStrip(nav, id, "overview") : undefined}>
       <div className="overview">
         <Link to="/" className="h-btn h-btn--text h-btn--sm overview__back">
           <Icon name="chevron-left" size={20} />
