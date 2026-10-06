@@ -103,6 +103,9 @@ POLICY: dict[str, str] = {
     "PATCH /v1/trips/{trip_id}/share-links/{link_id}": "tenant",
     "DELETE /v1/trips/{trip_id}/share-links/{link_id}": "tenant",
     "GET /v1/shared/{token}": "public",
+    "GET /v1/public/sample-trips": "public",
+    "GET /v1/public/sample-trips/{slug}": "public",
+    "POST /v1/public/sample-trips/{slug}/copy": "user_scoped",
     "GET /v1/invites/{token}": "public",
     "POST /v1/invites/{token}/accept": "user_scoped",
     # Mounted only when AUTH_MODE=dev in local and ci (main.create_app).
