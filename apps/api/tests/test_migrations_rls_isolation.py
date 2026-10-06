@@ -124,6 +124,7 @@ def _seeders(x, k):
         "identity_hashes": ("INSERT INTO identity_hashes (hash, kind) VALUES (%s, 'taster')", (TOKEN(),)),
         "itinerary_days": ("INSERT INTO itinerary_days (trip_id, day) VALUES (%s, %s)", (ta, f"2027-0{int(x[:1], 16) % 9 + 1}-1{int(x[1:2], 16) % 9}")),
         "itinerary_items": ("INSERT INTO itinerary_items (trip_id, title) VALUES (%s, 'Visit')", (ta,)),
+        "legacy_claims": ("INSERT INTO legacy_claims (user_id, token_hash) VALUES (%s, %s)", (a, TOKEN())),
         "link_clicks": ("INSERT INTO link_clicks (click_id, program_id, surface, destination_url, user_id, trip_id) VALUES (%s, %s, 'checklist', 'https://x.test/', %s, %s)", (x, k["program"], a, ta)),
         "lodging_options": ("INSERT INTO lodging_options (trip_id, title, added_via) VALUES (%s, 'Flat', 'manual')", (ta,)),
         "lodging_votes": ("INSERT INTO lodging_votes (lodging_id, trip_id, person_id, user_id) VALUES (%s, %s, %s, %s)", (k["lodging"], ta, k["person"], a)),
@@ -161,6 +162,7 @@ A_BLIND = {
     "identity_hashes": "closed to the app by grants and RLS with no policy (03 6.1)",
     "device_attestations": "closed to the app by grants and RLS with no policy (03 6.1)",
     "guest_allowances": "closed to the app by grants and RLS with no policy (03 6.1)",
+    "legacy_claims": "closed to the app by grants and RLS with no policy (0023); definer functions only",
     "sample_trips": "a draft sample: the app sees published rows only, and B would see those too",
 }
 B_SEES = {"users": 1}  # B always sees its own users row

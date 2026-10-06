@@ -46,7 +46,7 @@ PARAM_TABLES = {
     "notification_id": "notifications", "checklist_item_id": "checklist_items", "verification_id": "plan_verifications",
 }  # fmt: skip
 # Tables not seeded by _seeders: closed to the API login, or made by hand below.
-NOT_SEEDED = {"identity_hashes", "device_attestations", "guest_allowances", "trips", "users", "trip_members", "people", "notes", "auth_identities"}
+NOT_SEEDED = {"identity_hashes", "device_attestations", "guest_allowances", "legacy_claims", "trips", "users", "trip_members", "people", "notes", "auth_identities"}
 # Free-text columns that get the sentinel (10 section 1.3 item 1: a unique marker in every text field of A's data).
 TEXT_FIELDS = {
     "activity_log": ["summary"], "checklist_items": ["title"], "content_reports": ["detail"], "devices": ["device_name"],

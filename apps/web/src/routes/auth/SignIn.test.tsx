@@ -94,6 +94,22 @@ test("Apple sign-in stores the token and goes to Trips", async () => {
   expect(authStore.get().token).toBe("oauth-token")
 })
 
+test("a waiting claim link sends the person back to it after sign in", async () => {
+  mockFetch(false)
+  sessionStorage.setItem("hermi.claim", "abc123")
+  render(
+    <MemoryRouter initialEntries={["/sign-in"]}>
+      <Routes>
+        <Route path="/sign-in" element={<SignIn adapter={adapter()} />} />
+        <Route path="/claim/:token" element={<h1>Claiming</h1>} />
+      </Routes>
+    </MemoryRouter>,
+  )
+  click("Continue with Apple")
+  expect(await screen.findByRole("heading", { name: "Claiming" })).toBeInTheDocument()
+  sessionStorage.clear()
+})
+
 test("an unconfigured provider shows the unavailable error", async () => {
   mockFetch(false)
   show(adapter({ oauth: failing("unavailable") }))

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
+import { pendingClaim } from "../claim/redeem"
 import { pendingInvite } from "../invite/collab"
 import { Navigate } from "react-router"
 import { Btn, Icon, Logo, TextField } from "../../components/kit"
@@ -114,7 +115,7 @@ export function SignIn({ adapter = identity }: { adapter?: IdentityAdapter }) {
       {error}
     </p>
   ) : null
-  if (token) return <Navigate to={pendingInvite.target()} replace />
+  if (token) return <Navigate to={pendingClaim.target() ?? pendingInvite.target()} replace />
 
   return (
     <main className="auth">

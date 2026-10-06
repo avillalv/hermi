@@ -1347,6 +1347,20 @@ CREATE TABLE identity_hashes (
 );
 CREATE INDEX ix_identity_hashes_created ON identity_hashes (created_at);                    -- the 12 month purge
 
+-- One-time claim links for the pre-created legacy owner accounts (12, 04 section 5.1). Only sha256 of the token is stored. Closed to hermi_app (no grant,
+-- RLS with no policy): redeem_legacy_claim() attaches the signed-in identity to the users row, legacy_claim_pending() lets bootstrap answer 409 email_in_use.
+-- Migration 0023_legacy_claims. The importer writes rows on the system login.
+CREATE TABLE legacy_claims (
+  id          uuid PRIMARY KEY DEFAULT uuidv7(),
+  user_id     uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  token_hash  bytea NOT NULL,
+  expires_at  timestamptz NOT NULL DEFAULT now() + interval '7 days',
+  used_at     timestamptz,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT uq_legacy_claims_token UNIQUE (token_hash)
+);
+CREATE INDEX ix_legacy_claims_user ON legacy_claims (user_id);
+
 -- Every identity hash of one user: one per upstream Apple or Google subject, plus one for the verified email.
 CREATE FUNCTION identity_hashes_for(p_user uuid) RETURNS SETOF bytea LANGUAGE sql STABLE AS $$
   SELECT sha256(convert_to(provider || ':' || provider_subject, 'UTF8')) FROM auth_identities
@@ -3863,6 +3877,7 @@ Practical rules for the revisions: functions, triggers, partitions, policies and
 | `0020_share_link_book_slide` | `trip_share_links.show_book_slide boolean NOT NULL DEFAULT true`, the "Book the plan" setting of `ShareLinkCreate` (WF-025.2) | 0019 |
 | `0021_fx_convert_exact_rounding` | `fx_convert_minor()` rounds exact halves away from zero (WF-029) | 0020 |
 | `0022_vote_tombstone` | `lodging_votes` and `saved_place_votes`: surrogate `id`, nullable `person_id` cleared (not cascaded) when a traveler is removed, one heart per member; `uq_lodging_options_one_booked` (WF-034.2) | 0021 |
+| `0023_legacy_claims` | `legacy_claims`, `redeem_legacy_claim()`, `legacy_claim_pending()` (WF-040.1) | 0022 |
 
 Airports and FX are loaded by jobs, not by a migration: `hermi seed-airports` reads the OurAirports CSV and `hermi refresh-fx` pulls Frankfurter. CI runs `npm run db:init`, then the full chain on an empty database as `hermi_migrate_login`, runs the tenant-isolation tests and the role checks as `hermi_api_login` (never as the owner), then runs `alembic downgrade base` and `upgrade head` once to prove the chain is reversible in a scratch database (production never downgrades).
 

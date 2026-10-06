@@ -2,6 +2,10 @@ import { Route, Routes } from "react-router";
 import { Activity } from "../routes/activity/Activity";
 import { SessionControl } from "../routes/auth/SessionControl";
 import { SignIn } from "../routes/auth/SignIn";
+import { Discover } from "../routes/discover/Discover";
+import { GuestTripView } from "../routes/discover/GuestTripView";
+import { SampleView } from "../routes/discover/SampleView";
+import { Claim } from "../routes/claim/Claim";
 import { InviteLanding } from "../routes/invite/InviteLanding";
 import { CreateTrip } from "../routes/onboarding/CreateTrip";
 import { Onboarding } from "../routes/onboarding/Onboarding";
@@ -35,6 +39,7 @@ export function AppRoutes() {
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/sign-in" element={<SignIn />} />
       <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/claim/:token" element={<Claim />} />
       <Route path="/invite/:token" element={<InviteLanding />} />
       <Route path="/trips/new" element={<CreateTrip />} />
       <Route path="/trips/:id/edit" element={<TripEdit />} />
@@ -47,7 +52,10 @@ export function AppRoutes() {
       <Route path="/trips/:id" element={<TripOverview />} />
       <Route path="/" element={<TripsHome />} />
       <Route path="/activity" element={<Activity />} />
-      {TABS.filter((t) => t.key !== "trips" && t.key !== "activity").map((t) => (
+      <Route path="/discover" element={<Discover />} />
+      <Route path="/discover/:slug" element={<SampleView />} />
+      <Route path="/guest-trip" element={<GuestTripView />} />
+      {TABS.filter((t) => t.key !== "trips" && t.key !== "activity" && t.key !== "discover").map((t) => (
         <Route key={t.key} path={t.href} element={<Placeholder tab={t} />} />
       ))}
       <Route path="*" element={<NotFound />} />

@@ -58,7 +58,17 @@
     "offline": "You are offline. Your answers stay here until you connect.",
     "airportInvalid": "Use a 3 letter airport code, like LIS.",
     "currencyInvalid": "Use a 3 letter currency code, like USD.",
-    "emailInUse": "That email already has an account. Sign in with the method you used before."
+    "emailInUse": "That email already has an account. Sign in with the method you used before.",
+    "claimPending": "Your account is waiting for you. Open the claim link we emailed you. If it has expired, ask for a new link."
+  },
+  "claim": {
+    "title": "Claim your account",
+    "redeeming": "Claiming your trips.",
+    "expired": "This claim link has expired or was already used. Ask for a new link.",
+    "has_account": "This sign-in already has its own account, so it cannot claim these trips. Sign out and use the sign-in from your claim email.",
+    "failed": "We could not claim your account. Check your connection and try again.",
+    "retry": "Try again",
+    "toTrips": "Go to Trips"
   },
   "trips": {
     "title": "Trips",
@@ -167,6 +177,35 @@
     "nowPlan": "Plan today",
     "actions": "Trip actions",
     "timezone": "Time zone"
+  },
+  "discover": {
+    "title": "Discover",
+    "lead": "Trips written by the Hermi team. Prices and facts are dated.",
+    "filters": "Filter by kind of trip",
+    "all": "All",
+    "tags": { "beach": "Beach", "city": "City", "mountains": "Mountains", "food": "Food" },
+    "emptyTitle": "No examples yet",
+    "emptyBody": "Check back soon. New example trips are added by the Hermi team.",
+    "tryAgain": "Try again",
+    "error": "We could not load examples. Pull down to try again.",
+    "sampleError": "We could not load this sample. Try again.",
+    "days": "Days",
+    "cardLabel": "{title}, {destination}, {days} days, {suits}",
+    "sampleChip": "Sample",
+    "banner": "Sample trip. Prices and facts are dated and may have changed.",
+    "back": "Back to Discover",
+    "use": "Use this plan",
+    "stays": "Stays",
+    "examplePrice": "Example price {price}, checked {date}",
+    "offline": "You are offline. Connect to use this plan.",
+    "copyFailed": "We could not copy this plan. Try again.",
+    "guestLimit": "Guests can plan one trip. Create a free account to add more.",
+    "guestTitle": "Guest trip, saved on this phone",
+    "guestGone": "No guest trip on this phone yet.",
+    "paywallTitle": "Two trips are active",
+    "paywallBody": "More active trips and the people you plan with come with a paid plan. Or archive a trip to make room.",
+    "paywallArchive": "Archive a trip",
+    "paywallClose": "Not now"
   },
   "activity": {
     "title": "Activity",

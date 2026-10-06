@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 from hermi import db
 from hermi.config import Settings
 from hermi.errors import ApiError
-from hermi.modules.auth import repo
-from hermi.modules.auth.schemas import BootstrapIn, DevSessionOut, Me, PersonaOut
+from hermi.modules.auth import legacy_claim, repo
+from hermi.modules.auth.schemas import BootstrapIn, DevSessionOut, LegacyClaimIn, Me, PersonaOut
 from hermi.security.jwt import VerifiedToken, mint_dev_token
 
 RELAY_DOMAIN = "@privaterelay.appleid.com"
@@ -114,12 +114,55 @@ def bootstrap(engine: Engine, token: VerifiedToken, body: BootstrapIn) -> tuple[
             ):
                 raise
             # The race of one identity is settled inside bootstrap_user, so this is another account's email.
+            with Session(engine) as check:
+                if legacy_claim.email_pending(check, token.email):
+                    raise ApiError(
+                        409,
+                        "email_in_use",
+                        "Your account is waiting for you. Open the claim link we emailed you.",
+                        extra={"legacy_claim_pending": True},
+                    ) from None
             raise ApiError(
                 409,
                 "email_in_use",
                 "That email already has an account. Sign in with the method you used before.",
             ) from None
     return me, created
+
+
+def redeem_legacy_claim(engine: Engine, token: VerifiedToken, body: LegacyClaimIn) -> Me:
+    """Attach the signed-in identity to the legacy users row (04 section 5.1). 410 for an unknown, used or expired token."""
+    with Session(engine) as session:
+        try:
+            user_id = legacy_claim.redeem(
+                session,
+                body.token,
+                provider=token.provider,
+                subject=token.subject,
+                email=token.email,
+                email_is_relay=_is_relay(token),
+                provider_subject=_provider_subject(token),
+            )
+        except IntegrityError:
+            session.rollback()
+            raise ApiError(
+                409,
+                "email_in_use",
+                "This sign-in already has an account. Sign out and use the one from your claim email.",
+            ) from None
+        if user_id is None:
+            raise ApiError(
+                410,
+                "claim_link_expired",
+                "This claim link has expired or was already used. Ask for a new link.",
+            )
+        repo.as_user(session, user_id)
+        row = repo.me_row(session, user_id)
+        if row["status"] not in SERVED_STATUSES:
+            raise ApiError(403, "account_inactive", "This account is not active. Contact support.")
+        me = get_me(session, user_id, row)
+        session.commit()
+    return me
 
 
 # --- dev personas ---------------------------------------------------------------------------------------------------

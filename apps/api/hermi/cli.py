@@ -45,8 +45,9 @@ def migrate() -> None:
         sys.exit(str(e))
 
 
-def seed() -> None:
-    """Run the 03 section 11 seed as hermi_migrate_login. Idempotent: ON CONFLICT DO NOTHING."""
+def seed(demo: bool = False) -> None:
+    """Run the 03 section 11 seed as hermi_migrate_login. Idempotent: ON CONFLICT DO NOTHING.
+    With demo, also add the demo trip and sample trips (hermi.seed.demo) on the worker login."""
     from sqlalchemy import create_engine, pool
 
     from hermi.config import ConfigError, migration_database_url
@@ -60,6 +61,55 @@ def seed() -> None:
     engine = create_engine(sqlalchemy_url(url), poolclass=pool.NullPool)
     with engine.begin() as conn:
         conn.exec_driver_sql(SEED_SQL)
+    if demo:
+        from hermi.config import NotConfigured, load_settings
+        from hermi.seed.demo import seed_demo
+
+        try:
+            settings = load_settings(bind_host=HOST)
+            added = seed_demo(settings, system_url=settings.require("DATABASE_URL_SYSTEM"))
+        except (ConfigError, NotConfigured, RuntimeError) as e:
+            sys.exit(str(e))
+        print(
+            f"Demo seed: {added['demo_trips']} demo trip, "
+            f"{added['sample_trips']} sample trips added"
+        )
+
+
+def import_legacy(args: argparse.Namespace) -> None:
+    """Copy the old Trip Planner database into Hermi (03 section 12)."""
+    from hermi.config import ConfigError, NotConfigured, load_settings, migration_database_url
+    from hermi.legacy_import import ImportFailed, run_import
+
+    try:
+        settings = load_settings(bind_host=HOST)
+    except ConfigError as e:
+        sys.exit(str(e))
+    try:
+        system_url = settings.require("DATABASE_URL_SYSTEM")
+    except NotConfigured:
+        sys.exit("DATABASE_URL_SYSTEM is not set (the worker login the importer writes with)")
+    try:
+        owner_url = migration_database_url()
+    except ConfigError:
+        owner_url = None
+    try:
+        report = run_import(
+            settings,
+            source_url=args.source_db,
+            system_url=system_url,
+            source_schema=args.source_schema,
+            primary_email=args.primary_email,
+            partner_email=args.partner_email,
+            dry_run=args.dry_run,
+            owner_url=owner_url,
+            primary_person_id=args.primary_person_id,
+            partner_person_id=args.partner_person_id,
+        )
+    except ImportFailed as e:
+        sys.exit(f"Import failed: {e}")
+    if not report.ok:
+        sys.exit(1)
 
 
 PLACEHOLDERS = {"worker": "WF-046", "scheduler": "WF-051"}
@@ -71,8 +121,31 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("api", help="run the API").add_argument("--host", default=HOST)
     sub.add_parser("migrate", help="upgrade the database to the latest revision")
     seed_parser = sub.add_parser("seed", help="load the Phase 1 seed data (safe to re-run)")
-    # shortcut: --demo is accepted and loads the same seed; demo trips arrive from prompt 11 on.
-    seed_parser.add_argument("--demo", action="store_true", help="also load demo data (none yet)")
+    seed_parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="also add the demo trip and sample trips (local and ci only)",
+    )
+    legacy = sub.add_parser(
+        "import-legacy", help="copy the old Trip Planner database into Hermi (one-off)"
+    )
+    legacy.add_argument("--source-db", required=True, help="URL of the old database (read only)")
+    legacy.add_argument("--source-schema", default="public")
+    legacy.add_argument("--primary-email", required=True)
+    legacy.add_argument("--partner-email", required=True)
+    legacy.add_argument(
+        "--primary-person-id",
+        type=int,
+        help="legacy people.id of the primary owner (default: lowest id)",
+    )
+    legacy.add_argument(
+        "--partner-person-id",
+        type=int,
+        help="legacy people.id of the partner (default: next lowest id)",
+    )
+    legacy.add_argument(
+        "--dry-run", action="store_true", help="run everything, report, keep nothing"
+    )
     for name in PLACEHOLDERS:
         sub.add_parser(name, help=f"arrives with {PLACEHOLDERS[name]}")
     args = parser.parse_args(argv)
@@ -83,6 +156,9 @@ def main(argv: list[str] | None = None) -> None:
         migrate()
         return
     if args.command == "seed":
-        seed()
+        seed(args.demo)
+        return
+    if args.command == "import-legacy":
+        import_legacy(args)
         return
     api(args.host)

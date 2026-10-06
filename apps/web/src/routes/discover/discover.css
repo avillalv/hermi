@@ -1,0 +1,12 @@
+/* Discover gallery, sample view and guest trip (WF-133.3). Tokens only; tickets, chips, sheets and buttons come from the kit. */
+.discover__chips { display: flex; gap: var(--tp-space-2); margin: var(--tp-space-3) calc(-1 * var(--tp-space-4)); padding: 0 var(--tp-space-4); overflow-x: auto; scrollbar-width: none; }
+.discover__chips .h-daychip { min-height: 44px; align-items: center; text-decoration: none; }
+.discover__grid { margin-top: var(--tp-space-3); padding: 0; }
+.discover__back { align-self: flex-start; text-decoration: none; }
+.discover__banner { margin: var(--tp-space-2) 0; padding: var(--tp-space-3) var(--tp-space-4); border-radius: var(--radius-lg); background: var(--tp-sunken); color: var(--tp-ink); font: 600 0.9375rem/1.3 var(--tp-font-body); }
+.discover__plan { display: flex; flex-direction: column; gap: var(--tp-space-3); margin-top: var(--tp-space-3); }
+.discover__items { display: flex; flex-direction: column; gap: var(--tp-space-3); margin: 0; padding: 0; list-style: none; }
+.discover__item { display: flex; gap: var(--tp-space-3); align-items: flex-start; }
+.discover__item-text { display: flex; flex-direction: column; gap: var(--tp-space-1); min-width: 0; overflow-wrap: anywhere; }
+.discover__cta { position: sticky; bottom: var(--tp-space-4); display: flex; flex-direction: column; gap: var(--tp-space-2); margin-top: var(--tp-space-4); padding: var(--tp-space-3) 0; background: var(--tp-paper); }
+.discover__chips .h-daychip[aria-pressed="true"] { border-color: var(--tp-ink); background: var(--tp-ink); color: var(--tp-paper); }

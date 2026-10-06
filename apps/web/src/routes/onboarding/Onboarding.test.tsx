@@ -84,3 +84,15 @@ test("with an invite waiting, saving returns to the invite instead of Create tri
   await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/invite/abc"))
   sessionStorage.removeItem("hermi.invite")
 })
+
+test("a 409 for a pending legacy account points to the claim link", async () => {
+  mockApi((u, init) =>
+    u.endsWith("/v1/me/bootstrap") && init?.method === "POST"
+      ? Response.json({ code: "email_in_use", legacy_claim_pending: true }, { status: 409 })
+      : undefined,
+  )
+  show(<Onboarding />, "/onboarding")
+  fireEvent.click(screen.getByLabelText(/I am 13 or older/))
+  fireEvent.click(screen.getByRole("button", { name: "Skip for now" }))
+  expect(await screen.findByRole("alert")).toHaveTextContent("Open the claim link we emailed you")
+})

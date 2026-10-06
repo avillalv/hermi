@@ -428,6 +428,8 @@ def test_live_schema_matches_ddl_in_03(conn):
     sql = _ddl_text()
     ddl_tables, ddl_idx = _ddl_tables(sql), _ddl_indexes(sql)
     assert {"users", "devices", "plans", "trips", "people"} <= set(ddl_tables)
+    ddl_tables.pop("legacy_claims")  # 0023 (WF-040.1) creates it, after the PRE_RLS revision this test builds
+    ddl_idx = {k: v for k, v in ddl_idx.items() if v[0] != "legacy_claims"}
 
     live_tables = {
         r[0]

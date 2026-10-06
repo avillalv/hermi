@@ -36,11 +36,12 @@ describe("token paths and feeds", () => {
     const out = scrubEvent(({
       request: { url: "https://app.hermi.world/invite/INVTOKEN55?x=1" },
       transaction: "/shared/SHRTOKEN66",
-      message: `GET /v1/invites/APITOKEN77 /v1/shared/APISHR88 ${WEBCAL} ${ICLOUD}`,
-      breadcrumbs: [{ data: { url: "/invite/CRUMBTOKEN99" } }],
+      contexts: { page: { url: "https://app.hermi.world/claim/CLAIMURL22" } },
+      message: `GET /v1/invites/APITOKEN77 /v1/shared/APISHR88 /claim/CLAIMMSG11 ${WEBCAL} ${ICLOUD}`,
+      breadcrumbs: [{ data: { url: "/invite/CRUMBTOKEN99" } }, { data: { url: "/claim/CLAIMCRUMB33" } }],
     }) as never) as ErrorEvent
     const blob = JSON.stringify(out)
-    for (const bad of ["INVTOKEN55", "SHRTOKEN66", "APITOKEN77", "APISHR88", "SECRETwebcal77", "SECRETicloud88", "CRUMBTOKEN99"]) {
+    for (const bad of ["INVTOKEN55", "SHRTOKEN66", "APITOKEN77", "APISHR88", "SECRETwebcal77", "SECRETicloud88", "CRUMBTOKEN99", "CLAIMMSG11", "CLAIMURL22", "CLAIMCRUMB33"]) {
       expect(blob).not.toContain(bad)
     }
   })

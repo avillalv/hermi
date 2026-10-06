@@ -396,73 +396,56 @@ def _t(v) -> str | None:
     return None if v is None else str(v)
 
 
-def view_shared(settings, token: str) -> tuple[SharedTrip, bool]:
-    """Public read for GET /shared/{token}: one statement finds a live link and stamps the view; one 410 for every bad token.
-    Returns the page and whether the link is indexable. Redacted fields are nulled here, never sent and hidden later."""
-    with db.system_session("share_view", settings=settings, route="GET /v1/shared/{token}") as s:
-        link = (
-            s.execute(
-                text(
-                    "UPDATE trip_share_links l SET view_count = view_count + 1, last_viewed_at = now() "
-                    " WHERE l.token_hash = :h AND l.revoked_at IS NULL AND l.expires_at > now() "
-                    "   AND EXISTS (SELECT 1 FROM trips t WHERE t.id = l.trip_id AND t.deleted_at IS NULL) "
-                    "RETURNING l.trip_id, l.redact_address, l.redact_prices, l.redact_notes, l.redact_people, l.show_book_slide, l.indexable"
-                ),
-                {"h": token_hash(token)},
-            )
-            .mappings()
-            .first()
+def build_presentation(s, trip_id, *, redact_address: bool, redact_prices: bool, redact_notes: bool, redact_people: bool, show_book_slide: bool) -> Presentation:
+    """The redacted presentation of a trip (04 section 5.15), shared by GET /shared/{token} and the public sample trips. Redacted fields are nulled here."""
+    tid = {"t": trip_id}
+    trip = s.execute(text("SELECT id, name, start_date, end_date, cover_image_url FROM trips WHERE id = :t"), tid).mappings().one()
+    dests = s.execute(text("SELECT name, region, country, country_code FROM trip_destinations WHERE trip_id = :t ORDER BY position"), tid).mappings().all()
+    people = (
+        s.execute(
+            text("SELECT p.name FROM trip_people tp JOIN people p ON p.id = tp.person_id WHERE tp.trip_id = :t ORDER BY p.is_self DESC, p.created_at, p.id"),
+            tid,
         )
-        if link is None:
-            raise ApiError(410, "share_link_revoked", "This link is no longer available. Ask the owner for a new one.")
-        tid = {"t": link["trip_id"]}
-        trip = s.execute(text("SELECT id, name, start_date, end_date, cover_image_url FROM trips WHERE id = :t"), tid).mappings().one()
-        dests = s.execute(text("SELECT name, region, country, country_code FROM trip_destinations WHERE trip_id = :t ORDER BY position"), tid).mappings().all()
-        people = (
-            s.execute(
-                text("SELECT p.name FROM trip_people tp JOIN people p ON p.id = tp.person_id WHERE tp.trip_id = :t ORDER BY p.is_self DESC, p.created_at, p.id"),
-                tid,
-            )
-            .scalars()
-            .all()
+        .scalars()
+        .all()
+    )
+    days = (
+        s.execute(
+            text(
+                "SELECT d.day, d.title, d.notes, td.name AS destination_name FROM itinerary_days d "
+                "LEFT JOIN trip_destinations td ON td.id = d.destination_id WHERE d.trip_id = :t ORDER BY d.day"
+            ),
+            tid,
         )
-        days = (
-            s.execute(
-                text(
-                    "SELECT d.day, d.title, d.notes, td.name AS destination_name FROM itinerary_days d "
-                    "LEFT JOIN trip_destinations td ON td.id = d.destination_id WHERE d.trip_id = :t ORDER BY d.day"
-                ),
-                tid,
-            )
-            .mappings()
-            .all()
+        .mappings()
+        .all()
+    )
+    items = (
+        s.execute(
+            text(
+                "SELECT id, day, start_time, end_time, title, category, status, location_name, address, lat, lon, url, notes, "
+                "       estimated_cost_minor, cost_currency, source, check_url, checked_at FROM itinerary_items WHERE trip_id = :t AND day IS NOT NULL "
+                "ORDER BY day, start_time NULLS LAST, sort_order, id"
+            ),
+            tid,
         )
-        items = (
-            s.execute(
-                text(
-                    "SELECT id, day, start_time, end_time, title, category, status, location_name, address, lat, lon, url, notes, "
-                    "       estimated_cost_minor, cost_currency, source, check_url, checked_at FROM itinerary_items WHERE trip_id = :t AND day IS NOT NULL "
-                    "ORDER BY day, start_time NULLS LAST, sort_order, id"
-                ),
-                tid,
-            )
-            .mappings()
-            .all()
+        .mappings()
+        .all()
+    )
+    stays = (
+        s.execute(
+            text(
+                "SELECT id, title, status, check_in, check_out, location_name, lat, lon, price_total_minor, price_per_night_minor, currency "
+                "FROM lodging_options WHERE trip_id = :t AND status = 'booked' ORDER BY check_in NULLS LAST, id"
+            ),
+            tid,
         )
-        stays = (
-            s.execute(
-                text(
-                    "SELECT id, title, status, check_in, check_out, location_name, lat, lon, price_total_minor, price_per_night_minor, currency "
-                    "FROM lodging_options WHERE trip_id = :t AND status = 'booked' ORDER BY check_in NULLS LAST, id"
-                ),
-                tid,
-            )
-            .mappings()
-            .all()
-        )
-        generated = s.execute(text("SELECT now()")).scalar_one()
+        .mappings()
+        .all()
+    )
+    generated = s.execute(text("SELECT now()")).scalar_one()
 
-    addr, price, note = link["redact_address"], link["redact_prices"], link["redact_notes"]
+    addr, price, note = redact_address, redact_prices, redact_notes
     by_day: dict[str, list] = {}
     for it in items:
         lodging = it["category"] == "lodging"  # only lodging items carry a place the address flag hides; sights keep their coordinates for the map
@@ -514,23 +497,55 @@ def view_shared(settings, token: str) -> tuple[SharedTrip, bool]:
         }
         for st in stays
     ]
+    return Presentation(
+        trip={
+            "id": trip["id"],
+            "name": trip["name"],
+            "start_date": _t(trip["start_date"]),
+            "end_date": _t(trip["end_date"]),
+            "cover": trip["cover_image_url"],
+            "destinations": [dict(d) for d in dests],
+            "travelers": [f"Traveler {i}" for i in range(1, len(people) + 1)] if redact_people else list(people),
+        },
+        days=out_days,
+        stays=out_stays,
+        book_slide_enabled=show_book_slide,
+        generated_at=generated,
+    )
+
+
+def view_shared(settings, token: str) -> tuple[SharedTrip, bool]:
+    """Public read for GET /shared/{token}: one statement finds a live link and stamps the view; one 410 for every bad token.
+    Returns the page and whether the link is indexable. Redacted fields are nulled here, never sent and hidden later."""
+    with db.system_session("share_view", settings=settings, route="GET /v1/shared/{token}") as s:
+        link = (
+            s.execute(
+                text(
+                    "UPDATE trip_share_links l SET view_count = view_count + 1, last_viewed_at = now() "
+                    " WHERE l.token_hash = :h AND l.revoked_at IS NULL AND l.expires_at > now() "
+                    "   AND EXISTS (SELECT 1 FROM trips t WHERE t.id = l.trip_id AND t.deleted_at IS NULL) "
+                    "RETURNING l.trip_id, l.redact_address, l.redact_prices, l.redact_notes, l.redact_people, l.show_book_slide, l.indexable"
+                ),
+                {"h": token_hash(token)},
+            )
+            .mappings()
+            .first()
+        )
+        if link is None:
+            raise ApiError(410, "share_link_revoked", "This link is no longer available. Ask the owner for a new one.")
+        pres = build_presentation(
+            s,
+            link["trip_id"],
+            redact_address=link["redact_address"],
+            redact_prices=link["redact_prices"],
+            redact_notes=link["redact_notes"],
+            redact_people=link["redact_people"],
+            show_book_slide=link["show_book_slide"],
+        )
+
     page = SharedTrip(
-        trip_name=trip["name"],
-        presentation=Presentation(
-            trip={
-                "id": trip["id"],
-                "name": trip["name"],
-                "start_date": _t(trip["start_date"]),
-                "end_date": _t(trip["end_date"]),
-                "cover": trip["cover_image_url"],
-                "destinations": [dict(d) for d in dests],
-                "travelers": [f"Traveler {i}" for i in range(1, len(people) + 1)] if link["redact_people"] else list(people),
-            },
-            days=out_days,
-            stays=out_stays,
-            book_slide_enabled=link["show_book_slide"],
-            generated_at=generated,
-        ),
+        trip_name=pres.trip.name,
+        presentation=pres,
         cta={"url": settings.public_web_url.rstrip("/")},
         # shortcut: flights ([]), weather (null) and the checklist (0 of 0) are stubs until the flights, weather and checklist tickets
         # feed the presentation (WF-091 presentation mode); the flights ticket must hide fare prices when redact_prices is on.

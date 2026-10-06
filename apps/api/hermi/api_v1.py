@@ -16,6 +16,7 @@ from hermi.modules.places.router import router as places_router
 from hermi.modules.trips.notes import router as notes_router
 from hermi.modules.trips.people import router as people_router
 from hermi.modules.trips.router import router as trips_router
+from hermi.modules.trips.samples import router as samples_router
 
 router = APIRouter(prefix="/v1")
 router.include_router(auth_router)
@@ -32,3 +33,4 @@ router.include_router(itinerary_router)
 router.include_router(places_router)
 router.include_router(lodging_router)
 router.include_router(notes_router)
+router.include_router(samples_router)

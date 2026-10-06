@@ -51,6 +51,7 @@ REQUIRED_TEMPLATES = (
     "/purchases/sync",
     "/purchases/restore",
     "/me/passes/{id}/bind",
+    "/public/sample-trips/{slug}/copy",
 )
 log = logging.getLogger("hermi.idempotency")
 API_PREFIX = "/v1"
