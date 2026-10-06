@@ -45,8 +45,9 @@ def migrate() -> None:
         sys.exit(str(e))
 
 
-def seed() -> None:
-    """Run the 03 section 11 seed as hermi_migrate_login. Idempotent: ON CONFLICT DO NOTHING."""
+def seed(demo: bool = False) -> None:
+    """Run the 03 section 11 seed as hermi_migrate_login. Idempotent: ON CONFLICT DO NOTHING.
+    With demo, also add the demo trip and sample trips (hermi.seed.demo) on the worker login."""
     from sqlalchemy import create_engine, pool
 
     from hermi.config import ConfigError, migration_database_url
@@ -60,6 +61,19 @@ def seed() -> None:
     engine = create_engine(sqlalchemy_url(url), poolclass=pool.NullPool)
     with engine.begin() as conn:
         conn.exec_driver_sql(SEED_SQL)
+    if demo:
+        from hermi.config import NotConfigured, load_settings
+        from hermi.seed.demo import seed_demo
+
+        try:
+            settings = load_settings(bind_host=HOST)
+            added = seed_demo(settings, system_url=settings.require("DATABASE_URL_SYSTEM"))
+        except (ConfigError, NotConfigured, RuntimeError) as e:
+            sys.exit(str(e))
+        print(
+            f"Demo seed: {added['demo_trips']} demo trip, "
+            f"{added['sample_trips']} sample trips added"
+        )
 
 
 def import_legacy(args: argparse.Namespace) -> None:
@@ -107,8 +121,11 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("api", help="run the API").add_argument("--host", default=HOST)
     sub.add_parser("migrate", help="upgrade the database to the latest revision")
     seed_parser = sub.add_parser("seed", help="load the Phase 1 seed data (safe to re-run)")
-    # shortcut: --demo is accepted and loads the same seed; demo trips arrive from prompt 11 on.
-    seed_parser.add_argument("--demo", action="store_true", help="also load demo data (none yet)")
+    seed_parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="also add the demo trip and sample trips (local and ci only)",
+    )
     legacy = sub.add_parser(
         "import-legacy", help="copy the old Trip Planner database into Hermi (one-off)"
     )
@@ -139,7 +156,7 @@ def main(argv: list[str] | None = None) -> None:
         migrate()
         return
     if args.command == "seed":
-        seed()
+        seed(args.demo)
         return
     if args.command == "import-legacy":
         import_legacy(args)
