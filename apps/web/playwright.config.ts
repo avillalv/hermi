@@ -18,6 +18,7 @@ export default defineConfig({
     { name: "mobile", testMatch: "mobile.spec.ts", use: { ...devices["iPhone 15"], defaultBrowserType: "chromium", baseURL: "http://localhost:5173" } },
     // Smoke flows (WF-018.1): need the API too, so run `npm run dev` first, then `npx playwright test --project smoke`.
     { name: "smoke", testDir: "./e2e/smoke", use },
+    { name: "discover", testDir: "./e2e/discover", use },
     { name: "kit-parity", testMatch: "kit-parity.spec.ts", use, timeout: 180_000 },
   ],
   webServer: {

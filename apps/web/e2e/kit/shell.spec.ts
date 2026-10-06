@@ -121,7 +121,9 @@ test("fonts come from bundled files: three families load, no googleapis or gstat
 
 for (const width of [390, 768, 1200]) {
   test(`shell controls at ${width}: tab order, 3px solid focus ring, 44px targets`, async ({ page }) => {
-    await open(page, width, "/discover"); // a screen with no controls of its own, so Tab reaches only the shell
+    // A screen with no controls of its own, so Tab reaches only the shell: the read-only guest trip (Discover has filter chips now).
+    await page.addInitScript(() => localStorage.setItem("hermi.guestTrip", JSON.stringify({ saved_at: "2026-10-01T00:00:00Z", sample: { slug: "s", title: "Sample", summary: "", updated_at: "2026-09-12T10:00:00Z", presentation: { trip: { name: "Sample", destinations: [] }, days: [], stays: [] } } })));
+    await open(page, width, "/guest-trip");
     const names: string[] = [];
     const count = width === 390 ? 4 : 5; // the rail and sidebar add the logo link first
     for (let i = 0; i < count; i++) {

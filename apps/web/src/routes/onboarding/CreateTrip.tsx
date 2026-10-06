@@ -104,7 +104,7 @@ export function CreateTrip() {
       return nav("/", { replace: true }) // shortcut: opens Trips until Trip overview (WF-020) exists
     }
     setBusy(false)
-    // shortcut: an inline sentence for the Free trip limit. WF-064 replaces it with the third_trip paywall sheet (05 6.27), with "Archive a trip" first.
+    // shortcut: an inline sentence for the Free trip limit. WF-066 replaces it with the third_trip paywall (05 6.27), with "Archive a trip" first.
     setError(t(r.reason === "limit" ? "createTrip.limit" : "createTrip.failed"))
   }
 
