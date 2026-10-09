@@ -3,7 +3,8 @@
 # shortcut: base images are pinned by tag, not digest. Pin both python:3.13-slim stages by digest
 # when the first release is cut (Dependabot's docker ecosystem keeps the digest fresh).
 
-FROM node:22-slim AS web
+ARG BASE_REGISTRY=docker.io/library
+FROM ${BASE_REGISTRY}/node:22-slim AS web
 WORKDIR /src
 COPY package.json package-lock.json ./
 COPY apps/web/package.json apps/web/
@@ -14,7 +15,7 @@ RUN npm ci
 COPY apps/web apps/web
 RUN npm run build --workspace apps/web
 
-FROM python:3.13-slim AS builder
+FROM ${BASE_REGISTRY}/python:3.13-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.8 /uv /usr/local/bin/uv
 ENV UV_PYTHON_DOWNLOADS=0 UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1
 WORKDIR /app
@@ -24,7 +25,7 @@ COPY apps/worker apps/worker
 # Wheels only: the slim image has no compiler, so a source-only dependency fails the build.
 RUN uv sync --frozen --no-dev --all-packages --no-cache
 
-FROM python:3.13-slim
+FROM ${BASE_REGISTRY}/python:3.13-slim
 ARG RELEASE_SHA=dev
 ENV RELEASE_SHA=${RELEASE_SHA} \
     PATH="/app/.venv/bin:$PATH" \

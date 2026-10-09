@@ -93,7 +93,7 @@ jobs:
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:18
+        image: public.ecr.aws/docker/library/postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -183,7 +183,7 @@ jobs:
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:18
+        image: public.ecr.aws/docker/library/postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -282,6 +282,7 @@ jobs:
           push: false
           load: true
           tags: hermi:ci
+          build-args: BASE_REGISTRY=public.ecr.aws/docker/library
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Trivy scan (fixable high and critical fail the build)
