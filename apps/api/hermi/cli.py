@@ -106,7 +106,10 @@ def ai_smoke() -> None:
         sys.exit("ai-smoke needs AI_PROVIDER=claude_cli (and ENVIRONMENT=local)")
     claude = find_claude(settings)
     if claude is None:
-        sys.exit("Claude Code wasn't found. Install it or set CLAUDE_CLI_PATH to the full path of the native claude binary.")
+        sys.exit(
+            "Claude Code wasn't found. Install it or set CLAUDE_CLI_PATH "
+            "to the full path of the native claude binary."
+        )
     if auth_status(claude, os.environ).signed_in is False:
         sys.exit("Claude Code isn't signed in. Run claude and type /login, then try again.")
     try:
