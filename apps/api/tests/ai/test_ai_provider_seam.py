@@ -13,7 +13,7 @@ from hermi.modules.ai import client as ai_client
 from hermi.modules.ai.metering import cost_usd_micros
 from hermi.providers.ai import (
     AnthropicApiProvider,
-    ClaudeCliNotBuilt,
+    ClaudeCliProvider,
     FakeProvider,
     ProviderRefused,
     ProviderRequest,
@@ -73,8 +73,7 @@ def test_guard_matrix_factory_follows_claude_cli_allowed():
                 and host != "0.0.0.0"
                 and (auth == "dev" or (allow and email == "me@example.com"))
             )
-            with pytest.raises(ClaudeCliNotBuilt, match="WF-131.2"):
-                get_provider(s, email, bind_host=host)
+            assert isinstance(get_provider(s, email, bind_host=host), ClaudeCliProvider)
         else:
             with pytest.raises(ProviderRefused):
                 get_provider(s, email, bind_host=host)
@@ -86,8 +85,7 @@ def test_factory_rechecks_at_call_time():
     s = settings(auth_mode="supabase", supabase_url="https://abc.supabase.co")
     with pytest.raises(ProviderRefused):
         get_provider(s, "stranger@example.com", bind_host="127.0.0.1")
-    with pytest.raises(ClaudeCliNotBuilt):
-        get_provider(s, "ME@example.com", bind_host="127.0.0.1")
+    assert isinstance(get_provider(s, "ME@example.com", bind_host="127.0.0.1"), ClaudeCliProvider)
     s.environment = "staging"  # settings changed after startup: refused, never the CLI
     with pytest.raises(ProviderRefused):
         get_provider(s, "me@example.com", bind_host="127.0.0.1")

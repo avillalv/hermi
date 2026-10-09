@@ -5,11 +5,11 @@ from hermi.providers.ai.anthropic_api import AnthropicApiProvider
 from hermi.providers.ai.base import (
     AgentOutcome,
     AiProvider,
-    ClaudeCliNotBuilt,
     ProviderRefused,
     ProviderRequest,
     ProviderResult,
 )
+from hermi.providers.ai.claude_cli import ClaudeCliProvider
 from hermi.providers.ai.factory import get_provider
 from hermi.providers.ai.fake import FakeProvider
 
@@ -17,7 +17,7 @@ __all__ = [
     "AgentOutcome",
     "AiProvider",
     "AnthropicApiProvider",
-    "ClaudeCliNotBuilt",
+    "ClaudeCliProvider",
     "FakeProvider",
     "ProviderRefused",
     "ProviderRequest",

@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -90,6 +91,36 @@ def seed(demo: bool = False) -> None:
         )
 
 
+def ai_smoke() -> None:
+    """Two real claude_cli calls: one with no tools, one capped web call (the owner plan)."""
+    from hermi.config import ConfigError, load_settings
+    from hermi.providers.ai import ClaudeCliProvider, ProviderRefused
+    from hermi.providers.ai.claude_cli import CliRunFailed, auth_status, find_claude
+    from hermi.providers.ai.smoke import run_smoke
+
+    try:
+        settings = load_settings(bind_host=HOST)
+    except ConfigError as e:
+        sys.exit(str(e))
+    if settings.ai_provider != "claude_cli":
+        sys.exit("ai-smoke needs AI_PROVIDER=claude_cli (and ENVIRONMENT=local)")
+    claude = find_claude(settings)
+    if claude is None:
+        sys.exit("Claude Code wasn't found. Install it or set CLAUDE_CLI_PATH to the full path of the native claude binary.")
+    if auth_status(claude, os.environ).signed_in is False:
+        sys.exit("Claude Code isn't signed in. Run claude and type /login, then try again.")
+    try:
+        user = next(iter(sorted(settings.cli_allowed_emails)), None)
+        provider = ClaudeCliProvider(settings, bind_host=HOST, user_email=user, claude=claude)
+    except ProviderRefused as e:
+        sys.exit(str(e))
+    try:
+        code = run_smoke(provider, settings.ai_model_fast)
+    except CliRunFailed as e:
+        sys.exit(str(e))
+    sys.exit(code)
+
+
 def import_legacy(args: argparse.Namespace) -> None:
     """Copy the old Trip Planner database into Hermi (03 section 12)."""
     from hermi.config import ConfigError, NotConfigured, load_settings, migration_database_url
@@ -160,6 +191,7 @@ def main(argv: list[str] | None = None) -> None:
     legacy.add_argument(
         "--dry-run", action="store_true", help="run everything, report, keep nothing"
     )
+    sub.add_parser("ai-smoke", help="one no-tool and one capped web call through claude_cli")
     worker_parser = sub.add_parser("worker", help="run the background job workers")
     worker_parser.add_argument("--lanes", help="comma separated lanes (default: WORKER_LANES)")
     for name in PLACEHOLDERS:
@@ -170,6 +202,9 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(f"hermi {args.command} arrives with {PLACEHOLDERS[args.command]}")
     if args.command == "migrate":
         migrate()
+        return
+    if args.command == "ai-smoke":
+        ai_smoke()
         return
     if args.command == "worker":
         worker(args.lanes)

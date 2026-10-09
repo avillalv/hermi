@@ -30,10 +30,6 @@ class ProviderRefused(ProviderError):
     """The guard refused this provider for this call (claude_cli outside its allowed conditions)."""
 
 
-class ClaudeCliNotBuilt(ProviderError):
-    """claude_cli passed the guard, but its backend is built in WF-131.2."""
-
-
 @dataclass(frozen=True)
 class ProviderRequest:
     model: str  # a full model id from config

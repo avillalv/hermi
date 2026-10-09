@@ -64,6 +64,47 @@ also covers `ANTHROPIC_DEFAULT_*_MODEL` and `ANTHROPIC_SMALL_FAST_MODEL`), `CLAU
 Bedrock, Vertex and Foundry switches, and every secret Hermi's own config holds. An API key left in the
 environment moves the run off the subscription.
 
+## Built (WF-131.2)
+
+Code is in `apps/api/hermi/providers/ai/`: `claude_cli.py` (the only file that spawns a process: `strip_env`,
+`find_claude`, `auth_status`, `build_command`, `run_cli`, `Watchdog`, `StderrDrain`, `kill_tree`, `ClaudeCliProvider`),
+`claude_stream.py` (`StreamParser`, `EvidenceCollector`) and `smoke.py`. Tests are in `apps/api/tests/ai/`
+(`test_claude_cli.py`, with `fake_claude.py` as the stand-in `claude`, run as `python fake_claude.py`, never a `.cmd`).
+
+- **Guard.** `config.py` checks the host and auth rule at startup, the factory calls `claude_cli_allowed` per call, and
+  `ClaudeCliProvider.__init__` checks it again, so building one by hand cannot skip it.
+- **`req.extra` keys.** `agent_run` reads `max_searches` and `max_fetches` (default 10 and 10), `timeout_s` (default
+  `WATCHDOG_SECONDS`, 8 minutes) and `is_cancelled` (a callable the watchdog polls every `WATCH_SECONDS`).
+  `single_call` reads `stop_micro` (the `--max-budget-usd` stop, default 500000).
+- **Failures.** A guard, cap, blocked-domain, timeout, cancel, crash or sign-in problem raises `CliRunFailed` with
+  `.status` (`guard`, `cap_exceeded`, `blocked_domain`, `timeout`, `cancelled`, `shutdown`, `no_result`, `no_start`,
+  `error`) and `.run` (the stream events, counters and evidence). `error_max_turns` and `error_max_budget_usd` come
+  back as `AgentOutcome.stop` `turn_limit` and `spend_limit`. After any call `provider.last_run` holds the
+  `CliRun` (events for `run_events`, `searches`, `fetches`, `evidence.fetched` and `evidence.found`).
+- **Cost.** `ProviderResult.cost_usd_micros` is `round(total_cost_usd * 1e6)` and `.provider` is `claude_cli`; the
+  caller meters it with `MeterContext(provider="claude_cli")` and `cli_cost_micros`.
+- **Tree kill.** psutil is not in the stack. Windows runs `taskkill /T /F /PID`; POSIX starts the child in its own
+  session and kills the process group.
+- **Env strip.** `ANTHROPIC_*`, `CLAUDE_CODE_*` (except `CLAUDE_CODE_GIT_BASH_PATH`), `CLAUDECODE`, every `Settings`
+  secret or database URL name, and any name containing SECRET, TOKEN, PASSWORD, API_KEY, DATABASE_URL and similar.
+- **Scratch.** The empty working folder is `AI_CLI_SCRATCH_DIR/<uuid>`; the system prompt file sits beside it and is
+  deleted after the call; the 30 newest folders are kept.
+
+### `hermi ai-smoke`
+
+```
+AI_PROVIDER=claude_cli ENVIRONMENT=local uv run --no-sync hermi ai-smoke     (from apps/api)
+```
+
+`ai-smoke` has no signed-in user. It needs `AUTH_MODE=dev`, or else it passes the first `AI_CLI_ALLOWED_EMAILS` entry
+(sorted) as the user, so set that list when `AUTH_MODE` is not `dev`.
+
+It checks `claude` is found and signed in (`claude auth status`, no model call), then makes one no-tool call with a
+tiny schema (budget $0.10) and one web call capped at 1 search and 1 fetch (budget $0.25, 6 turns) on `AI_MODEL_FAST`.
+It prints the stop reason, counters, links found and the notional cost, and exits 1 on any failure. It uses the
+owner's subscription, so run it by hand after a `claude` upgrade, never in tests or CI (the tests run
+`run_smoke` against `fake_claude.py`).
+
 ## Verified on this machine (claude 2.1.288, 2026-10-03)
 
 One-shot calls on `claude-haiku-4-5` from an empty folder, the exact recipe above. Flags move between releases, so

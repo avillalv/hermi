@@ -4,7 +4,8 @@ from typing import Any
 
 from hermi.config import NotConfigured, Settings, claude_cli_allowed
 from hermi.providers.ai.anthropic_api import AnthropicApiProvider, default_client
-from hermi.providers.ai.base import AiProvider, ClaudeCliNotBuilt, ProviderRefused
+from hermi.providers.ai.base import AiProvider, ProviderRefused
+from hermi.providers.ai.claude_cli import ClaudeCliProvider
 from hermi.providers.ai.fake import FakeProvider
 
 
@@ -29,5 +30,5 @@ def get_provider(
                 raise ProviderRefused(
                     "claude_cli is not allowed for this environment, host or user"
                 )
-            raise ClaudeCliNotBuilt("claude_cli backend lands in WF-131.2")
+            return ClaudeCliProvider(settings, bind_host=bind_host, user_email=user_email)
     raise ProviderRefused(f"unknown AI_PROVIDER {settings.ai_provider!r}")
