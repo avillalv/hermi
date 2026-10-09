@@ -3489,7 +3489,18 @@ REVOKE EXECUTE ON FUNCTION my_provider_spend_micros(timestamptz) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION my_provider_spend_micros(timestamptz) TO hermi_app;
 ```
 
-Purchased packs raise the monthly ceiling by the cost value of credits spent from them (`credits * 20000`), since that spend is separately paid.
+The pass sum has the same problem, because a pass is summed over every member and the app role sees only its own `ai_usage` and `credit_ledger` rows. It runs in a second definer function (migration 0024). It raises `42501` unless `p_trip IN (SELECT visible_trip_ids())`, counts only the trip's active pass window, and returns the month and day sums with the same rules as the `pass_month_micros` query above (open reservations at their hard stop, taster reservations left out).
+
+```sql
+CREATE FUNCTION trip_pass_spend_micros(p_trip uuid, p_month timestamptz, p_day timestamptz)
+RETURNS TABLE (month_micros bigint, day_micros bigint)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$ ... $$;   -- body: the pass_month_micros sum above, filtered to the active pass window
+ALTER FUNCTION trip_pass_spend_micros(uuid, timestamptz, timestamptz) OWNER TO hermi_definer;
+REVOKE EXECUTE ON FUNCTION trip_pass_spend_micros(uuid, timestamptz, timestamptz) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION trip_pass_spend_micros(uuid, timestamptz, timestamptz) TO hermi_app;
+```
+
+Purchased packs raise the monthly ceiling by the cost value of credits spent from them (`credits * 20000`), since that spend is separately paid. The raise is `20000 * credits` net-debited this UTC month from `credit_grants` of kind `purchase` (reserve rows minus refund rows), for the account payer only; allowance, promo, taster, pass and referral credits give none.
 
 ### 7.5 Other queries the API and jobs depend on
 
