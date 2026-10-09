@@ -70,6 +70,7 @@ Same status values as above.
 
 ## Notes for later prompts
 
+- P12 WF-044: `credits/service.py` `balance()` under RLS sees only the caller's own grants, so an editor on a buyer's Trip Pass sees 0 (reserve works via the definer). The balance endpoint needs a definer function (migration). `Balance.version` (max ledger id) does not move for lazy Free/taster grants (no `grant` ledger row) or pool spends by others; fix with a migration before any cache. 07 section 5.7 reconciliation must exclude `adjust` as well as `grant`. Adjustments expire in 12 months (07 beats 08's 90 days). Plus monthly and purchase grants (with `grant` rows and `settle_credit_debt`) are WF-064. `release_stale_reservations` and `expire_grants` are wrappers only; WF-046 schedules them. `npm run test:api -- <file>` does not forward args.
 - P12 WF-043: `modules/ai/metering.py` is not wired into the provider seam or the SerpApi and Geoapify callers yet; WF-046 and WF-131 must call `record_usage` once per response and `record_provider_spend` (pass `cached`). Metering runs as the worker login; `hermi_app` can only SELECT `ai_usage`.
 - P12 WF-041: credits/repo.py raises 402 insufficient_credits without the `paywall` hint and without `credits` on the debt case; the route layer (WF-044/WF-053) adds them. The 402 `balance` sums all unexpired grants, not filtered by trip or action.
 
