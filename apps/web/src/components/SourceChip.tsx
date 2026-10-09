@@ -26,10 +26,11 @@ export function SourceChip({ url, site, checkedAt, stale, agent = true, onOpen }
   const name = site || host(url)
   const age = checkedAt ? (Date.now() - new Date(checkedAt).getTime()) / DAY_MS : 0
   const old = agent && (!!stale || age > STALE_DAYS)
-  const b = old ? bucket(age) : null // a string, so the effect fires once per chip, not on every render
   useEffect(() => {
-    if (b) track("evidence_stale_shown", { age_bucket: b })
-  }, [b])
+    // keyed on `old` only: the age keeps growing between renders and could cross a bucket edge, which must not refire
+    if (old) track("evidence_stale_shown", { age_bucket: bucket(age) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [old])
   const label = checkedAt ? t("source.found", { site: name, date: shortDate(checkedAt) }) : t("source.foundNoDate", { site: name })
   return (
     <span className="source-chip">
