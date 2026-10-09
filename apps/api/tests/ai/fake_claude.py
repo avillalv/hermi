@@ -78,6 +78,12 @@ def main() -> None:
         if pf := os.environ.get("FAKE_CLAUDE_CHILD_PIDFILE"):
             with open(pf, "w", encoding="utf-8") as f:
                 f.write(str(child.pid))
+    if scenario in ("hang", "wrong_model"):
+        # spawn before init: the runner kills the tree the moment it sees a bad init, so the pidfile must exist by then
+        child = subprocess.Popen([getattr(sys, "_base_executable", sys.executable), "-c", "import time; time.sleep(120)"])
+        if pf := os.environ.get("FAKE_CLAUDE_CHILD_PIDFILE"):
+            with open(pf, "w", encoding="utf-8") as f:
+                f.write(str(child.pid))
     emit({
         "type": "system", "subtype": "init", "model": "claude-sonnet-5" if scenario == "wrong_model" else model,
         "claude_code_version": "2.1.288", "tools": ["Bash"] + tools if scenario == "tools_mismatch" else tools,
@@ -86,10 +92,6 @@ def main() -> None:
     })  # fmt: skip
 
     if scenario in ("hang", "wrong_model"):
-        child = subprocess.Popen([getattr(sys, "_base_executable", sys.executable), "-c", "import time; time.sleep(120)"])
-        if pf := os.environ.get("FAKE_CLAUDE_CHILD_PIDFILE"):
-            with open(pf, "w", encoding="utf-8") as f:
-                f.write(str(child.pid))
         assistant({"type": "text", "text": "working"}, model=model)
         time.sleep(120)
         return
