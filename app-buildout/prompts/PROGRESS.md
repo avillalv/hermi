@@ -70,6 +70,7 @@ Same status values as above.
 
 ## Notes for later prompts
 
+- P12 WF-043: `modules/ai/metering.py` is not wired into the provider seam or the SerpApi and Geoapify callers yet; WF-046 and WF-131 must call `record_usage` once per response and `record_provider_spend` (pass `cached`). Metering runs as the worker login; `hermi_app` can only SELECT `ai_usage`.
 - P12 WF-041: credits/repo.py raises 402 insufficient_credits without the `paywall` hint and without `credits` on the debt case; the route layer (WF-044/WF-053) adds them. The 402 `balance` sums all unexpired grants, not filtered by trip or action.
 
 - WF-133.1: `tests/test_fares_reads_choice.py::test_date_grid_stops_at_330_days` fails when the local date and the UTC date differ (the test sets depart_date with the DB CURRENT_DATE + 331, the API cuts at the UTC date + 330; seen after 20:00 EDT, CI runs in UTC and passes); not caused by P11. Fix it before prompt 12 gate. Also assert in WF-133.2 that the Plus persona lists "Lisbon in March" via `GET /v1/trips`.
