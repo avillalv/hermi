@@ -31,6 +31,20 @@ def api(host: str = HOST) -> None:
     uvicorn.run(create_app(settings), **{**uvicorn_kwargs(settings.port), "host": host})
 
 
+def worker(lanes: str | None = None) -> None:
+    """Run the job workers. The only place the API package starts the worker (imported late)."""
+    from hermi.config import ConfigError, NotConfigured, load_settings
+
+    try:
+        settings = load_settings(bind_host=HOST)
+        settings.require("DATABASE_URL_SYSTEM")
+    except (ConfigError, NotConfigured) as e:
+        sys.exit(str(e))
+    from hermi_worker import runner
+
+    runner.run(settings, lanes)
+
+
 def migrate() -> None:
     """Upgrade to head as hermi_migrate_login (MIGRATION_DATABASE_URL), one migrator at a time."""
     from alembic import command
@@ -112,7 +126,7 @@ def import_legacy(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
-PLACEHOLDERS = {"worker": "WF-046", "scheduler": "WF-051"}
+PLACEHOLDERS = {"scheduler": "WF-051"}
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -146,6 +160,8 @@ def main(argv: list[str] | None = None) -> None:
     legacy.add_argument(
         "--dry-run", action="store_true", help="run everything, report, keep nothing"
     )
+    worker_parser = sub.add_parser("worker", help="run the background job workers")
+    worker_parser.add_argument("--lanes", help="comma separated lanes (default: WORKER_LANES)")
     for name in PLACEHOLDERS:
         sub.add_parser(name, help=f"arrives with {PLACEHOLDERS[name]}")
     args = parser.parse_args(argv)
@@ -154,6 +170,9 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(f"hermi {args.command} arrives with {PLACEHOLDERS[args.command]}")
     if args.command == "migrate":
         migrate()
+        return
+    if args.command == "worker":
+        worker(args.lanes)
         return
     if args.command == "seed":
         seed(args.demo)

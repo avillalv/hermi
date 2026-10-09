@@ -43,10 +43,20 @@ def test_api_host_flag_binds_container_address(monkeypatch):
     assert seen["host"] == "0.0.0.0"
 
 
-@pytest.mark.parametrize("cmd", ["worker", "scheduler"])
-def test_placeholder_commands_exit_non_zero_with_a_pointer(cmd):
+def test_scheduler_placeholder_exits_non_zero_with_a_pointer():
     with pytest.raises(SystemExit, match="arrives with WF-"):
-        cli.main([cmd])
+        cli.main(["scheduler"])
+
+
+def test_worker_subcommand_passes_lanes_to_the_runner(monkeypatch):
+    from hermi_worker import runner
+
+    monkeypatch.setenv("ENVIRONMENT", "ci")
+    monkeypatch.setenv("DATABASE_URL_SYSTEM", "postgresql+psycopg://u:p@localhost/x")
+    seen = []
+    monkeypatch.setattr(runner, "run", lambda settings, lanes=None: seen.append(lanes))
+    cli.main(["worker", "--lanes", "api,batch"])
+    assert seen == ["api,batch"]
 
 
 @pytest.mark.parametrize(("argv", "demo"), [(["seed"], False), (["seed", "--demo"], True)])
