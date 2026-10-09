@@ -3379,6 +3379,7 @@ The public token reads and synchronous writes that use a SystemSession, by purpo
 | `verify_extract` | `POST /trips/{id}/verify-plan` | Inserts `plan_verification_items` |
 | `places_cache` | Place search | Fills `places_cache` |
 | `fare_refresh` | `POST /trips/{id}/flights/refresh` | Writes shared `fare_observations`, the route's `trip_fare_links` and `flight_routes.last_checked_at` for the trip's own routes |
+| `ai_single_call` | `POST /trips/{id}/ai/explain`, `/ai/packing-list`, `/ai/draft-day`, `/ai/draft-trip` | After the call, writes the action's `ai_usage` row, the `runs` result and the credit settlement; the API login may only select `ai_usage` and insert the queued run. The reservation was made as the caller and committed first |
 | `unsubscribe` | `GET /unsubscribe`, `POST /unsubscribe` | Verifies the signed link, then writes a `marketing_email` consent row (granted false, source `email`) or sets `notification_preferences.email_enabled` to false for the user in the link |
 | `dev_session` | `POST /dev/session` (`AUTH_MODE=dev`, `local` and `ci` only) | Creates the dev personas and their sessions |
 

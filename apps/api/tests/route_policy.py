@@ -111,6 +111,10 @@ POLICY: dict[str, str] = {
     "POST /v1/public/sample-trips/{slug}/copy": "user_scoped",
     "GET /v1/invites/{token}": "public",
     "POST /v1/invites/{token}/accept": "user_scoped",
+    "POST /v1/trips/{trip_id}/ai/explain": "tenant",
+    "POST /v1/trips/{trip_id}/ai/packing-list": "tenant",
+    "POST /v1/trips/{trip_id}/ai/draft-day": "tenant",
+    "POST /v1/trips/{trip_id}/ai/draft-trip": "tenant",
     # Mounted only when AUTH_MODE=dev in local and ci (main.create_app).
     "GET /v1/dev/personas": "public",
     "POST /v1/dev/session": "public",

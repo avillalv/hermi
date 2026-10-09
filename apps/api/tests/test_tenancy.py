@@ -194,6 +194,7 @@ def test_system_session_allowlist_is_the_03_section_6_6_set():
         "share_view", "share_report", "share_outbound", "go_redirect", "calendar_feed",
         "sample_read", "billing_sync", "import_preview", "verify_extract", "places_cache",
         "fare_refresh",
+        "ai_single_call",
         "unsubscribe",
         "dev_session",  # local and ci only
     }  # fmt: skip

@@ -178,7 +178,7 @@ def request_transaction(engine: Engine, user_id: uuid.UUID) -> Iterator[Session]
             raise
 
 
-# The purposes that may open a SystemSession: the ten in 03 section 6.6 plus dev_session (local and ci only).
+# The purposes that may open a SystemSession: the ones in 03 section 6.6 plus dev_session (local and ci only).
 # Adding one is a reviewed change to this constant, the 6.6 table and the test.
 SYSTEM_SESSION_ALLOWLIST = frozenset(
     {
@@ -193,6 +193,7 @@ SYSTEM_SESSION_ALLOWLIST = frozenset(
         "verify_extract",
         "places_cache",
         "fare_refresh",
+        "ai_single_call",
         "unsubscribe",
         "dev_session",
     }
