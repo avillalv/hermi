@@ -5,6 +5,8 @@ enqueue() writes the job row through the caller's own connection, so it commits 
 (a budget reservation and its job stand or fall together). No module here imports the worker.
 """
 
+from datetime import datetime
+
 import procrastinate
 from procrastinate.sync_psycopg_connector import SyncPsycopgConnector
 from sqlalchemy.orm import Session
@@ -16,6 +18,10 @@ JOB_LANES = {
     "release_stale_reservations": "api",
     "maintain_partitions": "batch",
     "purge_trash": "batch",
+    "send_email": "notify",
+    "send_predeparture_reminder": "notify",
+    "build_digest": "notify",
+    "send_trial_ending_reminder": "notify",
 }
 
 # Priorities and per-account concurrency caps (02 section 5, "Fair claim"). The worker claims by priority (interactive 10, paid live-route checks 5, free cached-fare
@@ -35,6 +41,7 @@ def enqueue(
     priority: int = 0,
     account_id: str | None = None,
     plan: str | None = None,
+    schedule_at: datetime | None = None,
     **args,
 ) -> int:
     """Defer job `name` inside the session's transaction. Returns the job id. Raises procrastinate AlreadyEnqueued when a job
@@ -51,6 +58,7 @@ def enqueue(
         queueing_lock=queueing_lock,
         lock=lock,
         priority=priority,
+        schedule_at=schedule_at,
         connection=session.connection().connection.driver_connection,
     )
     return deferrer.defer(**args)

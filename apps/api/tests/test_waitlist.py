@@ -60,7 +60,7 @@ def test_rate_limits_per_ip(outbox):
 def test_resend_contact_only_when_key_set(outbox, monkeypatch):
     calls = []
     monkeypatch.setattr(
-        mail, "_resend_post", lambda key, path, body: calls.append((key, path, body))
+        mail, "_resend_post", lambda key, path, body, **kw: calls.append((key, path, body))
     )
     post(TestClient(create_app()), "a@example.com")
     assert calls == []

@@ -122,7 +122,7 @@ OWNER_COLUMNS: dict[str, tuple[str, str]] = {
     **{t: ("user_id", "user") for t in (
         "ai_usage", "auth_identities", "consents", "credit_debts", "credit_grants", "credit_ledger", "data_exports",
         "devices", "entitlements", "idempotency_keys", "link_clicks", "notifications", "price_alerts",
-        "referral_codes", "store_transactions", "subscriptions", "support_tickets", "trip_imports",
+        "notification_preferences", "referral_codes", "trip_notification_mutes", "store_transactions", "subscriptions", "support_tickets", "trip_imports",
     )},  # fmt: skip
     "content_reports": ("reporter_user_id", "user"),
     "people": ("owner_user_id", "user"),

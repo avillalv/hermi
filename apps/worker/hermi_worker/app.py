@@ -13,10 +13,14 @@ from hermi.db import make_engine, psycopg_url
 from hermi.jobs import JOB_LANES, LANES
 from hermi_worker import fairness
 from hermi_worker.jobs import (
+    build_digest,
     maintain_partitions,
     purge_trash,
     reap_stale_jobs,
     release_stale_reservations,
+    send_email,
+    send_predeparture_reminder,
+    send_trial_ending_reminder,
 )
 from hermi_worker.observability import job_context
 from hermi_worker.retry import HermiRetry
@@ -24,7 +28,15 @@ from hermi_worker.retry import HermiRetry
 log = logging.getLogger(__name__)
 
 # The registered business jobs. The queue names in hermi.jobs.JOB_LANES must match (a test checks it).
-JOBS = (release_stale_reservations, maintain_partitions, purge_trash)
+JOBS = (
+    release_stale_reservations,
+    maintain_partitions,
+    purge_trash,
+    send_email,
+    send_predeparture_reminder,
+    build_digest,
+    send_trial_ending_reminder,
+)
 INFRA_TASKS = frozenset({reap_stale_jobs.NAME})
 
 
@@ -42,7 +54,11 @@ def build_app(settings: Settings) -> procrastinate.App:
         def body(context: JobContext, timestamp: int | None = None, *, _mod=mod, **_args):
             # `timestamp` is the slot of a periodic run; other arguments are the caller's and the job body decides what it needs.
             with job_context(str(context.job.id)), Session(engine) as session:
-                result = _mod.run(session)
+                # A job that declares ARGS takes the settings and those named job arguments; the others take the session only.
+                if hasattr(_mod, "ARGS"):
+                    result = _mod.run(session, settings, **{k: _args[k] for k in _mod.ARGS})
+                else:
+                    result = _mod.run(session)
                 session.commit()
                 log.info("job done", extra={"job": _mod.NAME, "result": result})
                 return result
@@ -50,7 +66,7 @@ def build_app(settings: Settings) -> procrastinate.App:
         task = app.task(name=mod.NAME, queue=mod.LANE, retry=HermiRetry(mod.RETRIES), pass_context=True)(body)
         # The per-slot lock key of 02 section 5.2 is the unique (task, periodic_id, timestamp) row in procrastinate_periodic_defers.
         # The leader election and scheduler loop land in WF-051; until then SCHEDULER_ENABLED picks the one process that registers these.
-        if settings.scheduler_enabled:
+        if settings.scheduler_enabled and mod.SCHEDULE:
             app.periodic_registry.register_task(task, cron=mod.SCHEDULE, periodic_id="", configure_kwargs={})
 
     async def reap(context: JobContext, timestamp: int | None = None) -> int:
