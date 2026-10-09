@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { t } from "../lib/i18n"
 import { track } from "../lib/track"
 import { Icon } from "./kit"
@@ -26,11 +26,13 @@ export function SourceChip({ url, site, checkedAt, stale, agent = true, onOpen }
   const name = site || host(url)
   const age = checkedAt ? (Date.now() - new Date(checkedAt).getTime()) / DAY_MS : 0
   const old = agent && (!!stale || age > STALE_DAYS)
+  const fired = useRef(false) // once per chip: the age keeps growing between renders and can cross a bucket edge
   useEffect(() => {
-    // keyed on `old` only: the age keeps growing between renders and could cross a bucket edge, which must not refire
-    if (old) track("evidence_stale_shown", { age_bucket: bucket(age) })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [old])
+    if (old && !fired.current) {
+      fired.current = true
+      track("evidence_stale_shown", { age_bucket: bucket(age) })
+    }
+  }, [old, age])
   const label = checkedAt ? t("source.found", { site: name, date: shortDate(checkedAt) }) : t("source.foundNoDate", { site: name })
   return (
     <span className="source-chip">
