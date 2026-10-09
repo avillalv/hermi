@@ -130,6 +130,8 @@ def _seeders(x, k):
         "lodging_votes": ("INSERT INTO lodging_votes (lodging_id, trip_id, person_id, user_id) VALUES (%s, %s, %s, %s)", (k["lodging"], ta, k["person"], a)),
         "notes": ("INSERT INTO notes (trip_id, author_user_id) VALUES (%s, %s)", (ta, a)),
         "notifications": ("INSERT INTO notifications (user_id, kind, dedupe_key, title) VALUES (%s, 'trip_invite', %s, 'x')", (a, x)),
+        "notification_preferences": ("INSERT INTO notification_preferences (user_id) VALUES (%s)", (a,)),
+        "trip_notification_mutes": ("INSERT INTO trip_notification_mutes (trip_id, user_id) VALUES (%s, %s)", (ta, a)),
         "people": ("INSERT INTO people (owner_user_id, name) VALUES (%s, 'P')", (a,)),
         "plan_verification_items": ("INSERT INTO plan_verification_items (verification_id, trip_id, position, name) VALUES (%s, %s, %s, 'n')", (k["ver"], ta, int(x[:4], 16) % 30000)),
         "plan_verifications": ("INSERT INTO plan_verifications (trip_id, user_id) VALUES (%s, %s)", (ta, a)),

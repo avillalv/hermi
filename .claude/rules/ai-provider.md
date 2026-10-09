@@ -63,5 +63,5 @@ Authority: `06-ai-agents-spec.md` sections 1 to 3, WF-131 in `09-build-roadmap.m
 # the Anthropic SDK or the CLI used outside providers/ai (prints nothing when clean)
 grep -rnE "import anthropic|from anthropic|--permission-mode|claude\.exe" apps --include=*.py | grep -v -e "apps/api/hermi/providers/ai/" -e "/tests/"
 # a model id written into code instead of config
-grep -rnE "claude-(haiku|sonnet|opus)-[0-9]" apps --include=*.py | grep -v -e "/tests/" -e "apps/api/hermi/config.py"
+grep -rnE "claude-(haiku|sonnet|opus)-[0-9]" apps --include=*.py | grep -v -e "/tests/" -e "apps/api/hermi/config.py" -e "modules/ai/pricing.py"  # pricing.py keys its price table by model id
 ```

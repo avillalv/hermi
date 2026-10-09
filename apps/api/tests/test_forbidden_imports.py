@@ -94,3 +94,12 @@ def test_no_windows_only_code_in_apps_or_packages() -> None:
     ]
     files = [rel(p) for p in sources("apps", "packages", suffixes=WINDOWS_FILES)]
     assert py == [] and files == []
+
+
+def test_anthropic_sdk_only_in_the_ai_providers() -> None:
+    bad = [
+        rel(p)
+        for p in sources("apps", "packages")
+        if not rel(p).startswith("apps/api/hermi/providers/ai/") and imports(p, "anthropic")
+    ]
+    assert bad == []

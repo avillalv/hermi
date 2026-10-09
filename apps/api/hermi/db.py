@@ -193,6 +193,7 @@ SYSTEM_SESSION_ALLOWLIST = frozenset(
         "verify_extract",
         "places_cache",
         "fare_refresh",
+        "unsubscribe",
         "dev_session",
     }
 )

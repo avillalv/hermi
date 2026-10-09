@@ -32,7 +32,7 @@ jobs:
     timeout-minutes: 20
     services:
       postgres:
-        image: postgres:18
+        image: public.ecr.aws/docker/library/postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres

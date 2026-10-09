@@ -1,2 +1,2 @@
 # ruff: noqa: E501
-"""Job bodies. The scheduler and queue wiring (Procrastinate) arrive with the worker runtime ticket."""
+"""Job bodies: one module per job. hermi_worker.app registers the catalogue jobs and the reaper with Procrastinate."""

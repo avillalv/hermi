@@ -12,10 +12,12 @@ from sqlalchemy.dialects.postgresql import DOMAIN
 from tests.test_migrations import MIGRATE_URL, PRE_RLS, _alembic_cfg, _need_db
 
 from hermi import db
-from hermi.modules.auth import models as _auth  # noqa: F401  (register on Base.metadata)
+from hermi.modules.ai import models as _ai  # noqa: F401  (register on Base.metadata)
+from hermi.modules.auth import models as _auth  # noqa: F401
 from hermi.modules.base import Base
 from hermi.modules.catalog import models as _catalog  # noqa: F401
 from hermi.modules.collaboration import models as _collab  # noqa: F401
+from hermi.modules.credits import models as _credits  # noqa: F401
 from hermi.modules.trips import models as _trips  # noqa: F401
 
 
@@ -269,3 +271,13 @@ def test_orm_columns_match_ddl(conn):
                 assert _family(col.type) == _family(got["type"]), where
     finally:
         eng.dispose()
+
+
+def test_orm_enum_labels_match_db(conn):
+    """Every mapped enum lists the same labels, in the same order, as the live type."""
+    for table in Base.metadata.tables.values():
+        for col in table.columns:
+            if isinstance(col.type, sa.Enum):
+                q = f"SELECT unnest(enum_range(NULL::{col.type.name}))::text"
+                live = [r[0] for r in conn.execute(q)]
+                assert list(col.type.enums) == live, f"{table.name}.{col.name} ({col.type.name})"

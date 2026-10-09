@@ -2592,13 +2592,38 @@ CREATE TABLE notifications (
   CONSTRAINT ck_notifications_kind CHECK (kind IN (
     'price_drop', 'booked_fare_drop', 'trip_invite', 'invite_accepted', 'run_finished',
     'import_finished', 'pre_trip_reminder', 'referral_reward', 'import_reward',
-    'calendar_changes', 'calendar_poll_stopped', 'verify_finished')),
+    'calendar_changes', 'calendar_poll_stopped', 'verify_finished',
+    'activity_digest', 'trial_ending', 'account_deleted', 'lifecycle')),     -- the last four are added by 0025; lifecycle is marketing mail
   CONSTRAINT uq_notifications_dedupe UNIQUE (user_id, dedupe_key)
 );
 CREATE INDEX ix_notifications_user ON notifications (user_id, created_at DESC);
 CREATE INDEX ix_notifications_unread ON notifications (user_id) WHERE read_at IS NULL;
 CREATE INDEX ix_notifications_outbox ON notifications (created_at)
   WHERE (want_push AND push_sent_at IS NULL) OR (want_email AND email_sent_at IS NULL);
+```
+
+Preferences are read by the notify lane, so they are not in `users.prefs`. A person with no `notification_preferences` row has the defaults: every type on, quiet hours 22:00 to 08:00 in `users.timezone`. Email is held until quiet hours end (account mail such as the deletion confirmation is sent at once). Marketing mail (`kind = 'lifecycle'`) needs the latest `marketing_email` consent to be granted. A row in `trip_notification_mutes` silences a trip's digest, alerts and reminders for that person. Added by `0025_notification_prefs`.
+
+```sql
+CREATE TABLE notification_preferences (
+  user_id        uuid PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+  email_enabled  boolean NOT NULL DEFAULT true,                 -- false after a one-click "unsubscribe from all"; account mail (deletion confirmation) still goes
+  email_off      text[] NOT NULL DEFAULT '{}',                  -- notifications.kind values the person switched off for email
+  push_off       text[] NOT NULL DEFAULT '{}',                  -- the same for push (delivery lands in WF-086)
+  quiet_enabled  boolean NOT NULL DEFAULT true,
+  quiet_start    time NOT NULL DEFAULT '22:00',                 -- local time in users.timezone
+  quiet_end      time NOT NULL DEFAULT '08:00',
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+SELECT add_updated_at_trigger('notification_preferences');
+
+CREATE TABLE trip_notification_mutes (
+  trip_id     uuid NOT NULL REFERENCES trips (id) ON DELETE CASCADE,
+  user_id     uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (trip_id, user_id)
+);
+CREATE INDEX ix_trip_notification_mutes_user ON trip_notification_mutes (user_id);
 ```
 
 ### 5.19 Public sample trips
@@ -3283,6 +3308,27 @@ CREATE POLICY link_clicks_update ON link_clicks FOR UPDATE
   USING (user_id = (SELECT app_user_id())) WITH CHECK (user_id = (SELECT app_user_id()));   -- limited to clicked_at, redirect_status and opened_in by the column grant
 ```
 
+Notification preferences and trip mutes (`0025_notification_prefs`) are personal to the person. The app role reads and writes its own rows; the worker role reads them to honor the switches. A mute can only be added for a trip the person can see.
+
+```sql
+ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_preferences FORCE ROW LEVEL SECURITY;
+CREATE POLICY notification_preferences_select ON notification_preferences FOR SELECT USING (user_id = (SELECT app_user_id()));
+CREATE POLICY notification_preferences_insert ON notification_preferences FOR INSERT WITH CHECK (user_id = (SELECT app_user_id()));
+CREATE POLICY notification_preferences_update ON notification_preferences FOR UPDATE
+  USING (user_id = (SELECT app_user_id())) WITH CHECK (user_id = (SELECT app_user_id()));
+ALTER TABLE trip_notification_mutes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trip_notification_mutes FORCE ROW LEVEL SECURITY;
+CREATE POLICY trip_notification_mutes_select ON trip_notification_mutes FOR SELECT USING (user_id = (SELECT app_user_id()));
+CREATE POLICY trip_notification_mutes_insert ON trip_notification_mutes FOR INSERT
+  WITH CHECK (user_id = (SELECT app_user_id()) AND trip_id IN (SELECT visible_trip_ids()));
+CREATE POLICY trip_notification_mutes_delete ON trip_notification_mutes FOR DELETE USING (user_id = (SELECT app_user_id()));
+
+GRANT SELECT, INSERT, UPDATE ON notification_preferences TO hermi_app;
+GRANT SELECT, INSERT, DELETE ON trip_notification_mutes TO hermi_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON notification_preferences, trip_notification_mutes TO hermi_worker;
+```
+
 The other affiliate, catalog and admin tables have no policies: they are covered by the grants in 6.1.
 
 ### 6.5 The admin bypass role, the startup check and tests
@@ -3333,6 +3379,7 @@ The public token reads and synchronous writes that use a SystemSession, by purpo
 | `verify_extract` | `POST /trips/{id}/verify-plan` | Inserts `plan_verification_items` |
 | `places_cache` | Place search | Fills `places_cache` |
 | `fare_refresh` | `POST /trips/{id}/flights/refresh` | Writes shared `fare_observations`, the route's `trip_fare_links` and `flight_routes.last_checked_at` for the trip's own routes |
+| `unsubscribe` | `GET /unsubscribe`, `POST /unsubscribe` | Verifies the signed link, then writes a `marketing_email` consent row (granted false, source `email`) or sets `notification_preferences.email_enabled` to false for the user in the link |
 | `dev_session` | `POST /dev/session` (`AUTH_MODE=dev`, `local` and `ci` only) | Creates the dev personas and their sessions |
 
 Every route is tested under the real roles: the route tests in 6.5 call the API as `hermi_api_login` (and the SystemSession purposes as `hermi_worker_login`), never as the owner, so a missing grant, policy or definer function shows up as a failing route test and not in production.
@@ -3489,7 +3536,18 @@ REVOKE EXECUTE ON FUNCTION my_provider_spend_micros(timestamptz) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION my_provider_spend_micros(timestamptz) TO hermi_app;
 ```
 
-Purchased packs raise the monthly ceiling by the cost value of credits spent from them (`credits * 20000`), since that spend is separately paid.
+The pass sum has the same problem, because a pass is summed over every member and the app role sees only its own `ai_usage` and `credit_ledger` rows. It runs in a second definer function (migration 0024). It raises `42501` unless `p_trip IN (SELECT visible_trip_ids())`, counts only the trip's active pass window, and returns the month and day sums with the same rules as the `pass_month_micros` query above (open reservations at their hard stop, taster reservations left out).
+
+```sql
+CREATE FUNCTION trip_pass_spend_micros(p_trip uuid, p_month timestamptz, p_day timestamptz)
+RETURNS TABLE (month_micros bigint, day_micros bigint)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$ ... $$;   -- body: the pass_month_micros sum above, filtered to the active pass window
+ALTER FUNCTION trip_pass_spend_micros(uuid, timestamptz, timestamptz) OWNER TO hermi_definer;
+REVOKE EXECUTE ON FUNCTION trip_pass_spend_micros(uuid, timestamptz, timestamptz) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION trip_pass_spend_micros(uuid, timestamptz, timestamptz) TO hermi_app;
+```
+
+Purchased packs raise the monthly ceiling by the cost value of credits spent from them (`credits * 20000`), since that spend is separately paid. The raise is `20000 * credits` net-debited this UTC month from `credit_grants` of kind `purchase` (reserve rows minus refund rows), for the account payer only; allowance, promo, taster, pass and referral credits give none.
 
 ### 7.5 Other queries the API and jobs depend on
 
@@ -3878,6 +3936,7 @@ Practical rules for the revisions: functions, triggers, partitions, policies and
 | `0021_fx_convert_exact_rounding` | `fx_convert_minor()` rounds exact halves away from zero (WF-029) | 0020 |
 | `0022_vote_tombstone` | `lodging_votes` and `saved_place_votes`: surrogate `id`, nullable `person_id` cleared (not cascaded) when a traveler is removed, one heart per member; `uq_lodging_options_one_booked` (WF-034.2) | 0021 |
 | `0023_legacy_claims` | `legacy_claims`, `redeem_legacy_claim()`, `legacy_claim_pending()` (WF-040.1) | 0022 |
+| `0025_notification_prefs` | `notification_preferences`, `trip_notification_mutes`, four more `notifications.kind` values (WF-047) | 0024 |
 
 Airports and FX are loaded by jobs, not by a migration: `hermi seed-airports` reads the OurAirports CSV and `hermi refresh-fx` pulls Frankfurter. CI runs `npm run db:init`, then the full chain on an empty database as `hermi_migrate_login`, runs the tenant-isolation tests and the role checks as `hermi_api_login` (never as the owner), then runs `alembic downgrade base` and `upgrade head` once to prove the chain is reversible in a scratch database (production never downgrades).
 

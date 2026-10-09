@@ -430,6 +430,9 @@ def test_live_schema_matches_ddl_in_03(conn):
     assert {"users", "devices", "plans", "trips", "people"} <= set(ddl_tables)
     ddl_tables.pop("legacy_claims")  # 0023 (WF-040.1) creates it, after the PRE_RLS revision this test builds
     ddl_idx = {k: v for k, v in ddl_idx.items() if v[0] != "legacy_claims"}
+    for t in ("notification_preferences", "trip_notification_mutes"):  # 0025 (WF-047) creates them, after the PRE_RLS revision this test builds
+        ddl_tables.pop(t)
+    ddl_idx = {k: v for k, v in ddl_idx.items() if v[0] != "trip_notification_mutes"}
 
     live_tables = {
         r[0]

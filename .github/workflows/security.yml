@@ -115,7 +115,7 @@ jobs:
           exit-code: "0"
       - name: Build image
         if: hashFiles('infra/docker/Dockerfile') != ''
-        run: docker build -f infra/docker/Dockerfile -t hermi:scan .
+        run: docker build --build-arg BASE_REGISTRY=public.ecr.aws/docker/library -f infra/docker/Dockerfile -t hermi:scan .
       - name: Trivy image scan
         if: hashFiles('infra/docker/Dockerfile') != ''
         uses: aquasecurity/trivy-action@v0.36.0

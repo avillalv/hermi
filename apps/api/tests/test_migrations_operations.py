@@ -20,6 +20,7 @@ from hermi import db
 
 ADMIN = "admin_users feature_flags kill_switches audit_log support_tickets content_reports consents data_exports deletion_requests rate_limit_counters idempotency_keys".split()
 LATER = "notifications sample_trips plan_verifications plan_verification_items".split()
+AFTER_RLS = ["notification_preferences", "trip_notification_mutes"]  # 0025 (WF-047): in 03 section 5.18, not in the PRE_RLS schema this file builds
 
 
 @pytest.fixture
@@ -82,8 +83,8 @@ def test_no_table_in_03_is_missing(conn):
     text = SPEC.read_text(encoding="utf-8")
     ddl = text[text.index("### 5.16 Admin") : text.index("## 6. Row-level security")]
     names = set(re.findall(r"CREATE (?:UNLOGGED )?TABLE (\w+)", ddl))
-    assert names == set(ADMIN + LATER)
-    for n in names:
+    assert names == set(ADMIN + LATER + AFTER_RLS)
+    for n in names - set(AFTER_RLS):
         assert conn.execute("SELECT to_regclass(%s)", (n,)).fetchone()[0], n
 
 
