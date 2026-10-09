@@ -49,6 +49,7 @@ def app(settings, clean_queue):
     a = worker_app.build_app(settings)
     yield a
     a.sqlalchemy_engine.dispose()
+    a.fairness_engine.dispose()
 
 
 def statuses(conn, name):

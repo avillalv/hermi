@@ -25,3 +25,4 @@ def run(settings: Settings, lanes: str | None = None) -> None:
         )
     finally:
         app.sqlalchemy_engine.dispose()
+        app.fairness_engine.dispose()

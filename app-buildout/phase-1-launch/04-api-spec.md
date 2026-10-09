@@ -343,6 +343,7 @@ Table columns: **Endpoint** (method and path), **Auth** (minimum role, all requi
 | `PUT /me/push-token` | user | none | `{ device_id, push_token, push_environment: "sandbox" \| "production" }` to 204 | Sets the token on the device. Invalid tokens are cleared when APNs answers 410. |
 | `GET /health/live` | none | none | `{ status: "ok", version }` | Liveness, served at the host root (not under `/v1`). No auth, no rate limit headers. |
 | `GET /health/ready` | none | none | `{ status: "ok" \| "degraded", checks: { database, migrations, queue } }` | Readiness: Postgres reachable, Alembic revision at head, queue reachable; 503 when any check fails (deploys roll back on it). Same rules as `/health/live`. |
+| `GET /health/queue` | none | none | `{ status: "ok", lanes: { api, ai, notify, batch: { depth, oldest_age_seconds } } }` | Jobs waiting to run now and the age of the oldest, per lane; scaling reads it. Cached for 5 seconds. 503 `{ status: "fail" }` when the queue cannot be read; it never affects `/health/ready`. Public like `/health/live`. |
 
 ```ts
 type BootstrapIn = {

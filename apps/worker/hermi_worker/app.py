@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 
 from hermi.config import Settings
 from hermi.db import make_engine, psycopg_url
-from hermi.jobs import JOB_LANES
+from hermi.jobs import JOB_LANES, LANES
+from hermi_worker import fairness
 from hermi_worker.jobs import (
     maintain_partitions,
     purge_trash,
@@ -33,6 +34,7 @@ def build_app(settings: Settings) -> procrastinate.App:
     app = procrastinate.App(connector=procrastinate.PsycopgConnector(conninfo=url))
     engine = make_engine(url, pool_size=2, max_overflow=2)
     app.sqlalchemy_engine = engine  # disposed by the runner at exit
+    app.fairness_engine = fairness.install(app, url, pool_size=len(LANES))  # disposed by the runner at exit
 
     for mod in JOBS:
         assert JOB_LANES[mod.NAME] == mod.LANE, f"hermi.jobs.JOB_LANES disagrees with {mod.NAME}"

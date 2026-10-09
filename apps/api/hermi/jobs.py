@@ -18,6 +18,10 @@ JOB_LANES = {
     "purge_trash": "batch",
 }
 
+# Priorities and per-account concurrency caps (02 section 5, "Fair claim"). The worker claims by priority (interactive 10, paid live-route checks 5, free cached-fare
+# refreshes 1, passed by the caller), then least recently served account, and never runs more than the job's account_cap jobs of one account at once (hermi_worker.fairness).
+ACCOUNT_CAPS = {"free": 2, "plus": 4}
+
 # The connector never opens a pool: every defer passes the caller's connection.
 _app = procrastinate.App(connector=SyncPsycopgConnector())
 
@@ -29,10 +33,18 @@ def enqueue(
     queueing_lock: str | None = None,
     lock: str | None = None,
     priority: int = 0,
+    account_id: str | None = None,
+    plan: str | None = None,
     **args,
 ) -> int:
     """Defer job `name` inside the session's transaction. Returns the job id. Raises procrastinate AlreadyEnqueued when a job
-    with the same queueing_lock is waiting."""
+    with the same queueing_lock is waiting. A job for a user's account passes account_id and the account's plan ("free" or
+    "plus"): they ride in the job args as account_id and account_cap, which the fair claim reads. Jobs without account_id
+    (system jobs) are never capped."""
+    if account_id is not None:
+        if plan not in ACCOUNT_CAPS:
+            raise ValueError(f"plan must be one of {sorted(ACCOUNT_CAPS)} when account_id is given")
+        args.update(account_id=str(account_id), account_cap=ACCOUNT_CAPS[plan])
     deferrer = _app.configure_task(
         name,
         queue=JOB_LANES[name],

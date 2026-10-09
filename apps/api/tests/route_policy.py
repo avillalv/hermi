@@ -17,6 +17,7 @@ CLASSES = ("tenant", "user_scoped", "public", "token_feed", "webhook", "admin")
 POLICY: dict[str, str] = {
     "GET /health/live": "public",
     "GET /health/ready": "public",
+    "GET /health/queue": "public",
     "POST /v1/waitlist": "public",
     "POST /v1/me/bootstrap": "user_scoped",
     "POST /v1/me/legacy-claim": "user_scoped",

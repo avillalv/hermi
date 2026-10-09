@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -55,6 +56,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         url = settings.database_url.get_secret_value() if settings.database_url else None
         ok, body = health.check_ready(url, settings.ai_provider)
         return JSONResponse(body, status_code=200 if ok else 503)
+
+    @app.get("/health/queue")
+    def queue() -> JSONResponse:
+        """Queue depth and oldest job age per lane. Not part of readiness."""
+        try:
+            if not settings.database_url:
+                raise RuntimeError("no database")
+            lanes = health.queue_stats_cached(settings.database_url.get_secret_value())
+        except Exception as e:
+            logging.getLogger(__name__).warning("queue probe failed: %s", type(e).__name__)
+            return JSONResponse({"status": "fail"}, status_code=503)
+        return JSONResponse({"status": "ok", "lanes": lanes})
 
     # The landing page on Cloudflare Pages posts here cross-origin.
     # List its origin in CORS_ALLOWED_ORIGINS.
