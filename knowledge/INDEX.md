@@ -26,6 +26,10 @@ This repo is the specification itself, so its reference material lives in `app-b
 | `docs/adr/0001-name.md` | You touch the product name, fallback names (Twoyage, Zigroam), the trademark checklist or owner-only domain and mail items. |
 | `docs/porting-map.md` | You port code from the old Trip Planner: what moved where, what is not ported yet, what was left behind and why. |
 | `docs/validation/README.md` | You run the demand validation kit (WF-003): interview script, price test cards, terms checklist. |
+| `docs/runbooks/restore.md` | You restore the database (PITR, snapshot, weekly encrypted dump), run the quarterly restore drill, or must re-apply deletions after a restore. |
+| `docs/runbooks/kill-switches.md` | You engage or clear a kill switch (`ai.all`, `provider.*`), run the quarterly drill, or need the 5 second cache and fail-closed behavior. |
+| `docs/runbooks/owner-migration.md` | You run `hermi import-legacy` (WF-040) to move the two owners' old Trip Planner trips into Hermi, or recover from a failed run. |
+| `docs/gates/month-1.md` | You need the Month 1 gate result: what was checked, what stays owner-only, the judge verdict. Month gates are records, so they stay where they are. |
 | `.claude/skills/autopilot-status` | Someone asks how the autopilot build is going, what is running, or what the owner must do. Read-only. |
 | `.claude/skills/month-gate` | You run a month exit gate in the ship session after prompt 06, 11, 15, 20 or 24. |
 | `.claude/skills/prepare-pr` | You finish a build unit's pull request in the ship session. Never merges. |

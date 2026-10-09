@@ -50,7 +50,7 @@ Same status values as above.
 | 09 | [Itinerary, places, map, stays and notes](09-plan-and-stays.md) | WF-032, WF-033, WF-034, WF-035 | Done (#24) |
 | 10 | [Responsive layout, observability and sync indicator](10-layout-observability-sync.md) | WF-036, WF-037, WF-038, WF-039, WF-125 | Done (#26) |
 | 11 | [Import the owner's existing Trip Planner data](11-owner-data-migration.md) | WF-040, WF-133 | Done (#27) |
-| 12 | [AI schema, flags, metering, credits, ceilings, jobs and email](12-ai-and-credits-foundation.md) | WF-041, WF-042, WF-043, WF-044, WF-045, WF-046, WF-131, WF-047 | In progress (phase1/p12-ai-and-credits-foundation) |
+| 12 | [AI schema, flags, metering, credits, ceilings, jobs and email](12-ai-and-credits-foundation.md) | WF-041, WF-042, WF-043, WF-044, WF-045, WF-046, WF-131, WF-047 | Done (#28) |
 | 13 | [Claude features, agent loop, research, evidence and guest mode](13-ai-features.md) | WF-048, WF-049, WF-050, WF-053, WF-054, WF-055, WF-120, WF-132, WF-062 | Not started |
 | 14 | [Scheduler, live fares, breakers and evals](14-live-fares-scheduler-evals.md) | WF-051, WF-052, WF-056, WF-057 | Not started |
 | 15 | [Admin console foundation](15-admin-foundation.md) | WF-058, WF-059, WF-060, WF-061 | Not started |
@@ -70,6 +70,7 @@ Same status values as above.
 
 ## Notes for later prompts
 
+- P12 follow-ups: no demo seed rows were added (credits grant lazily and notifications are event driven, so prompt 13 extends `hermi seed --demo` with a funded account when the first AI screen needs one). The 7.1 axe scans run in `npm run test:kit`, not in `test:e2e:smoke`; prompt 10's text should be read that way. Four load-bearing modules (`main.py`, `errors.py`, `deps.py`, `security/jwt.py`) have no `.claude/rules` file yet (month 2 gate audit).
 - P12 WF-044: `credits/service.py` `balance()` under RLS sees only the caller's own grants, so an editor on a buyer's Trip Pass sees 0 (reserve works via the definer). The balance endpoint needs a definer function (migration). `Balance.version` (max ledger id) does not move for lazy Free/taster grants (no `grant` ledger row) or pool spends by others; fix with a migration before any cache. 07 section 5.7 reconciliation must exclude `adjust` as well as `grant`. Adjustments expire in 12 months (07 beats 08's 90 days). Plus monthly and purchase grants (with `grant` rows and `settle_credit_debt`) are WF-064. `release_stale_reservations` and `expire_grants` are wrappers only; WF-046 schedules them. `npm run test:api -- <file>` does not forward args.
 - P12 WF-043: `modules/ai/metering.py` is not wired into the provider seam or the SerpApi and Geoapify callers yet; WF-046 and WF-131 must call `record_usage` once per response and `record_provider_spend` (pass `cached`). Metering runs as the worker login; `hermi_app` can only SELECT `ai_usage`.
 - P12 WF-041: credits/repo.py raises 402 insufficient_credits without the `paywall` hint and without `credits` on the debt case; the route layer (WF-044/WF-053) adds them. The 402 `balance` sums all unexpired grants, not filtered by trip or action.

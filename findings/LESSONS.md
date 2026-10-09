@@ -13,34 +13,34 @@ verify before relying, and revisit a dead end if the code has moved since._
 
 Corroborated by 2+ useful entries. Start here.
 
-- `C:/Users/matic/.local/bin/claude.exe` — 2× useful (score +2.00, latest 2026-10-03)
-- `app-buildout/phase-1-launch/02-architecture.md` — 2× useful (score +2.00, latest 2026-10-03)
-- `app-buildout/phase-1-launch/03-database-schema.md` — 2× useful (score +2.00, latest 2026-10-03)
-- `app-buildout/phase-1-launch/09-build-roadmap.md` — 2× useful (score +2.00, latest 2026-10-03)
+- `C:/Users/matic/.local/bin/claude.exe` — 2× useful (score +1.74, latest 2026-10-03)
+- `app-buildout/phase-1-launch/02-architecture.md` — 2× useful (score +1.74, latest 2026-10-03)
+- `app-buildout/phase-1-launch/03-database-schema.md` — 2× useful (score +1.74, latest 2026-10-03)
+- `app-buildout/phase-1-launch/09-build-roadmap.md` — 2× useful (score +1.74, latest 2026-10-03)
 
 ## Tentative
 
 Useful once, not yet corroborated. Verify before relying on it.
 
-- `C:/Users/matic/.claude/plugins/cache/context-kit/context-kit/0.10.0` — 1× useful (score +1.00, latest 2026-10-03)
-- `C:/Users/matic/code/trip-planner/backend/tests/fake_claude.py` — 1× useful (score +1.00, latest 2026-10-03)
-- `C:/Users/matic/code/trip-planner/backend/tripplanner/services/claude_cli.py` — 1× useful (score +1.00, latest 2026-10-03)
-- `CLAUDE.md` — 1× useful (score +1.00, latest 2026-10-03)
-- `app-buildout/phase-1-launch/01-product-spec.md` — 1× useful (score +1.00, latest 2026-10-03)
-- `app-buildout/phase-1-launch/04-api-spec.md` — 1× useful (score +1.00, latest 2026-10-03)
-- `app-buildout/phase-1-launch/05-ui-ux-spec.md` — 1× useful (score +1.00, latest 2026-10-03)
-- `app-buildout/phase-1-launch/06-ai-agents-spec.md` — 1× useful (score +1.00, latest 2026-10-03)
-- `app-buildout/phase-1-launch/10-quality-security-launch.md` — 1× useful (score +1.00, latest 2026-10-03)
-- `app-buildout/phase-1-launch/design/DESIGN-LANGUAGE.md` — 1× useful (score +1.00, latest 2026-10-03)
-- `app-buildout/phase-1-launch/design/tokens.css` — 1× useful (score +1.00, latest 2026-10-03)
-- `app-buildout/prompts/00-orchestrator.md` — 1× useful (score +1.00, latest 2026-10-03)
-- `app-buildout/prompts/01-repo-foundation.md` — 1× useful (score +1.00, latest 2026-10-03)
-- `app-buildout/prompts/04-database-foundation.md` — 1× useful (score +1.00, latest 2026-10-03)
-- `app-buildout/prompts/PROGRESS.md` — 1× useful (score +1.00, latest 2026-10-03)
-- `claude --help` — 1× useful (score +1.00, latest 2026-10-03)
-- `claude auto-mode defaults` — 1× useful (score +1.00, latest 2026-10-03)
-- `https://api.github.com/repos/avillalv/hermi` — 1× useful (score +1.00, latest 2026-10-03)
-- `knowledge/ai-provider-claude-cli.md` — 1× useful (score +1.00, latest 2026-10-03)
+- `C:/Users/matic/.claude/plugins/cache/context-kit/context-kit/0.10.0` — 1× useful (score +0.87, latest 2026-10-03)
+- `C:/Users/matic/code/trip-planner/backend/tests/fake_claude.py` — 1× useful (score +0.87, latest 2026-10-03)
+- `C:/Users/matic/code/trip-planner/backend/tripplanner/services/claude_cli.py` — 1× useful (score +0.87, latest 2026-10-03)
+- `CLAUDE.md` — 1× useful (score +0.87, latest 2026-10-03)
+- `app-buildout/phase-1-launch/01-product-spec.md` — 1× useful (score +0.87, latest 2026-10-03)
+- `app-buildout/phase-1-launch/04-api-spec.md` — 1× useful (score +0.87, latest 2026-10-03)
+- `app-buildout/phase-1-launch/05-ui-ux-spec.md` — 1× useful (score +0.87, latest 2026-10-03)
+- `app-buildout/phase-1-launch/06-ai-agents-spec.md` — 1× useful (score +0.87, latest 2026-10-03)
+- `app-buildout/phase-1-launch/10-quality-security-launch.md` — 1× useful (score +0.87, latest 2026-10-03)
+- `app-buildout/phase-1-launch/design/DESIGN-LANGUAGE.md` — 1× useful (score +0.87, latest 2026-10-03)
+- `app-buildout/phase-1-launch/design/tokens.css` — 1× useful (score +0.87, latest 2026-10-03)
+- `app-buildout/prompts/00-orchestrator.md` — 1× useful (score +0.87, latest 2026-10-03)
+- `app-buildout/prompts/01-repo-foundation.md` — 1× useful (score +0.87, latest 2026-10-03)
+- `app-buildout/prompts/04-database-foundation.md` — 1× useful (score +0.87, latest 2026-10-03)
+- `app-buildout/prompts/PROGRESS.md` — 1× useful (score +0.87, latest 2026-10-03)
+- `claude --help` — 1× useful (score +0.87, latest 2026-10-03)
+- `claude auto-mode defaults` — 1× useful (score +0.87, latest 2026-10-03)
+- `https://api.github.com/repos/avillalv/hermi` — 1× useful (score +0.87, latest 2026-10-03)
+- `knowledge/ai-provider-claude-cli.md` — 1× useful (score +0.87, latest 2026-10-03)
 
 ## Sources
 
