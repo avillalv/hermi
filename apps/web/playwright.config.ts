@@ -21,6 +21,8 @@ export default defineConfig({
     { name: "discover", testDir: "./e2e/discover", use },
     // WF-132.2: the AI action screens. Needs `npm run dev` for sign-in.
     { name: "ai", testDir: "./e2e/ai", use },
+    // WF-062.2: guest mode, the Save sheet and the claim. Needs `npm run dev` for sign-in and the claim.
+    { name: "guest", testDir: "./e2e/guest", use },
     { name: "kit-parity", testMatch: "kit-parity.spec.ts", use, timeout: 180_000 },
   ],
   webServer: {

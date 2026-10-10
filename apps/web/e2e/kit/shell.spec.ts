@@ -121,19 +121,19 @@ test("fonts come from bundled files: three families load, no googleapis or gstat
 
 for (const width of [390, 768, 1200]) {
   test(`shell controls at ${width}: tab order, 3px solid focus ring, 44px targets`, async ({ page }) => {
-    // A screen with no controls of its own, so Tab reaches only the shell: the read-only guest trip (Discover has filter chips now).
-    await page.addInitScript(() => localStorage.setItem("hermi.guestTrip", JSON.stringify({ saved_at: "2026-10-01T00:00:00Z", sample: { slug: "s", title: "Sample", summary: "", updated_at: "2026-09-12T10:00:00Z", presentation: { trip: { name: "Sample", destinations: [] }, days: [], stays: [] } } })));
-    await open(page, width, "/guest-trip");
+    // Tab through the page and check the shell's own controls (rail, sidebar, tab bar); the screen's controls are skipped.
+    await open(page, width, "/");
     const names: string[] = [];
     const count = width === 390 ? 4 : 5; // the rail and sidebar add the logo link first
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < 30 && names.length < count; i++) {
       await page.keyboard.press("Tab");
       const info = await page.evaluate(() => {
         const el = document.activeElement as HTMLElement;
         const cs = getComputedStyle(el);
         const r = el.getBoundingClientRect();
-        return { name: (el.getAttribute("aria-label") ?? el.textContent ?? "").trim(), w: cs.outlineWidth, s: cs.outlineStyle, h: r.height, wd: r.width };
+        return { inShell: !!el.closest(".shell-tabs, .shell-side"), name: (el.getAttribute("aria-label") ?? el.textContent ?? "").trim(), w: cs.outlineWidth, s: cs.outlineStyle, h: r.height, wd: r.width };
       });
+      if (!info.inShell) continue;
       expect(info.w).toBe("3px");
       expect(info.s).toBe("solid");
       expect(info.h).toBeGreaterThanOrEqual(44);

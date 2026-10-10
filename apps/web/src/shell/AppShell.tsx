@@ -3,6 +3,7 @@ import { Link, useMatch, useNavigate } from 'react-router'
 import { SyncIndicator } from '../components/sync-indicator/SyncIndicator'
 import { Icon, Logo, SectionTabs, Sprite, TabBar, cx, type SectionTab, type TabItem } from '../components/kit'
 import { t } from '../lib/i18n'
+import { GuestBanner } from '../features/guest/GuestBanner'
 import { useAuth } from '../routes/auth/authStore'
 import { useTrips } from '../routes/onboarding/trips'
 import './shell.css'
@@ -80,6 +81,7 @@ export function AppShell({ active, strip, children }: { active: string; strip?: 
         <TripSwitcher />
       </aside>
       <div className="shell-main">
+        <GuestBanner />
         {strip?.tripId && strip.active !== 'overview' && <SyncIndicator tripId={strip.tripId} />}
         {strip && <SectionTabs className={cx('shell-strip')} items={strip.items} active={strip.active} label={strip.label} />}
         <main className="shell-sheet">{children}</main>

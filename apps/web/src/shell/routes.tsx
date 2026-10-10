@@ -4,7 +4,7 @@ import { Activity } from "../routes/activity/Activity";
 import { SessionControl } from "../routes/auth/SessionControl";
 import { SignIn } from "../routes/auth/SignIn";
 import { Discover } from "../routes/discover/Discover";
-import { GuestTripView } from "../routes/discover/GuestTripView";
+import { GuestHome } from "../features/guest/GuestHome";
 import { SampleView } from "../routes/discover/SampleView";
 import { Claim } from "../routes/claim/Claim";
 import { InviteLanding } from "../routes/invite/InviteLanding";
@@ -65,7 +65,7 @@ export function AppRoutes() {
       <Route path="/activity" element={<Activity />} />
       <Route path="/discover" element={<Discover />} />
       <Route path="/discover/:slug" element={<SampleView />} />
-      <Route path="/guest-trip" element={<GuestTripView />} />
+      <Route path="/guest-trip" element={<GuestHome />} />
       {TABS.filter((t) => t.key !== "trips" && t.key !== "activity" && t.key !== "discover").map((t) => (
         <Route key={t.key} path={t.href} element={<Placeholder tab={t} />} />
       ))}

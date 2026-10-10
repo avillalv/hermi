@@ -3,7 +3,8 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest"
 import { authStore } from "../auth/authStore"
 import { mockApi, reset, show } from "../onboarding/testing"
 import { Discover } from "./Discover"
-import { GuestTripView } from "./GuestTripView"
+import { GuestHome } from "../../features/guest/GuestHome"
+import { GUEST_KEY, readGuest, reloadGuest } from "../../features/guest/store"
 import { SampleView } from "./SampleView"
 
 const card = (slug: string, title: string, tags: string[]) => ({ slug, title, destination_name: "Lisbon", days: 5, summary: "s", tags, suits: "Food lovers", cover: null })
@@ -35,6 +36,7 @@ const open = () => show(<SampleView />, "/discover/:slug", "/discover/lisbon-5-d
 beforeEach(() => {
   reset("free")
   localStorage.clear()
+  reloadGuest()
 })
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -129,27 +131,30 @@ test("a guest builds the local guest trip with no server write", async () => {
   fireEvent.click(await screen.findByRole("button", { name: "Use this plan" }))
   await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/guest-trip"))
   expect(f.mock.calls.some(([, i]) => (i as RequestInit | undefined)?.method === "POST")).toBe(false)
-  expect(JSON.parse(localStorage.getItem("hermi.guestTrip") ?? "{}").sample.slug).toBe("lisbon-5-days")
+  expect(JSON.parse(localStorage.getItem(GUEST_KEY) ?? "{}").trip.name).toBe("Lisbon in 5 days")
+  expect(readGuest()?.trip.items.map((i) => i.title)).toEqual(["Castelo walk"])
 })
 
 test("a guest who already has a guest trip sees the one trip limit", async () => {
   authStore.signOut()
   localStorage.setItem("hermi.guestTrip", JSON.stringify({ saved_at: "2026-10-01T00:00:00Z", sample }))
+  reloadGuest()
   mockApi((u) => (u.endsWith("/public/sample-trips/lisbon-5-days") ? json(sample) : undefined))
   open()
   fireEvent.click(await screen.findByRole("button", { name: "Use this plan" }))
   expect(await screen.findByText("Guests can plan one trip. Create a free account to add more.")).toBeInTheDocument()
 })
 
-test("the guest trip page shows the saved plan, and an empty one says so", () => {
+test("the guest trip page offers to create a trip when empty, and shows the migrated plan otherwise", () => {
   authStore.signOut()
-  const { unmount } = show(<GuestTripView />, "/guest-trip")
-  expect(screen.getByText("No guest trip on this phone yet.")).toBeInTheDocument()
+  const { unmount } = show(<GuestHome />, "/guest-trip")
+  expect(screen.getByRole("heading", { level: 1, name: "Plan a trip" })).toBeInTheDocument()
   unmount()
   localStorage.setItem("hermi.guestTrip", JSON.stringify({ saved_at: "2026-10-01T00:00:00Z", sample }))
-  show(<GuestTripView />, "/guest-trip")
+  reloadGuest()
+  show(<GuestHome />, "/guest-trip")
   expect(screen.getByRole("heading", { level: 1, name: "Lisbon in 5 days" })).toBeInTheDocument()
-  expect(screen.getByText("Guest trip, saved on this phone")).toBeInTheDocument()
+  expect(screen.getByText("Castelo walk")).toBeInTheDocument()
 })
 
 test("loading shows card skeletons", async () => {
@@ -178,6 +183,7 @@ test("offline guest keeps Use this plan enabled", async () => {
 test("a damaged guest trip in storage is ignored", () => {
   authStore.signOut()
   localStorage.setItem("hermi.guestTrip", JSON.stringify({ sample: { title: "x" } }))
-  show(<GuestTripView />, "/guest-trip")
-  expect(screen.getByText("No guest trip on this phone yet.")).toBeInTheDocument()
+  reloadGuest()
+  show(<GuestHome />, "/guest-trip")
+  expect(screen.getByRole("heading", { level: 1, name: "Plan a trip" })).toBeInTheDocument()
 })
