@@ -55,3 +55,10 @@
 .ai-locked__preview { display: flex; flex-direction: column; gap: var(--tp-space-3); padding: var(--tp-space-4); filter: blur(6px); user-select: none; pointer-events: none; }
 .ai-locked__row { display: flex; align-items: center; gap: var(--tp-space-3); }
 .ai-locked__over { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: var(--tp-space-2); padding: var(--tp-space-4); text-align: center; font: 600 0.9375rem/1.3 var(--tp-font-body); color: var(--tp-ink); }
+/* Research notes and the credits history (WF-132.3, 05 6.15 and 6.26). */
+.ai-note { display: flex; flex-direction: column; gap: var(--tp-space-2); padding: var(--tp-space-3); border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-sheet); }
+.ai-note h3, .ai-note p { margin: 0; }
+.ai-ledger { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-sheet); }
+.ai-ledger__row { display: flex; align-items: center; justify-content: space-between; gap: var(--tp-space-3); min-height: 44px; padding: var(--tp-space-2) var(--tp-space-3); }
+.ai-ledger__row + .ai-ledger__row { border-top: 1px solid var(--tp-rule); }
+.ai-ledger__what { display: flex; flex-direction: column; gap: 2px; }

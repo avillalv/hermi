@@ -56,8 +56,8 @@ export function FailNotice({ fail, onRetry, onAllow }: { fail: Fail; onRetry?: (
 
 /** After a result: a free repeat says so, a paid one says what it used and what is left. */
 export function ReceiptLine({ receipt }: { receipt: Receipt }) {
-  const free = receipt.from_cache // a refund or a free action charges 0 too, and is not a repeat
   const used = receipt.charged ?? receipt.reserved
+  const free = receipt.from_cache && used === 0 // a refund or a free action charges 0 too, and is not a repeat; a shared cache hit pays 1
   return (
     <p role="status" className="h-soft ai-receipt">
       <Icon name="coins" size={14} />
@@ -115,6 +115,31 @@ export function OutOfCreditsDraft({ planHref }: { planHref: string }) {
           {t("ai.act.planMyself")}
         </Link>
         <Link className="h-btn h-btn--secondary" to="/account">
+          {t("ai.act.seeCredits")}
+        </Link>
+      </div>
+      <p className="h-soft">{t("ai.act.iosOnly")}</p>
+    </section>
+  )
+}
+
+/**
+ * 07 section 6.2 `out_of_credits_research`: no credits for a question. The free path (write a note) comes first, the
+ * offer second, and on web there is nothing to buy (WF-018).
+ */
+export function OutOfCreditsResearch({ notesHref }: { notesHref: string }) {
+  useEffect(() => void track("paywall_viewed", { placement: "credits", offer_shown: [] }), [])
+  return (
+    <section className="ai-locked" aria-labelledby="ai-out-h">
+      <h2 className="h-title" id="ai-out-h">
+        {t("ai.act.outTitle")}
+      </h2>
+      <p className="h-soft">{t("ai.act.outResearchBody")}</p>
+      <div className="ai-actions">
+        <Link className="h-btn h-btn--primary" to={notesHref}>
+          {t("ai.act.writeNote")}
+        </Link>
+        <Link className="h-btn h-btn--secondary" to="/account/credits">
           {t("ai.act.seeCredits")}
         </Link>
       </div>

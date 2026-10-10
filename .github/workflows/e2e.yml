@@ -69,10 +69,17 @@ jobs:
       - run: uv sync --all-packages --frozen
       - name: Create database roles
         run: PGPASSWORD=postgres npm run db:init
+      - name: Migrate and seed the demo data
+        # The AI smoke flows (6 and 23) spend the demo Plus account's credits, so the seed must run.
+        run: |
+          uv run --no-sync hermi migrate
+          uv run --no-sync hermi seed --demo
       - name: Start dev servers
         run: |
           mkdir -p .autopilot/tmp
           nohup npm run dev > .autopilot/tmp/dev.log 2>&1 &
+          # The agent smoke flow (23) needs the worker: agent runs are its run_agent job.
+          nohup uv run --no-sync --package hermi-api hermi worker > .autopilot/tmp/worker.log 2>&1 &
           node scripts/wait-ready.mjs 90
       - name: Install Chromium for Playwright
         run: npx playwright install --with-deps chromium
@@ -82,3 +89,6 @@ jobs:
       - name: Dev server log
         if: failure()
         run: cat .autopilot/tmp/dev.log
+      - name: Worker log
+        if: failure()
+        run: cat .autopilot/tmp/worker.log

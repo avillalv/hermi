@@ -16,6 +16,7 @@ export type Credits = {
   trip_pass: number
   purchased: number
   next_monthly_grant_at: string | null
+  grants?: { kind: "monthly" | "promo" | "trip_pass" | "purchase" | "adjustment"; remaining: number; expires_at: string | null; trip_id: string | null }[]
 }
 
 export const creditsKey = (tripId: string | null) => ["me", "credits", tripId]

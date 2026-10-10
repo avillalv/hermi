@@ -27,6 +27,23 @@ export type TripDraft = { days: DraftedDay[]; overview?: string; label: string; 
 type DayDraft = DraftedDay & { label: string; run_id: string; credits: Receipt }
 type Job = { id: string; kind: "draft_trip"; status: string; result: { days: DraftedDay[]; overview: string; label: string } | null; error_code: string | null; credits: Receipt }
 
+export const RESEARCH_TOPICS = ["destination_brief", "events_and_closures", "reservations_needed", "getting_around", "seasonal_notes"] as const
+export type ResearchTopic = (typeof RESEARCH_TOPICS)[number]
+export type ResearchNote = { title: string; topic: string; body: string; urls: string[] }
+/** The notes of one research run. `from_cache` notes came from the shared cache and are `checked_days_ago` old. */
+export type Researched = {
+  topic: string
+  notes: ResearchNote[]
+  sources: { url: string; retrieved_at?: string | null }[]
+  from_cache: boolean
+  stale: boolean
+  checked_days_ago: number | null
+  label: string
+  run_id: string
+  credits: Receipt
+}
+type ResearchJob = { id: string; kind: "research"; status: string; result: Omit<Researched, "run_id" | "credits"> | null; error_code: string | null; credits: Receipt }
+
 /** Why an AI call did not give a result. `paused` carries the server's own sentence (it names the date AI is back). */
 export type Fail = {
   reason: "credits" | "blocked" | "consent" | "aiOff" | "forbidden" | "invalid" | "rate" | "paused" | "unavailable" | "failed"
@@ -37,6 +54,8 @@ export type Fail = {
 }
 export type Outcome<T> = { ok: true; data: T } | ({ ok: false } & Fail)
 
+/** 422 codes whose server sentence tells the person what to fix (research needs a destination, dates and a short question). */
+const USER_FIXABLE = new Set(["destination_required", "dates_required", "invalid_topic", "question_too_long"])
 type Problem = { code?: string; detail?: string; message?: string; blocked?: boolean; credits?: { needed: number; balance: number } }
 
 /** POST one AI action. `key` is the Idempotency-Key: one per tap, reused only after a dropped connection. */
@@ -48,7 +67,7 @@ export async function postAi<T>(path: string, body: unknown, key: string): Promi
     const message = e.detail ?? e.message
     if (s === 402) return { ok: false, reason: e.blocked ? "blocked" : "credits" }
     if (s === 403) return { ok: false, reason: e.code === "ai_consent_required" ? "consent" : e.code === "ai_disabled_for_trip" ? "aiOff" : "forbidden" }
-    if (s === 422 && e.code === "validation_failed") return { ok: false, reason: "invalid", message }
+    if (s === 422 && (e.code === "validation_failed" || USER_FIXABLE.has(e.code ?? ""))) return { ok: false, reason: "invalid", message }
     if (s === 429) {
       if (e.code === "provider_budget_exhausted") return { ok: false, reason: "paused", message }
       const wait = Number(r.response.headers.get("Retry-After"))
@@ -75,6 +94,14 @@ export async function draftDay(id: string, body: { day: string; preferences?: st
 /** 202 with the finished job (the API runs it inline); a job that is not `done` with a result is a failure. */
 export async function draftTrip(id: string, body: { style?: string; from_day?: string }, key: string): Promise<Outcome<TripDraft>> {
   const r = await postAi<Job>(`${base(id)}/draft-trip`, body, key)
+  if (!r.ok) return r
+  const { status, result, credits, id: run_id } = r.data
+  return status === "done" && result ? { ok: true, data: { ...result, run_id, credits } } : { ok: false, reason: "failed" }
+}
+
+/** 202 with the finished job, like draft-trip. A cache hit charges 1 and has `from_cache`. */
+export async function research(id: string, body: { topic: ResearchTopic; question?: string }, key: string): Promise<Outcome<Researched>> {
+  const r = await postAi<ResearchJob>(`${base(id)}/research`, body, key)
   if (!r.ok) return r
   const { status, result, credits, id: run_id } = r.data
   return status === "done" && result ? { ok: true, data: { ...result, run_id, credits } } : { ok: false, reason: "failed" }

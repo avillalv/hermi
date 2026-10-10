@@ -583,3 +583,48 @@ def test_a_packing_repeat_is_free_for_seven_days_and_charged_after(engine, setti
     c.execute("UPDATE runs SET finished_at = now() - interval '8 days' WHERE id = %s", (first.run_id,))
     late = _run(engine, world, packing_list.execute, **_kw(settings, world, provider=stub))
     assert late.receipt.charged == 1 and len(stub.calls) == 2
+
+
+def test_http_research_runs_cold_on_the_fake_provider_and_returns_a_job(client, world):
+    h, uid, tid = _as_owner(client, world)
+    world["conn"].execute("UPDATE entitlements SET tier_code = 'plus' WHERE user_id = %s", (uid,))
+    _grant(world["conn"], uid)
+    post = lambda body, key=None: client.post(f"/v1/trips/{tid}/ai/research", json=body, headers={**h, "Idempotency-Key": key or uuid.uuid4().hex})  # noqa: E731
+    r = post({"topic": "events_and_closures"})
+    assert r.status_code == 202, r.text
+    job = r.json()
+    assert job["kind"] == "research" and job["status"] == "done" and job["error_code"] is None
+    assert job["credits"]["action"] == "research" and job["credits"]["charged"] == 8 and job["credits"]["from_cache"] is False
+    res = job["result"]
+    assert res["from_cache"] is False and res["topic"] == "events_and_closures" and res["label"]
+    assert res["notes"] and all(n["urls"] for n in res["notes"])
+    assert _balance(world["conn"], uid) == START - 8
+    assert post({"topic": "nope"}).status_code == 422
+    assert post({"topic": "seasonal_notes", "question": "x" * 301}).status_code == 422
+    assert client.post(f"/v1/trips/{tid}/ai/research", json={}, headers=h).status_code == 400  # needs a key
+
+
+def _ledger_rows(conn, uid):
+    return conn.execute("SELECT count(*) FROM credit_ledger WHERE user_id = %s", (uid,)).fetchone()[0]
+
+
+def test_http_research_refused_for_a_viewer_and_without_consent_writes_no_ledger_row(client, world):
+    h, uid, tid = _as_owner(client, world)
+    world["conn"].execute("UPDATE entitlements SET tier_code = 'plus' WHERE user_id = %s", (uid,))
+    _grant(world["conn"], uid)
+    post = lambda hdr: client.post(f"/v1/trips/{tid}/ai/research", json={"topic": "seasonal_notes"}, headers={**hdr, "Idempotency-Key": uuid.uuid4().hex})  # noqa: E731
+    # A viewer: a member, but not an editor.
+    sub = uuid.uuid4().hex
+    vh = {"Authorization": "Bearer " + mint_dev_token(client.settings, sub, email=f"{sub[:12]}@example.com")}
+    r = client.post("/v1/me/bootstrap", json={"age_confirmed": True, "home_currency": "EUR"}, headers=vh)
+    viewer = r.json()["id"]
+    world["conn"].execute("INSERT INTO trip_members (trip_id, user_id, role) VALUES (%s, %s, 'viewer')", (tid, viewer))
+    r = post(vh)
+    assert r.status_code == 403 and r.json()["code"] == "insufficient_role", r.text
+    assert _ledger_rows(world["conn"], viewer) == 0
+    # Consent withdrawn: the latest answer wins.
+    before = _ledger_rows(world["conn"], uid)
+    world["conn"].execute("INSERT INTO consents (user_id, kind, version, granted) VALUES (%s, 'ai_processing', '1', false)", (uid,))
+    r = post(h)
+    assert r.status_code == 403 and r.json()["code"] == "ai_consent_required", r.text
+    assert _ledger_rows(world["conn"], uid) == before

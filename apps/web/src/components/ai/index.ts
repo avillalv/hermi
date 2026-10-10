@@ -7,5 +7,23 @@ export { AiConsentSwitch, TripAiSwitch } from "./AiSwitches"
 export { AiSheet, CONFIRM_AT, type RunOutcome, type SheetAction } from "./AiSheet"
 export { CreditChip, creditsLabel } from "./CreditChip"
 export { creditsKey, refreshCredits, useCredits, type Credits } from "./useCredits"
-export { FailNotice, OutOfCreditsDraft, ReceiptLine, Waiting } from "./ActionParts"
-export { draftDay, draftTrip, explain, packingList, saveDraft, useAiRun, type DraftItem, type DraftedDay, type Fail, type PackItem, type Receipt } from "./run"
+export { FailNotice, OutOfCreditsDraft, OutOfCreditsResearch, ReceiptLine, Waiting } from "./ActionParts"
+export {
+  RESEARCH_TOPICS,
+  draftDay,
+  draftTrip,
+  explain,
+  packingList,
+  research,
+  saveDraft,
+  useAiRun,
+  type DraftItem,
+  type DraftedDay,
+  type Fail,
+  type PackItem,
+  type Receipt,
+  type ResearchNote,
+  type ResearchTopic,
+  type Researched,
+} from "./run"
+export { useLedger, type LedgerEntry } from "./useLedger"

@@ -104,7 +104,7 @@ export function AiSheet({
           <div className="ai-sheet__bar">
             <span className="h-sheet__sub">{aiOff ? t("ai.tripOff") : t("ai.sheet.on", { trip: trip.data?.name ?? "" })}</span>
             {c && (
-              <Link className="h-sheet__balance ai-sheet__balance" to="/account" aria-label={t("ai.sheet.balanceAria", { credits: c.available })}>
+              <Link className="h-sheet__balance ai-sheet__balance" to="/account/credits" aria-label={t("ai.sheet.balanceAria", { credits: c.available })}>
                 <span className="h-credit h-credit--lg">
                   <Icon name="coins" size={14} />
                   <span className="h-credit__n">{c.available}</span> {t("ai.sheet.balanceText")}

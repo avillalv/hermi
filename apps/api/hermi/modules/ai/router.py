@@ -23,7 +23,7 @@ from sqlalchemy import text
 from hermi.db import request_transaction
 from hermi.deps import ROLE_RANK, CurrentUser, DbSession, TripAccess, require_trip
 from hermi.errors import ApiError, NotFound
-from hermi.modules.ai import agent_runs
+from hermi.modules.ai import agent_runs, research
 from hermi.modules.ai.features import drafts, explain, packing_list, recheck
 from hermi.modules.ai.features.base import flag_runtime
 from hermi.modules.collaboration.schemas import Attribution
@@ -71,6 +71,15 @@ class DraftTripIn(BaseModel):
     pace: Literal["relaxed", "balanced", "packed"] = "balanced"
     interests: list[Annotated[str, StringConstraints(max_length=40)]] | None = None
     from_day: date | None = None  # drafts at most 14 days from here; the trip start when absent
+
+
+class ResearchIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    topic: Literal["destination_brief", "events_and_closures", "reservations_needed", "getting_around", "seasonal_notes"] = "destination_brief"
+    question: Text300 | None = None  # a custom question bypasses the shared cache
+    # shortcut: accepted (04 5.12) and ignored. Ceiling: scope does not narrow the research, which always covers the destination
+    # for the trip dates. Trigger: when the research prompt takes a scope.
+    scope: Literal["destination", "dates", "lodging"] | None = None
 
 
 def _common(request: Request, user: CurrentUser, key: str) -> dict:
@@ -182,6 +191,36 @@ def draft_trip_route(
     return {
         "id": str(done.run_id),
         "kind": "draft_trip",
+        "status": "done",
+        "result": done.output,
+        "error_code": None,
+        "credits": done.receipt.public(),
+    }
+
+
+@router.post("/trips/{trip_id}/ai/research", status_code=202)
+def research_route(
+    body: ResearchIn,
+    request: Request,
+    session: DbSession,
+    user: CurrentUser,
+    access: Annotated[TripAccess, require_trip("editor")],
+    key: Idem,
+) -> dict:
+    """04 5.12 `ResearchJob`. Same inline shortcut as draft-trip: the executor commits and returns the finished job (a cache
+    hit charges 1 and reports `from_cache`). Its notes are saved to the trip with their sources, as in an agent run.
+    shortcut: it runs inline, holding a request thread for up to the 90 s cache wait. Ceiling: concurrent research requests
+    against the threadpool size. Trigger: move it to a job on the `ai` lane and poll GET /ai/jobs/{id}."""
+    done = research.execute(
+        session,
+        trip_id=access.trip.id,
+        topic=body.topic,
+        question=body.question or None,
+        **_common(request, user, key),
+    )
+    return {
+        "id": str(done.run_id),
+        "kind": "research",
         "status": "done",
         "result": done.output,
         "error_code": None,

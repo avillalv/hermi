@@ -3,7 +3,7 @@ import { AiSheet, type SheetAction } from "../../components/ai"
 import { useAuth } from "../auth/authStore"
 import { TripOverview } from "../trips/TripOverview"
 
-/** Where each sheet row goes. Result screens are `AiActionPage`; research and credits history (WF-132.3) still land on `ActionStub`. */
+/** Where each sheet row goes. Every row lands on a result screen of `AiActionPage`. */
 const TARGET: Record<SheetAction, string> = {
   agent: "agents",
   explain: "ai/explain",

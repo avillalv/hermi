@@ -85,3 +85,23 @@ class Entitlements(BaseModel):
     trip_passes: list[TripPassOut]
     flags: Flags
     credits: CreditBalance
+
+
+class LedgerEntry(BaseModel):
+    """04 section 5.19 `LedgerEntry`: one `credit_ledger` row. The bigint id is never exposed."""
+
+    reservation_id: uuid.UUID | None
+    at: datetime
+    kind: Literal["grant", "reserve", "settle", "refund", "expire", "clawback", "adjust"]
+    delta: int
+    charged: int | None
+    action: str | None
+    trip_id: uuid.UUID | None
+    run_id: uuid.UUID | None
+    note: str | None
+
+
+class LedgerPage(BaseModel):
+    items: list[LedgerEntry]
+    next_cursor: str | None
+    has_more: bool

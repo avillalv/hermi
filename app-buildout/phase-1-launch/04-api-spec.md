@@ -1004,7 +1004,7 @@ type CreditBalance = {
 type LedgerEntry = {
   reservation_id: Uuid | null; at: string; kind: "grant" | "reserve" | "settle" | "refund" | "expire" | "clawback" | "adjust"   // credit_ledger.entry_type; its bigint id is never exposed
   delta: number; charged: number | null; action: CreditAction | null
-  trip_id: Uuid | null; run_id: Uuid | null; note: string
+  trip_id: Uuid | null; run_id: Uuid | null; note: string | null
 }
 type CreditPack = { plan_code: "credits_50" | "credits_150" | "credits_400"; product_id: "hermi_credits_50" | "hermi_credits_150" | "hermi_credits_400"; credits: number; valid_months: 12 }
 type TripPass = {

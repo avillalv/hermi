@@ -1,17 +1,19 @@
 # ruff: noqa: E501  (long SQL strings)
-"""GET /v1/me/entitlements and GET /v1/me/credits (04 section 5.19)."""
+"""GET /v1/me/entitlements, GET /v1/me/credits and GET /v1/me/credits/ledger (04 section 5.19)."""
 
+import base64
 import hashlib
 import uuid
-from typing import Literal
+from datetime import datetime
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Query, Request, Response
 from sqlalchemy import text
 
 from hermi.deps import CurrentUser, DbSession
-from hermi.errors import NotFound
+from hermi.errors import ApiError, NotFound
 from hermi.modules.billing import service
-from hermi.modules.billing.schemas import CreditsNow, Entitlements
+from hermi.modules.billing.schemas import CreditsNow, Entitlements, LedgerPage
 from hermi.modules.credits import repo as credit_repo
 from hermi.modules.credits import service as credits
 
@@ -51,3 +53,50 @@ def get_credits(
         payer=b.payer,
         version=b.version,
     )
+
+
+def _decode_ledger_cursor(value: str | None) -> tuple[datetime, int] | None:
+    """Keyset cursor: the (created_at, id) of the last row of the previous page. A bad one is the 422 on `cursor`."""
+    if not value:
+        return None
+    try:
+        at, row_id = base64.urlsafe_b64decode(value.encode()).decode().split("|")
+        return datetime.fromisoformat(at), int(row_id)
+    except ValueError:
+        raise ApiError(
+            422, "validation_failed", "Some fields need another look.",
+            extra={"errors": [{"field": "cursor", "code": "invalid", "message": "That page cursor is not valid."}]},
+        ) from None
+
+
+@router.get("/me/credits/ledger", response_model=LedgerPage)
+def get_ledger(
+    user: CurrentUser,
+    session: DbSession,
+    kind: Literal["grant", "reserve", "settle", "refund", "expire", "clawback", "adjust"] | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    cursor: str | None = None,
+) -> dict:
+    """The caller's own `credit_ledger` rows, newest first. `kind` filters `entry_type`. Paged by (created_at, id), so a
+    spend that lands between two pages never repeats or skips a row."""
+    after = _decode_ledger_cursor(cursor)
+    rows = (
+        session.execute(
+            text(
+                "SELECT id, reservation_id, created_at AS at, entry_type::text AS kind, delta, charged, action::text AS action, trip_id, run_id, note "
+                "FROM credit_ledger WHERE user_id = :u AND (CAST(:k AS text) IS NULL OR entry_type::text = :k) "
+                "AND (CAST(:ts AS timestamptz) IS NULL OR (created_at, id) < (CAST(:ts AS timestamptz), CAST(:i AS bigint))) "
+                "ORDER BY created_at DESC, id DESC LIMIT :n"
+            ),
+            {"u": user.id, "k": kind, "n": limit + 1, "ts": after[0] if after else None, "i": after[1] if after else None},
+        )
+        .mappings()
+        .all()
+    )
+    more = len(rows) > limit
+    page = rows[:limit]
+    next_cursor = None
+    if more:
+        last = page[-1]
+        next_cursor = base64.urlsafe_b64encode(f"{last['at'].isoformat()}|{last['id']}".encode()).decode()
+    return {"items": page, "next_cursor": next_cursor, "has_more": more}

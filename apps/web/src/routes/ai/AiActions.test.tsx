@@ -407,3 +407,133 @@ test("a draft that costs 1 credit says credit in the singular", async () => {
   open("day")
   expect(await screen.findByRole("button", { name: "Draft, costs 1 credit" })).toBeInTheDocument()
 })
+
+// ---- research (WF-132.3) ----
+
+const note = (n: number, over: Record<string, unknown> = {}) => ({
+  title: `Marathon closes road ${n}`, topic: "events_and_closures", body: `The marathon closes the riverfront on 9 May ${n}.`,
+  urls: [`https://events.example.org/lisbon-${n}`], ...over,
+})
+const researchJob = (over: Record<string, unknown> = {}, result: Record<string, unknown> = {}) => ({
+  id: "run5", kind: "research", status: "done", error_code: null,
+  credits: receipt({ action: "research", reserved: 8, charged: 8, balance_after: 19 }),
+  result: {
+    topic: "destination_brief", notes: [note(1), note(2)], sources: [{ url: "https://events.example.org/lisbon-1", retrieved_at: "2027-04-01T10:00:00Z" }],
+    from_cache: false, stale: false, checked_days_ago: null, instructions_dropped: false, rejected: 0, label: "AI suggestion", ...result,
+  },
+  ...over,
+})
+const goResearch = async () => fireEvent.click(await ready(/^Research, costs 8 credits/))
+
+test("research: the chip shows 8 credits and the pool, with the cost line and the cache price named", async () => {
+  mockApi(api({ credits: Response.json(credits({ available: 40, own: 0, pool: 40, payer: "trip_pass" })) }))
+  open("research")
+  const b = await screen.findByRole("button", { name: /^Research, costs 8 credits/ })
+  expect(within(b).getByText("Trip Pass credits")).toBeInTheDocument()
+  expect(await screen.findByText("Costs 8 credits. You have 40, so 32 left.")).toBeInTheDocument()
+  expect(screen.getByText(/1 credit when someone already researched/)).toBeInTheDocument()
+})
+
+test("research: sends the topic with a key, shows notes with source labels, the AI label, the cost and thumbs", async () => {
+  const f = mockApi(api({ post: () => Response.json(researchJob(), { status: 202 }) }))
+  open("research")
+  fireEvent.change(await screen.findByLabelText("Topic"), { target: { value: "events_and_closures" } })
+  await goResearch()
+  expect(await screen.findByRole("heading", { name: "Marathon closes road 1" })).toBeInTheDocument()
+  expect(bodyOf(f, "/ai/research")).toEqual({ topic: "events_and_closures" })
+  expect(new Headers((posts(f, "/ai/research")[0]![1] as RequestInit).headers).get("Idempotency-Key")).toBeTruthy()
+  expect(screen.getAllByRole("link", { name: /events\.example\.org/ })[0]).toHaveAttribute("href", "https://events.example.org/lisbon-1")
+  expect(screen.getByText("AI suggestion, check details before booking")).toBeInTheDocument()
+  expect(screen.getByText("Used 8 credits. 19 left.")).toBeInTheDocument()
+  expect(screen.getByText("Saved to the trip notes.")).toBeInTheDocument()
+  expect(screen.getByRole("group", { name: "Was this helpful?" })).toBeInTheDocument()
+  expect(__sink.find((e) => e.event === "ai_action_started")!.properties).toMatchObject({ action: "research", credits: 8, from_cache: false })
+})
+
+test("research: a custom question is sent and says it skips the shared notes", async () => {
+  const f = mockApi(api({ post: () => Response.json(researchJob(), { status: 202 }) }))
+  open("research")
+  fireEvent.change(await screen.findByLabelText("Your own question"), { target: { value: "Is the tram pass worth it?" } })
+  expect(screen.getByText(/A question of your own always costs 8 credits/)).toBeInTheDocument()
+  await goResearch()
+  await screen.findByRole("heading", { name: "Marathon closes road 1" })
+  expect(bodyOf(f, "/ai/research")).toEqual({ topic: "destination_brief", question: "Is the tram pass worth it?" })
+})
+
+test("research: shared notes cost 1 credit and say how old they are", async () => {
+  const job = researchJob({ credits: receipt({ action: "research", reserved: 1, charged: 1, from_cache: true, balance_after: 26 }) }, { from_cache: true, checked_days_ago: 3 })
+  mockApi(api({ post: () => Response.json(job, { status: 202 }) }))
+  open("research")
+  await goResearch()
+  expect(await screen.findByText("From shared notes, checked 3 days ago.")).toBeInTheDocument()
+  expect(screen.getByText("Used 1 credit. 26 left.")).toBeInTheDocument()
+  expect(screen.queryByText("Free repeat, no credits used.")).toBeNull()
+})
+
+test("research empty: a run with no notes says so and shows no list", async () => {
+  mockApi(api({ post: () => Response.json(researchJob({}, { notes: [] }), { status: 202 }) }))
+  open("research")
+  await goResearch()
+  expect(await screen.findByText("Nothing reliable turned up for this. Try another topic or ask your own question.")).toBeInTheDocument()
+  expect(screen.queryByRole("heading", { level: 3 })).toBeNull()
+})
+
+test("research loading: a status says it can take a minute and the button is busy", async () => {
+  mockApi(api({ post: () => new Promise<Response>(() => undefined) }))
+  open("research")
+  await goResearch()
+  expect(await screen.findByText("Reading sources. This can take a minute.")).toBeInTheDocument()
+  expect(screen.getByRole("button", { name: /^Research/ })).toHaveAttribute("aria-busy", "true")
+})
+
+test("research error: says nothing was charged, and Try again runs with a fresh key", async () => {
+  let n = 0
+  const f = mockApi(api({ post: () => (n++ === 0 ? problem(502, { code: "ai_failed" }) : Response.json(researchJob(), { status: 202 })) }))
+  open("research")
+  await goResearch()
+  expect(await screen.findByText("That did not work, and you were not charged. Try again.")).toBeInTheDocument()
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }))
+  expect(await screen.findByRole("heading", { name: "Marathon closes road 1" })).toBeInTheDocument()
+  const keys = posts(f, "/ai/research").map(([, i]) => new Headers((i as RequestInit).headers).get("Idempotency-Key"))
+  expect(new Set(keys).size).toBe(2)
+})
+
+test("research offline: the button is disabled and the line says AI needs a connection", async () => {
+  vi.spyOn(navigator, "onLine", "get").mockReturnValue(false)
+  mockApi(api())
+  open("research")
+  expect(await screen.findByText("AI needs a connection.")).toBeInTheDocument()
+  expect(await screen.findByRole("button", { name: "Research, costs 8 credits" })).toBeDisabled()
+})
+
+test("research limit: under 8 credits the offer shows with the free path and no price", async () => {
+  const f = mockApi(api({ credits: Response.json(credits({ available: 3, own: 3 })) }))
+  open("research")
+  expect(await screen.findByRole("heading", { name: "You are out of credits" })).toBeInTheDocument()
+  expect(screen.getByRole("link", { name: "Write a note myself" })).toHaveAttribute("href", "/trips/t1/notes")
+  expect(screen.getByText("You can add credits or upgrade in the iOS app.")).toBeInTheDocument()
+  expect(screen.queryByText(/\$\d/)).toBeNull()
+  expect(posts(f, "/ai/research")).toHaveLength(0)
+  expect(__sink.find((e) => e.event === "paywall_viewed")!.properties).toMatchObject({ placement: "credits" })
+})
+
+test("research limit: a 402 from the API shows the same offer", async () => {
+  mockApi(api({ post: () => problem(402, { code: "insufficient_credits" }) }))
+  open("research")
+  await goResearch()
+  expect(await screen.findByRole("heading", { name: "You are out of credits" })).toBeInTheDocument()
+})
+
+test("research limit: a rate limit says to slow down", async () => {
+  mockApi(api({ post: () => problem(429, { code: "rate_limited" }, { "Retry-After": "9" }) }))
+  open("research")
+  await goResearch()
+  expect(await screen.findByText(/Slow down a little/)).toBeInTheDocument()
+})
+
+test("research: a trip without a destination gets the server sentence", async () => {
+  mockApi(api({ post: () => problem(422, { code: "destination_required", detail: "Add a destination to this trip first." }) }))
+  open("research")
+  await goResearch()
+  expect(await screen.findByText("Add a destination to this trip first.")).toBeInTheDocument()
+})
