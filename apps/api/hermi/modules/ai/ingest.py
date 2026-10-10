@@ -484,21 +484,11 @@ _URL_LIKE = re.compile(
 _AFFILIATE_HOSTS = text("SELECT DISTINCT lower(h) FROM affiliate_programs, unnest(hosts) AS h")
 
 
-def add_note(
-    session: Session,
-    bind: RunBinding,
-    note: dict[str, Any],
-    evidence: EvidenceLike,
-    *,
-    emit: Emit | None = None,
-) -> IngestResult:
-    """Validate one note (06 section 2.5 executor checks, 4.3 item 8) and save it as an agent note on the run's trip with
-    its source links. The caller commits."""
-    out = IngestResult()
-    keys = ("title", "topic", "urls")
-    if _active_run(session, bind) is None:
-        _reject(0, out, [_NOT_ACTIVE], note, "add_note", emit, keys)
-        return out
+def check_note(
+    session: Session, note: dict[str, Any], evidence: EvidenceLike
+) -> tuple[list[str], str, str, list[str]]:
+    """The note rules (06 section 2.5 executor checks, 4.3 item 8) with no write: (errors, title, body, urls). Shared by
+    add_note and the research action, so a note the cache keeps passed exactly the checks an agent note does."""
     errors: list[str] = []
     urls = [u.strip() for u in note.get("urls") or [] if isinstance(u, str) and u.strip()]
     title = _CONTROL.sub("", str(note.get("title", ""))).strip()
@@ -531,9 +521,13 @@ def add_note(
                 break
     if not title or not body:
         errors.append("a note needs a title and a body")
-    if errors := list(dict.fromkeys(errors)):
-        _reject(0, out, errors, note, "add_note", emit, keys)
-        return out
+    return list(dict.fromkeys(errors)), title, body, urls
+
+
+def save_note(
+    session: Session, bind: RunBinding, *, title: str, body: str, topic: str, urls: list[str]
+) -> bool:
+    """Insert one checked note as an agent note on the run's trip. False when this run already saved the same one."""
     dup = session.execute(
         text(
             "SELECT 1 FROM notes WHERE run_id = :r AND trip_id = :t AND title = :ti AND body = :b LIMIT 1"
@@ -541,8 +535,7 @@ def add_note(
         {"r": bind.run_id, "t": bind.trip_id, "ti": title[:160], "b": body},
     ).first()
     if dup:
-        out.items.append({"index": 0, "status": "duplicate", "errors": [], "flags": []})
-        return out
+        return False
     session.execute(
         text(
             """INSERT INTO notes (trip_id, kind, author_user_id, title, topic, body, urls, run_id, is_private)
@@ -551,12 +544,36 @@ def add_note(
         {
             "t": bind.trip_id,
             "ti": title[:160],
-            "tp": str(note.get("topic", "other"))[:80],
+            "tp": topic[:80],
             "b": body,
             "u": urls,
             "r": bind.run_id,
         },
     )
+    return True
+
+
+def add_note(
+    session: Session,
+    bind: RunBinding,
+    note: dict[str, Any],
+    evidence: EvidenceLike,
+    *,
+    emit: Emit | None = None,
+) -> IngestResult:
+    """Validate one note and save it as an agent note on the run's trip with its source links. The caller commits."""
+    out = IngestResult()
+    keys = ("title", "topic", "urls")
+    if _active_run(session, bind) is None:
+        _reject(0, out, [_NOT_ACTIVE], note, "add_note", emit, keys)
+        return out
+    errors, title, body, urls = check_note(session, note, evidence)
+    if errors:
+        _reject(0, out, errors, note, "add_note", emit, keys)
+        return out
+    if not save_note(session, bind, title=title, body=body, topic=str(note.get("topic", "other")), urls=urls):
+        out.items.append({"index": 0, "status": "duplicate", "errors": [], "flags": []})
+        return out
     out.items.append({"index": 0, "status": "accepted", "errors": [], "flags": []})
     out.accepted = 1
     return out

@@ -62,10 +62,11 @@ class Receipt:
     charged: int
     balance_after: int | None
     reservation_id: uuid.UUID
+    from_cache: bool = False
 
     def public(self) -> dict[str, Any]:
         return {
-            "action": self.action, "reserved": self.reserved, "charged": self.charged, "from_cache": False,
+            "action": self.action, "reserved": self.reserved, "charged": self.charged, "from_cache": self.from_cache,
             "balance_after": self.balance_after, "reservation_id": str(self.reservation_id),
         }
 
@@ -148,6 +149,19 @@ def parse_output(model: type[BaseModel], result: ProviderResult) -> BaseModel:
         raise ValueError("invalid output") from e
 
 
+def already_settled(api: Session, key: str) -> bool:
+    """True when this idempotency key's reservation already settled or refunded (a retry must not call the provider again)."""
+    return bool(
+        api.execute(
+            text(
+                "SELECT EXISTS (SELECT 1 FROM credit_ledger r WHERE r.idempotency_key = :k AND r.entry_type = 'reserve' "
+                " AND EXISTS (SELECT 1 FROM credit_ledger s WHERE s.reservation_id = r.reservation_id AND s.entry_type IN ('settle', 'refund')))"
+            ),
+            {"k": key},
+        ).scalar_one()
+    )
+
+
 # --- the action ---------------------------------------------------------------------------------------------------
 
 
@@ -179,13 +193,7 @@ def run_action(
     key = f"{user_id}:{spec.code}:{idempotency_key}"
     # A retry on a key whose reservation already settled or refunded (the idempotency layer frees the key on a 5xx)
     # must not call the provider again: admit() would skip the ceiling check and settle() would be a no-op.
-    if api.execute(
-        text(
-            "SELECT EXISTS (SELECT 1 FROM credit_ledger r WHERE r.idempotency_key = :k AND r.entry_type = 'reserve' "
-            " AND EXISTS (SELECT 1 FROM credit_ledger s WHERE s.reservation_id = r.reservation_id AND s.entry_type IN ('settle', 'refund')))"
-        ),
-        {"k": key},
-    ).scalar_one():
+    if already_settled(api, key):
         raise ApiError(409, "idempotency_key_reused", "That request was already handled. Start it again with a new key.")
     run_id = admit_run(
         api, trip_id=trip_id, user_id=user_id, kind=spec.run_kind, action=spec.action, params=json.dumps(params or {}),
