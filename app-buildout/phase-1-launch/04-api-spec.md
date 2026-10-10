@@ -817,6 +817,7 @@ Agent runs are the fare hunt and deep research agents from the existing app, now
 |---|---|---|---|---|
 | `POST /trips/{trip_id}/agent-runs` | editor | `ai`, `credits(40)` (8 from shared cache), or `taster` (free user, once per lifetime), one active run per account | `AgentRunStart` with `Idempotency-Key` to 202 `AgentRun` | Reserves credits, inserts `runs` (status `queued`), enqueues the job, sets `Location` to the run and returns `events_url`. Taster: spends the user's one-time `promo` grant (`restricted_action = 'agent_run'`) when the run starts; the grant is returned only if the run fails before its first tool call. `409 run_already_active` (body has the active run id), 402 `insufficient_credits`, 402 `payment_required` with reason `agent_taster_used`, 429 `provider_budget_exhausted`, 403 `ai_consent_required`. |
 | `GET /trips/{trip_id}/agent-runs` | viewer | none | `?status=&kind=&limit&cursor` to `Page<AgentRun>` | All runs on the trip, including others' (members see run summaries; prompts and raw logs only the starter and the owner). |
+| `GET /trips/{trip_id}/agent-runs/preview` | editor | none | `?kind=fare_hunt\|deep_research` to `{ kind, credits, price, taster, taster_used, balance, sufficient, from_cache }` | The confirm step before a start: `credits` is 0 when this start would use the taster (deep research on a Free account whose lifetime run is unspent), else `price`. Never reserves anything. |
 | `GET /agent-runs/{run_id}` | viewer on the trip | none | none to `AgentRunDetail` | Summary, counts, cost estimate (starter only), credit receipt. |
 | `GET /agent-runs/{run_id}/events` | viewer on the trip | none | `?after_seq=0&limit=200` to `RunEvent[]` | Polling fallback for clients that cannot hold SSE. |
 | `GET /agent-runs/{run_id}/stream` | viewer on the trip | none | SSE (see below) | `Content-Type: text/event-stream`. Replays from `Last-Event-ID`. Heartbeat comment every 15 seconds. Ends after `run.finished`. Does not count against rate limits once open (one stream per run per user, 3 per user). |
@@ -841,7 +842,7 @@ type AgentRun = {
   accepted_count: number; rejected_count: number
   turns_used: number | null; searches_used: number | null; fetches_used: number | null
   from_cache: boolean; is_taster: boolean
-  credits: CreditReceipt
+  credits: CreditReceipt | null               // null for members other than the starter (the receipt is the starter's)
   cancel_requested: boolean
   events_url: string                          // /v1/agent-runs/{id}/stream
 }

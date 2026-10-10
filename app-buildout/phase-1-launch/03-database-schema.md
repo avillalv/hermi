@@ -1149,6 +1149,7 @@ SELECT user_id,
 
 -- Reserve the full price of an action atomically. Raises WF402 (insufficient credits) and changes nothing.
 -- Safe to replay with the same p_idem: returns the original reservation id.
+-- The taster is drawn only when p_run is a deep_research run and the caller has no paid entitlement (06 section 5.9; changed in 0026).
 CREATE FUNCTION reserve_credits(
   p_user uuid, p_trip uuid, p_amount integer, p_action ai_action, p_run uuid, p_idem text
 ) RETURNS uuid LANGUAGE plpgsql AS $$
@@ -3380,6 +3381,7 @@ The public token reads and synchronous writes that use a SystemSession, by purpo
 | `places_cache` | Place search | Fills `places_cache` |
 | `fare_refresh` | `POST /trips/{id}/flights/refresh` | Writes shared `fare_observations`, the route's `trip_fare_links` and `flight_routes.last_checked_at` for the trip's own routes |
 | `ai_single_call` | `POST /trips/{id}/ai/explain`, `/ai/packing-list`, `/ai/draft-day`, `/ai/draft-trip` | After the call, writes the action's `ai_usage` row, the `runs` result and the credit settlement; the API login may only select `ai_usage` and insert the queued run. The reservation was made as the caller and committed first |
+| `agent_run_control` | `POST /agent-runs/{id}/cancel` on a run still queued, and the watchdog that `GET /agent-runs/{id}`, `/events`, `/stream` and `POST /trips/{id}/agent-runs` run | The API login may only set `runs.cancel_requested`, so closing a queued run, or a run whose worker is gone, and its credit settlement and `result` event run here. Only runs of the caller's own account or the run being read are touched; a run that is `running` and over 9 minutes (`timed_out`) or silent for 5 (`interrupted`, `worker_lost`) is the only other case |
 | `unsubscribe` | `GET /unsubscribe`, `POST /unsubscribe` | Verifies the signed link, then writes a `marketing_email` consent row (granted false, source `email`) or sets `notification_preferences.email_enabled` to false for the user in the link |
 | `dev_session` | `POST /dev/session` (`AUTH_MODE=dev`, `local` and `ci` only) | Creates the dev personas and their sessions |
 
@@ -3938,6 +3940,7 @@ Practical rules for the revisions: functions, triggers, partitions, policies and
 | `0022_vote_tombstone` | `lodging_votes` and `saved_place_votes`: surrogate `id`, nullable `person_id` cleared (not cascaded) when a traveler is removed, one heart per member; `uq_lodging_options_one_booked` (WF-034.2) | 0021 |
 | `0023_legacy_claims` | `legacy_claims`, `redeem_legacy_claim()`, `legacy_claim_pending()` (WF-040.1) | 0022 |
 | `0025_notification_prefs` | `notification_preferences`, `trip_notification_mutes`, four more `notifications.kind` values (WF-047) | 0024 |
+| `0026_taster_deep_only` | `reserve_credits()` draws the taster only for a `deep_research` run of an account with no paid entitlement (WF-053.1) | 0025 |
 
 Airports and FX are loaded by jobs, not by a migration: `hermi seed-airports` reads the OurAirports CSV and `hermi refresh-fx` pulls Frankfurter. CI runs `npm run db:init`, then the full chain on an empty database as `hermi_migrate_login`, runs the tenant-isolation tests and the role checks as `hermi_api_login` (never as the owner), then runs `alembic downgrade base` and `upgrade head` once to prove the chain is reversible in a scratch database (production never downgrades).
 

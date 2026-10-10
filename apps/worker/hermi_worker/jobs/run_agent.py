@@ -84,6 +84,8 @@ class RunRow:
         )
         self.params = row.params if isinstance(row.params, dict) else json.loads(row.params or "{}")
         self.cancel_requested = row.cancel_requested
+        # set by run() from the reservation: the lifetime deep run has smaller caps
+        self.taster = False
 
 
 def default_task(session: Session, run: RunRow) -> str:
@@ -92,7 +94,7 @@ def default_task(session: Session, run: RunRow) -> str:
     ctx = context.build_run_context(session, run.id, run.trip_id)
     session.commit()  # the route map is stored on the run
     p = run.params
-    spec = _spec(session, run.kind, "")
+    spec = _spec(session, run.kind, "", taster=run.taster)
     return prompts.task_prompt(
         run.kind, trip_name=run.trip_name, task_json=json.dumps(ctx.task, indent=2),
         today=datetime.now(UTC).date().isoformat(), run_short_id=str(run.id)[-8:],
@@ -145,9 +147,13 @@ def default_handlers(session: Session, run: RunRow) -> dict[str, Handler]:
     return {name: safe(fn) for name, fn in named.items()}
 
 
-def _spec(session: Session, kind: str, model: str) -> AgentSpec:
+# 06 section 5.9: the taster run is capped lower than a paid one so the free offer stays cheap. The $0.80 stop is the same.
+TASTER_CAPS = {"max_turns": 12, "max_searches": 6, "max_fetches": 6}
+
+
+def _spec(session: Session, kind: str, model: str, *, taster: bool = False) -> AgentSpec:
     """The caps come from credit_action_prices so an admin edit takes effect at once; a missing row or a null column
-    keeps the spec default."""
+    keeps the spec default. A taster run is clamped to TASTER_CAPS."""
     caps = session.execute(_CAPS).one_or_none()
     limits = {}
     if caps:
@@ -158,6 +164,9 @@ def _spec(session: Session, kind: str, model: str) -> AgentSpec:
             "max_fetches": caps.max_fetches,
         }
         limits = {k: int(v) for k, v in named.items() if v is not None}
+    if taster:
+        for k, cap in TASTER_CAPS.items():
+            limits[k] = min(limits.get(k, cap), cap)
     return AgentSpec(
         model=model,
         system=prompts.SYSTEM,
@@ -177,13 +186,16 @@ def _provider(settings: Settings, email: str | None) -> AiProvider:
 def _fail_closed(session: Session, run_id: uuid.UUID, res, code: str, emit) -> str:
     """The run could not start: close it and give the whole reservation back."""
     service.refund(session, res.reservation_id)
-    session.execute(
+    closed = session.execute(
         text(
-            "UPDATE runs SET status = 'failed', finished_at = now(), failure_code = :c, error = :c, reservation_id = :r WHERE id = :id"
+            "UPDATE runs SET status = 'failed', finished_at = now(), failure_code = :c, error = :c, reservation_id = :r "
+            "WHERE id = :id AND status IN ('queued', 'running')"
         ),
         {"c": code, "r": res.reservation_id, "id": run_id},
     )
     session.commit()
+    if closed.rowcount == 0:
+        return "skipped:closed"
     emit(
         "result",
         f"failed: {code}",
@@ -228,18 +240,31 @@ def run(
         session.commit()
         return "failed:no_reservation"
     reserved, key = int(res.reserved), res.idempotency_key
-    if r.cancel_requested:  # stopped in the queue: nothing was used, nothing is charged
-        service.settle_stopped_agent_run(
-            session, res.reservation_id, turns_used=0, called_tools=False
-        )
+    r.taster = bool(
         session.execute(
             text(
-                "UPDATE runs SET status = 'cancelled', finished_at = now(), failure_code = 'cancelled', reservation_id = :r WHERE id = :id"
+                """SELECT EXISTS (SELECT 1 FROM credit_ledger l JOIN credit_grants g ON g.id = l.grant_id
+                                   WHERE l.reservation_id = :r AND l.entry_type = 'reserve' AND g.period_key = 'taster')"""
+            ),
+            {"r": res.reservation_id},
+        ).scalar()
+    )
+    if r.cancel_requested:  # stopped in the queue: nothing was used, nothing is charged
+        done = session.execute(
+            text(
+                "UPDATE runs SET status = 'cancelled', finished_at = now(), failure_code = 'cancelled', reservation_id = :r "
+                "WHERE id = :id AND status = 'queued'"
             ),
             {"id": rid, "r": res.reservation_id},
         )
+        if (
+            done.rowcount == 1
+        ):  # the run row is locked first, then the credits settle (the watchdog's order)
+            service.settle_stopped_agent_run(
+                session, res.reservation_id, turns_used=0, called_tools=False
+            )
         session.commit()
-        return "done:cancelled"
+        return "done:cancelled" if done.rowcount == 1 else "skipped:closed"
 
     def emit(
         type_: str, summary: str, payload: dict | None = None, tool_name: str | None = None
@@ -264,10 +289,10 @@ def run(
     except (NotConfigured, ProviderRefused):
         return _fail_closed(session, rid, res, "feature_disabled", emit)
 
-    session.execute(
+    claimed = session.execute(
         text(
             "UPDATE runs SET status = 'running', started_at = now(), heartbeat_at = now(), worker_id = :w, reservation_id = :r, "
-            "provider = :p, model = :m, prompt_version = :v WHERE id = :id"
+            "provider = :p, model = :m, prompt_version = :v WHERE id = :id AND status = 'queued'"
         ),
         {
             "id": rid,
@@ -279,8 +304,12 @@ def run(
         },
     )
     session.commit()
+    if (
+        claimed.rowcount == 0
+    ):  # stopped in the queue between the read and the claim: it was settled there
+        return "skipped:closed"
 
-    spec = _spec(session, r.kind, settings.ai_model_main)
+    spec = _spec(session, r.kind, settings.ai_model_main, taster=r.taster)
 
     engine = session.get_bind()  # the cancel flag and heartbeat use their own short sessions: the CLI path polls from a thread
     beat = {"at": 0.0}
@@ -323,7 +352,9 @@ def run(
             if attempts < RETRIES:
                 # nothing was sent or saved: put the run back and let Procrastinate retry it
                 session.execute(
-                    text("UPDATE runs SET status = 'queued', started_at = NULL WHERE id = :id"),
+                    text(
+                        "UPDATE runs SET status = 'queued', started_at = NULL WHERE id = :id AND status = 'running'"
+                    ),
                     {"id": rid},
                 )
                 session.commit()
@@ -358,6 +389,30 @@ def run(
             text("UPDATE ai_usage SET credits_reserved = :n WHERE id = :i"),
             {"n": reserved, "i": usage_id},
         )
+    report = {
+        "report": loop.exec.report,
+        "stop": stop,
+        "searches": loop.searches,
+        "fetches": loop.fetches,
+        "credits_charged": 0,
+    }
+    # Close the run first: the guarded UPDATE locks the row (the watchdog locks it before it settles too), and only the
+    # caller that closes it settles. A run the watchdog or a cancel already closed is left as it is.
+    closed = session.execute(
+        text(
+            "UPDATE runs SET status = CAST(:s AS run_status), finished_at = now(), turns_used = :t, searches_used = :se, fetches_used = :fe, "
+            "accepted_count = :a, rejected_count = :rj, failure_code = :c, error = :c, summary = :sum, report = CAST(:rep AS jsonb), "
+            "input_tokens = :i, output_tokens = :o WHERE id = :id AND status = 'running'"
+        ),
+        {
+            "s": status, "t": turns, "se": loop.searches, "fe": loop.fetches, "a": saved, "rj": loop.exec.rejected, "c": code,
+            "sum": ((loop.exec.report or {}).get("summary") or "")[:2000] or None, "rep": json.dumps(report),
+            "i": loop.usage.input_tokens, "o": loop.usage.output_tokens, "id": rid,
+        },
+    )  # fmt: skip
+    if closed.rowcount == 0:
+        session.commit()
+        return "skipped:closed"
     if status == "cancelled":
         charged = service.settle_stopped_agent_run(
             session, res.reservation_id, turns_used=turns, called_tools=turns > 0, usage_id=usage_id
@@ -368,26 +423,12 @@ def run(
     else:
         charged = 0
         service.refund(session, res.reservation_id, usage_id)
-
-    report = {
-        "report": loop.exec.report,
-        "stop": stop,
-        "searches": loop.searches,
-        "fetches": loop.fetches,
-        "credits_charged": charged,
-    }
     session.execute(
         text(
-            "UPDATE runs SET status = CAST(:s AS run_status), finished_at = now(), turns_used = :t, searches_used = :se, fetches_used = :fe, "
-            "accepted_count = :a, rejected_count = :rj, failure_code = :c, error = :c, summary = :sum, report = CAST(:rep AS jsonb), "
-            "input_tokens = :i, output_tokens = :o WHERE id = :id"
+            "UPDATE runs SET report = jsonb_set(report, '{credits_charged}', to_jsonb(CAST(:c AS int))) WHERE id = :id"
         ),
-        {
-            "s": status, "t": turns, "se": loop.searches, "fe": loop.fetches, "a": saved, "rj": loop.exec.rejected, "c": code,
-            "sum": ((loop.exec.report or {}).get("summary") or "")[:2000] or None, "rep": json.dumps(report),
-            "i": loop.usage.input_tokens, "o": loop.usage.output_tokens, "id": rid,
-        },
-    )  # fmt: skip
+        {"c": charged, "id": rid},
+    )
     session.commit()
     emit(
         "result",

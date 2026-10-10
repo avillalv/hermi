@@ -298,6 +298,19 @@ def submit_quotes(
             continue
         out.items.append(item)
         out.accepted += item["status"] == "accepted"
+        if (
+            emit and item["status"] == "accepted"
+        ):  # the stream shows what was saved and the page it was seen on
+            url = str(q.get("source_url", "")).strip()
+            seen_on = str(q.get("seen_on") or "").strip()[:80] or _host(url)
+            where = f"{q.get('origin', '')} to {q.get('destination', '')}".strip()[:40]
+            emit(
+                "info", f"Saved {where} {q.get('price_total', '')} {q.get('currency', '')}, seen on {seen_on}"[:300],
+                {"kind": "fare_saved", "source_url": url, "seen_on": seen_on, "origin": str(q.get("origin", ""))[:3],
+                 "destination": str(q.get("destination", ""))[:3], "price_total": str(q.get("price_total", ""))[:20],
+                 "currency": str(q.get("currency", ""))[:3]},
+                "submit_flight_quotes",
+            )  # fmt: skip
     return out
 
 
@@ -571,9 +584,18 @@ def add_note(
     if errors:
         _reject(0, out, errors, note, "add_note", emit, keys)
         return out
-    if not save_note(session, bind, title=title, body=body, topic=str(note.get("topic", "other")), urls=urls):
+    if not save_note(
+        session, bind, title=title, body=body, topic=str(note.get("topic", "other")), urls=urls
+    ):
         out.items.append({"index": 0, "status": "duplicate", "errors": [], "flags": []})
         return out
     out.items.append({"index": 0, "status": "accepted", "errors": [], "flags": []})
     out.accepted = 1
+    if emit:
+        emit(
+            "info",
+            f"Saved note: {title}"[:300],
+            {"kind": "note_saved", "title": title[:160], "source_urls": urls[:5]},
+            "add_note",
+        )
     return out

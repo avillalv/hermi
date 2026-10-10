@@ -194,6 +194,7 @@ SYSTEM_SESSION_ALLOWLIST = frozenset(
         "places_cache",
         "fare_refresh",
         "ai_single_call",
+        "agent_run_control",
         "unsubscribe",
         "dev_session",
     }

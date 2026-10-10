@@ -362,7 +362,9 @@ def test_items_are_checked_on_their_own_and_rejections_become_run_events(started
         res.accepted,
         res.rejected,
     ) == (2, 1)
-    (args, kwargs) = events[0]
+    saved = [a for a, _ in events if a[0] == "info" and a[2]["kind"] == "fare_saved"]
+    assert len(saved) == 2 and saved[0][2]["source_url"] == URL  # each saved fare is announced with the page it was seen on
+    (args, kwargs) = next(e for e in events if e[0][0] == "rejection")
     assert (
         args[0] == "rejection"
         and args[2]["kind"] == "ingest_rejection"
