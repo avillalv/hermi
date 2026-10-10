@@ -50,6 +50,16 @@ class CreditBalance(BaseModel):
     blocked: bool
 
 
+class CreditsNow(CreditBalance):
+    """GET /me/credits (04 section 5.19): the `CreditBalance`, plus what this caller can spend on one action and trip, and who pays."""
+
+    available: int
+    own: int
+    pool: int
+    payer: Literal["own", "trip_pass"]
+    version: int
+
+
 class Usage(BaseModel):
     active_trips: int
 

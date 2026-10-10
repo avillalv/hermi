@@ -1,5 +1,6 @@
 import { fireEvent, screen, within } from "@testing-library/react"
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
+import { queryClient } from "../../lib/queryClient"
 import { mockApi, reset, show } from "../onboarding/testing"
 vi.mock("../../components/sync-indicator/SyncIndicator", () => ({ SyncIndicator: () => null }))
 import { TripOverview } from "./TripOverview"
@@ -117,7 +118,7 @@ test("a load error shows a block retry that reloads", async () => {
   expect(await screen.findByRole("alert", {}, { timeout: 3000 })).toHaveTextContent("We could not load this trip. Try again.")
   fireEvent.click(screen.getByRole("button", { name: "Try again" }))
   expect(await screen.findByRole("heading", { level: 1, name: "Japan in spring" })).toBeInTheDocument()
-  expect(f).toHaveBeenCalledTimes(3)
+  expect(f.mock.calls.filter(([u]) => String(u).endsWith("/v1/trips/t1"))).toHaveLength(3)
 })
 
 test("a missing trip says so, without a retry", async () => {
@@ -133,4 +134,25 @@ test("offline shows the saved-trip banner", async () => {
   mockApi(route(trip))
   open()
   expect(screen.getByRole("status")).toHaveTextContent("You are offline. Showing your saved trip.")
+})
+
+test("Plan with AI opens the AI sheet route for every role", async () => {
+  mockApi(route({ ...trip, my_role: "viewer" }))
+  open()
+  const link = await screen.findByRole("link", { name: "Plan with AI" })
+  expect(link).toHaveAttribute("href", "/trips/t1/ai")
+})
+
+test("the deep run entry card shows for an editor and not for a viewer", async () => {
+  const taster = { used: false, used_at: null, run_id: null, available: true, credits: 40 }
+  const withTaster = (t: object) => (u: string) => (u.endsWith("/v1/me/agent-taster") ? Response.json(taster) : route(t)(u))
+  mockApi(withTaster({ ...trip, my_role: "editor" }))
+  const { unmount } = open()
+  expect(await screen.findByRole("heading", { name: "Try a deep run, free once" })).toBeInTheDocument()
+  unmount()
+  queryClient.clear() // the cached trip is the editor one
+  mockApi(withTaster({ ...trip, my_role: "viewer" }))
+  open()
+  await screen.findByRole("heading", { level: 1 })
+  expect(screen.queryByRole("heading", { name: "Try a deep run, free once" })).toBeNull()
 })

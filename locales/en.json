@@ -106,7 +106,8 @@
     "noticeTrashed": "Moved {name} to trash. You can restore it for 30 days.",
     "noticeRestored": "Restored {name}.",
     "switcher": "Trip switcher",
-    "allTrips": "All trips"
+    "allTrips": "All trips",
+    "ask": "Ask"
   },
   "createTrip": {
     "title": "New trip",
@@ -176,14 +177,20 @@
     "nowEmpty": "Nothing planned for today",
     "nowPlan": "Plan today",
     "actions": "Trip actions",
-    "timezone": "Time zone"
+    "timezone": "Time zone",
+    "askAi": "Plan with AI"
   },
   "discover": {
     "title": "Discover",
     "lead": "Trips written by the Hermi team. Prices and facts are dated.",
     "filters": "Filter by kind of trip",
     "all": "All",
-    "tags": { "beach": "Beach", "city": "City", "mountains": "Mountains", "food": "Food" },
+    "tags": {
+      "beach": "Beach",
+      "city": "City",
+      "mountains": "Mountains",
+      "food": "Food"
+    },
     "emptyTitle": "No examples yet",
     "emptyBody": "Check back soon. New example trips are added by the Hermi team.",
     "tryAgain": "Try again",
@@ -235,7 +242,11 @@
     "invite": "Invite",
     "membersTitle": "Members",
     "youChip": "You",
-    "role": { "owner": "Owner", "editor": "Editor", "viewer": "Viewer" },
+    "role": {
+      "owner": "Owner",
+      "editor": "Editor",
+      "viewer": "Viewer"
+    },
     "airport": "home airport {code}",
     "which": "Which traveler are you?",
     "unlink": "Unlink from {name}",
@@ -457,7 +468,12 @@
       "returns": "Returns",
       "staleLine": "This price was last seen {age}.",
       "staleCheck": "Check again.",
-      "cabin": { "economy": "economy", "premium_economy": "premium economy", "business": "business", "first": "first class" },
+      "cabin": {
+        "economy": "economy",
+        "premium_economy": "premium economy",
+        "business": "business",
+        "first": "first class"
+      },
       "fareLabel": "Fare",
       "airlineBookName": "Airline site",
       "airlineBookLabel": "Search on the airline's site, opens in a browser",
@@ -519,7 +535,63 @@
     "thanksReport": "Thanks. We will review it.",
     "feedbackError": "We could not send that. Try again.",
     "feedbackRate": "You have sent a lot of reports today. Try again tomorrow.",
-    "feedbackOffline": "Feedback needs a connection."
+    "feedbackOffline": "Feedback needs a connection.",
+    "chip": {
+      "credit": "credit",
+      "credits": "credits",
+      "free": "Free",
+      "freeLabel": "free",
+      "costsOne": "costs {credits} credit",
+      "costs": "costs {credits} credits",
+      "fromCache": "from shared cache",
+      "have": "You have {available}"
+    },
+    "pool": {
+      "own": "Your credits",
+      "tripPass": "Trip Pass credits"
+    },
+    "sheet": {
+      "title": "Plan with AI",
+      "on": "AI is on for {trip}",
+      "actions": "AI actions, each with its credit cost",
+      "balanceAria": "Balance, {credits} credits left. Subscription and credits",
+      "balanceText": "credits left",
+      "explain": "Explain",
+      "explainDesc": "A short answer about a fare, place or plan",
+      "packing": "Suggest a packing list",
+      "packingDesc": "From the weather and your plans",
+      "day": "Draft this day",
+      "dayDesc": "From your places and dates",
+      "trip": "Draft the trip",
+      "tripDesc": "Up to 14 days",
+      "research": "Research a question",
+      "researchDesc": "5 searches and 8 pages, with sources",
+      "agent": "Deep agent run",
+      "agentDesc": "A fare hunt or research that runs in the background",
+      "agentFree": "Your first run is free, one time",
+      "cacheNote": "{credits} credits from shared cache",
+      "cacheNoteOne": "1 credit from shared cache",
+      "loadError": "We could not load your credits. Try again.",
+      "offline": "AI needs a connection.",
+      "viewer": "Viewers cannot run AI on this trip. Ask an editor.",
+      "blocked": "A refund put your credits below zero. AI is paused until they are positive.",
+      "short": "This costs {credits} credits and you have {available}.",
+      "seePlans": "See plans",
+      "rate": "Slow down a little. Try again in a few seconds.",
+      "failed": "That did not work, and you were not charged. Try again.",
+      "confirmTitle": "{action}?",
+      "confirmText": "Costs {credits} credits. You have {balance}, so {left} left.",
+      "startDay": "Start day draft",
+      "startTrip": "Start trip draft",
+      "startResearch": "Start research",
+      "startAgent": "Start deep run",
+      "startExplain": "Start explanation",
+      "startPacking": "Start packing list",
+      "confirmStartAria": "{label}, costs {credits} credits",
+      "cancel": "Cancel",
+      "stubBody": "This action is not available here yet.",
+      "stubBack": "Back to the trip"
+    }
   },
   "agents": {
     "title": "Deep run",
@@ -891,7 +963,10 @@
     "photo": "Listing photo",
     "total": "{price} total",
     "noPrice": "Add a price to compare",
-    "src": { "paste": "Pasted link", "manual": "Added by hand" },
+    "src": {
+      "paste": "Pasted link",
+      "manual": "Added by hand"
+    },
     "openLink": "Open {title}",
     "bookedBadge": "Booked",
     "youLove": "You love this",

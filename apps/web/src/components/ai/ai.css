@@ -19,3 +19,11 @@
 .ai-feedback__row { display: flex; flex-wrap: wrap; gap: var(--tp-space-2); }
 .ai-feedback__reasons { display: flex; flex-wrap: wrap; gap: var(--tp-space-1); margin: 0; padding: 0; border: 0; }
 .ai-feedback__reasons legend { width: 100%; }
+/* AI sheet (WF-132.1, 05 6.15). The rows, balance link and confirm come from hermi.css; this only lays them out inside the shared modal. */
+.ai-sheet { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.ai-sheet__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--tp-space-2); }
+.ai-sheet__balance { flex-direction: column; align-items: flex-end; justify-content: center; gap: 2px; }
+.ai-sheet .h-actionlist { margin: 0; }
+.ai-sheet .h-confirm { position: relative; border-radius: var(--radius-xl); }
+.ai-sheet p { margin: 0; }
+.ai-chip__pool { font: 600 0.8125rem/1.2 var(--tp-font-body); color: var(--tp-ink-soft); }

@@ -1,3 +1,4 @@
+# ruff: noqa: E501  (long SQL strings and assertions)
 """WF-133.1: hermi seed --demo adds the Lisbon demo trip and the published sample trips."""
 
 import pytest
@@ -90,10 +91,20 @@ def test_sample_trips_are_published_and_owned_by_the_content_account(seeded):
         assert days >= 1 and items >= 1 and places >= 1
 
 
+def test_plus_persona_is_funded_once(settings, db_urls, seeded):
+    sql = (
+        "SELECT coalesce(sum(g.remaining), 0) FROM credit_grants g JOIN users u ON u.id = g.user_id "
+        "WHERE u.email = 'plus@hermi.test' AND g.kind = 'adjustment'"
+    )
+    assert _count(seeded, sql) == 40
+    assert seed_demo(settings, system_url=db_urls["system"])["credits_granted"] == 0
+    assert _count(seeded, sql) == 40  # a second run does not double it
+
+
 def test_seed_is_idempotent_and_makes_no_second_persona(settings, db_urls, seeded):
     before = _tables(seeded)
     again = seed_demo(settings, system_url=db_urls["system"])
-    assert again == {"demo_trips": 0, "sample_trips": 0}
+    assert again == {"demo_trips": 0, "sample_trips": 0, "credits_granted": 0}
     assert _tables(seeded) == before
     assert (
         _count(seeded, "SELECT count(*) FROM users WHERE email = ANY(%s)", list(PERSONA_EMAILS))

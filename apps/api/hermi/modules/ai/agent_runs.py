@@ -69,19 +69,7 @@ def _tier(api: Session, user_id: uuid.UUID) -> str:
 
 def _spendable(api: Session, user_id: uuid.UUID, trip_id: uuid.UUID) -> int:
     """Credits an agent run could draw without the taster: own grants and the trip's pass pool (07 section 5.4)."""
-    return int(
-        api.execute(
-            text(
-                """SELECT coalesce(sum(g.remaining), 0) FROM credit_grants g
-                    WHERE g.remaining > 0 AND (g.expires_at IS NULL OR g.expires_at > now()) AND g.period_key IS DISTINCT FROM 'taster'
-                      AND ((g.user_id = :u AND g.trip_id IS NULL)
-                           OR (g.kind = 'trip_pass' AND g.trip_id = :t
-                               AND EXISTS (SELECT 1 FROM trip_members m WHERE m.trip_id = :t AND m.user_id = :u AND m.role IN ('owner', 'editor'))))
-                      AND (g.restricted_action IS NULL OR g.restricted_action = 'agent_run')"""
-            ),
-            {"u": user_id, "t": trip_id},
-        ).scalar_one()
-    )
+    return service.balance(api, user_id, trip_id=trip_id, action="agent_run", taster=False).available
 
 
 def taster_state(api: Session, user_id: uuid.UUID, *, tier: str | None = None) -> dict[str, Any]:

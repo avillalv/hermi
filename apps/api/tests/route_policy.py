@@ -25,6 +25,7 @@ POLICY: dict[str, str] = {
     "POST /v1/me/legacy-claim": "user_scoped",
     "GET /v1/me": "user_scoped",
     "GET /v1/me/entitlements": "user_scoped",
+    "GET /v1/me/credits": "user_scoped",
     "GET /v1/me/consents": "user_scoped",
     "PUT /v1/me/consents/{kind}": "user_scoped",
     "POST /v1/reports": "user_scoped",

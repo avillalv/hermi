@@ -220,12 +220,15 @@ def test_trip_pass_credits_are_a_pool_for_editors_only(engine, sys_engine, syste
     for u, role in ((editor, "editor"), (viewer, "viewer")):
         system_conn.execute("INSERT INTO trip_members (trip_id, user_id, role) VALUES (%s, %s, %s)", (trip, u, role))
     pool = _grant(system_conn, owner, 5, "trip_pass", trip_id=trip)
-    # balance() reads credit_grants as the caller: a worker session sees the pool, an API session (RLS: own rows only) does not.
+    # An API session reads the pool through the my_credit_balance definer; a worker session reads the tables.
     with Session(sys_engine) as w:
         assert service.balance(w, editor, trip_id=trip, action="explain").available == 5
         assert service.balance(w, viewer, trip_id=trip, action="explain").available == 0
-    with db.request_transaction(engine, editor) as s:  # pins the RLS blind spot: the pool is not visible to the API session
-        assert service.balance(s, editor, trip_id=trip, action="explain").available == 0
+    with db.request_transaction(engine, editor) as s:
+        b = service.balance(s, editor, trip_id=trip, action="explain")
+        assert (b.available, b.own, b.pool, b.payer) == (5, 0, 5, "trip_pass")
+    with db.request_transaction(engine, viewer) as s:
+        assert service.balance(s, viewer, trip_id=trip, action="explain").available == 0
     with pytest.raises(ApiError):
         _reserve(engine, viewer, trip)
     res = _reserve(engine, editor, trip, "draft_trip")
@@ -386,6 +389,22 @@ def test_balance_carries_a_ledger_version_that_moves(engine, system_conn, make_p
     with db.request_transaction(engine, user) as s:
         v1 = service.balance(s, user, trip_id=None, action="explain")
     assert (v0.available, v1.available) == (10, 9) and v1.version > v0.version
+
+
+def test_preview_balance_equals_the_definer_value_with_a_pool(engine, system_conn, make_paid):
+    from hermi.modules.ai import agent_runs
+
+    owner, _ = make_paid()
+    editor, _ = make_paid()
+    trip = _trip(system_conn, owner)
+    system_conn.execute("INSERT INTO trip_members (trip_id, user_id, role) VALUES (%s, %s, 'editor')", (trip, editor))
+    _grant(system_conn, owner, 40, "trip_pass", trip_id=trip)
+    _grant(system_conn, editor, 7, "purchase")
+    _grant(system_conn, editor, 40, "promo", period_key="taster", restricted_action="agent_run")
+    with db.request_transaction(engine, editor) as s:
+        assert agent_runs._spendable(s, editor, trip) == 47  # the taster is left out
+        b = service.balance(s, editor, trip_id=trip, action="agent_run")
+        assert (b.own, b.pool, b.available) == (7, 40, 47)
 
 
 # ---- caller check and append-only ----
