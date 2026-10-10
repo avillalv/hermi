@@ -2,6 +2,7 @@ import { useRef, useState } from "react"
 import { Link, Navigate, useNavigate, useParams } from "react-router"
 import { QueryError } from "../../components/ErrorState"
 import { Skeleton } from "../../components/Skeleton"
+import { AiOffNotice, useAiConsent, useAiConsentGate } from "../../components/ai"
 import { Btn, Icon, SegItem, SegmentedControl, TextField } from "../../components/kit"
 import { t } from "../../lib/i18n"
 import { track } from "../../lib/track"
@@ -21,7 +22,8 @@ const MAX_ROUTES = 3
 const TOPIC_MAX = 300
 
 type Failure = Extract<StartResult, { ok: false }>
-const FAIL_COPY: Record<Exclude<Failure["reason"], "active">, string> = {
+const FAIL_COPY: Record<Exclude<Failure["reason"], "active" | "aiOff">, string> = {
+  consent: "ai.consentOff",
   credits: "agents.creditsLow",
   tasterUsed: "agents.tasterUsed",
   forbidden: "agents.forbidden",
@@ -48,7 +50,10 @@ export function AgentStart() {
   const canEdit = !!trip.data && trip.data.my_role !== "viewer"
   const routes = useRoutes(id, !!token && canEdit)
   const taster = useTaster(!!token && canEdit)
-  const preview = usePreview(id, kind, !!token && canEdit && online)
+  const aiOff = trip.data?.ai_enabled === false
+  const preview = usePreview(id, kind, !!token && canEdit && online && !aiOff)
+  const consent = useAiConsent(!!token && canEdit)
+  const gate = useAiConsentGate()
   if (!token) return <Navigate to="/welcome" replace />
 
   const chosen = picked ?? routes.data?.slice(0, MAX_ROUTES).map((r) => r.id) ?? []
@@ -66,6 +71,8 @@ export function AgentStart() {
     setFailure(null)
     setConfirming(true)
   }
+  /** First use: ask for consent before the confirm step, then carry on with what the person was doing. */
+  const onStart = () => (consent.granted === false ? gate.request(openConfirm) : openConfirm())
   const go = async () => {
     if (!p || busy) return
     setBusy(true)
@@ -79,6 +86,8 @@ export function AgentStart() {
     }
     setConfirming(false)
     setFailure(r)
+    // The API is the authority: a 403 ai_consent_required opens the same gate, and Allow starts the run again with the same key.
+    if (r.reason === "consent") gate.request(() => void go())
   }
 
   const left = p ? p.balance - p.credits : 0
@@ -95,10 +104,11 @@ export function AgentStart() {
         {trip.isPending && <Skeleton shape="block" />}
         {trip.isError && <QueryError error={trip.error} message={t("agents.startError")} onRetry={() => void trip.refetch()} />}
         {trip.data && !canEdit && <p className="h-soft">{t("agents.viewerNote")}</p>}
+        {aiOff && trip.data && <AiOffNotice tripId={id} version={trip.data.version} isOwner={trip.data.my_role === "owner"} />}
         {canEdit && preview.isError && !preview.data && <QueryError error={preview.error} message={t("agents.startError")} onRetry={() => void preview.refetch()} />}
-        {canEdit && (
+        {canEdit && !aiOff && (
           <>
-            <EntryCard free={free} price={price} onStart={openConfirm} disabled={!online || !p || needsRoute || busy} />
+            <EntryCard free={free} price={price} onStart={onStart} disabled={!online || !p || needsRoute || busy} />
             <SegmentedControl aria-label={t("agents.kinds")}>
               <SegItem selected={kind === "deep_research"} onClick={() => setKind("deep_research")}>{t("agents.kindResearch")}</SegItem>
               <SegItem selected={kind === "fare_hunt"} onClick={() => setKind("fare_hunt")}>{t("agents.kindFare")}</SegItem>
@@ -123,16 +133,22 @@ export function AgentStart() {
             {failure && (
               <p role="alert" className="h-input__error">
                 <Icon name="circle-alert" size={16} />
-                {failure.reason === "active" ? t("agents.active") : t(FAIL_COPY[failure.reason])}{" "}
+                {failure.reason === "active" ? t("agents.active") : failure.reason === "aiOff" ? t("ai.tripOff") : t(FAIL_COPY[failure.reason])}{" "}
                 {failure.reason === "active" && failure.activeRunId && (
                   <Link to={`/trips/${encodeURIComponent(id)}/agents/${failure.activeRunId}`}>{t("agents.viewActive")}</Link>
                 )}
                 {(failure.reason === "credits" || failure.reason === "tasterUsed") && <Link to="/account">{t("agents.seePlans")}</Link>}
+                {failure.reason === "consent" && (
+                  <Btn variant="text" mod={["sm"]} onClick={() => gate.request(openConfirm)}>
+                    {t("ai.consentReview")}
+                  </Btn>
+                )}
               </p>
             )}
           </>
         )}
       </div>
+      {gate.element}
       {confirming && p && (
         <Modal title={t("agents.confirmTitle")} onClose={() => setConfirming(false)}>
           <p className="h-soft">

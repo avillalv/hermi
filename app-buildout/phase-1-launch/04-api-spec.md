@@ -797,10 +797,10 @@ One-shot actions run inline or as a short job. All need the `ai` gate (consent, 
 | `POST /ai/jobs/{job_id}/cancel` | the requester | none | none to `AiJob` | Releases unspent reservation if no result was produced. |
 
 ```ts
-type ExplainResult = { answer: string; sources: Source[]; credits: CreditReceipt }
+type ExplainResult = { answer: string; sources: Source[]; run_id: Uuid; credits: CreditReceipt }  // run_id is the target for thumbs and POST /reports
 type Source = { url: string; title: string | null; fetched_at: string }
-type PackingListResult = { items: { label: string; group: string }[]; credits: CreditReceipt }
-type DraftDayResult = { day: string; items: ItemIn[]; rationale: string; credits: CreditReceipt }
+type PackingListResult = { items: { label: string; group: string }[]; run_id: Uuid; credits: CreditReceipt }
+type DraftDayResult = { day: string; items: ItemIn[]; rationale: string; run_id: Uuid; credits: CreditReceipt }
 type AiJob<T = unknown> = {
   id: Uuid; kind: "draft_trip" | "research"; status: "queued" | "running" | "done" | "failed" | "cancelled"
   result: T | null; error_code: string | null; credits: CreditReceipt

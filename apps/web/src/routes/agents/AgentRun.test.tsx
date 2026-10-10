@@ -231,3 +231,19 @@ test("a timed out failure says why", async () => {
   open()
   await waitFor(() => expect(screen.getAllByText("The run took too long, so it was stopped. You were not charged.").length).toBeGreaterThan(0))
 })
+
+test("findings carry the found by AI label, and thumbs down on a finished run files a report", async () => {
+  const f = mockApi(
+    runApi({
+      run: run({ status: "succeeded", finished_at: "2027-03-01T10:05:00Z", accepted_count: 2, credits: receipt(31) }),
+      events: [STARTED, FARE, NOTE, finished("succeeded")],
+      more: (u, i) => (u.endsWith("/v1/reports") && i?.method === "POST" ? Response.json({ id: "rep1" }, { status: 201 }) : undefined),
+    }),
+  )
+  open()
+  expect(await screen.findByText("Found by AI, check the source")).toBeInTheDocument()
+  fireEvent.click(await screen.findByRole("button", { name: "Not helpful" }))
+  fireEvent.click(screen.getByRole("button", { name: "Wrong or out of date" }))
+  expect(await screen.findByText("Thanks. We will review it.")).toBeInTheDocument()
+  expect(JSON.parse(String((posted(f, "/v1/reports")![1] as RequestInit).body))).toEqual({ run_id: "r1", reason: "wrong_info" })
+})

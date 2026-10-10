@@ -132,6 +132,7 @@ def test_explain_reserves_calls_meters_settles(engine, settings, world):
     done = _run(engine, world, explain.execute, **_kw(settings, world, question="Is Alfama good for kids?", provider=stub))
     assert done.output["label"] == "AI suggestion, check details before booking"
     assert done.output["sources"] == [] and done.output["answer"]
+    assert done.run_id  # the route returns it as run_id so thumbs can report this answer
     c = world["conn"]
     action, state, charged, cost, model, reserved = _one(
         c, "SELECT action::text, state::text, credits_charged, cost_usd_micros, model, credits_reserved FROM ai_usage WHERE user_id = %s", world["uid"]

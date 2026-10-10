@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, Navigate, useNavigate, useParams } from "react-router"
+import { AiFeedback, AiLabel } from "../../components/ai"
 import { QueryError } from "../../components/ErrorState"
 import { Skeleton } from "../../components/Skeleton"
 import { Btn, Field, Icon, StatusStub, TicketStub, TripTicket } from "../../components/kit"
@@ -272,6 +273,8 @@ export function AgentRunPage() {
             {shownFares.map((f) => <EvidenceRow key={f.seq} tripId={id} f={f} onDismiss={() => setDismissed((d) => [...d, f.seq])} />)}
             {shownNotes.length > 0 && <h3 className="h-label agents__group">{t("agents.notes", { n: shownNotes.length })}</h3>}
             {shownNotes.map((f) => <EvidenceRow key={f.seq} tripId={id} f={f} onDismiss={() => setDismissed((d) => [...d, f.seq])} />)}
+            <AiLabel found />
+            {terminal && <AiFeedback target={{ runId: r.id }} action="agent_run" />}
           </section>
         )}
         {view.notSaved.length > 0 && (

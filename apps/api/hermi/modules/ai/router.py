@@ -98,7 +98,7 @@ def explain_route(
         subject_ref=ref,
         **_common(request, user, key),
     )
-    return {**done.output, "credits": done.receipt.public()}
+    return {**done.output, "run_id": str(done.run_id), "credits": done.receipt.public()}
 
 
 @router.post("/trips/{trip_id}/ai/packing-list")
@@ -113,7 +113,7 @@ def packing_list_route(
     done = packing_list.execute(
         session, trip_id=access.trip.id, preferences=body.preferences, **_common(request, user, key)
     )
-    return {**done.output, "credits": done.receipt.public()}
+    return {**done.output, "run_id": str(done.run_id), "credits": done.receipt.public()}
 
 
 @router.post("/trips/{trip_id}/ai/draft-day")
@@ -134,7 +134,7 @@ def draft_day_route(
         interests=body.interests,
         **_common(request, user, key),
     )
-    return {**done.output, "credits": done.receipt.public()}
+    return {**done.output, "run_id": str(done.run_id), "credits": done.receipt.public()}
 
 
 @router.post("/trips/{trip_id}/ai/draft-trip", status_code=202)

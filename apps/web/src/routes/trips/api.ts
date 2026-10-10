@@ -18,6 +18,7 @@ export type Person = { id: string; name: string; color: string; home_airports: s
 export type Trip = Pick<TripSummary, "id" | "version" | "name" | "status" | "start_date" | "end_date" | "my_role"> & {
   home_currency: string
   editors_can_invite?: boolean
+  ai_enabled?: boolean
   limited?: boolean
   travelers: Person[]
   destinations: (TripDestination & { lat?: number; lon?: number; country_code?: string | null })[]
@@ -62,7 +63,7 @@ async function write<T>(id: string, send: () => Promise<{ data?: T; error?: unkn
 }
 
 const url = (id: string, tail = "") => `/v1/trips/${encodeURIComponent(id)}${tail}`
-export type TripPatch = { name?: string; start_date?: string | null; end_date?: string | null; home_currency?: string; status?: Trip["status"]; destinations?: (DestinationIn & { id?: string })[] }
+export type TripPatch = { name?: string; start_date?: string | null; end_date?: string | null; home_currency?: string; status?: Trip["status"]; ai_enabled?: boolean; destinations?: (DestinationIn & { id?: string })[] }
 
 export const patchTrip = (id: string, version: number | undefined, body: TripPatch) => write<Trip>(id, () => api.patch<Trip>(url(id), { ...body, version }))
 export const duplicateTrip = (id: string) => write<Trip>(id, () => api.post<Trip>(url(id, "/duplicate"), {}))

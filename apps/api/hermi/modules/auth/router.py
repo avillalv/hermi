@@ -4,18 +4,25 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
+from sqlalchemy import text
 
 from hermi import analytics
 from hermi.deps import (
+    CurrentUser,
     CurrentUserOrPendingDeletion,
+    DbSession,
     DbSessionOrPendingDeletion,
     identity_user,
     verified_token,
 )
 from hermi.errors import ApiError
-from hermi.modules.auth import service
+from hermi.modules.ai import agent_runs
+from hermi.modules.auth import repo, service
 from hermi.modules.auth.schemas import (
     BootstrapIn,
+    Consent,
+    ConsentIn,
+    ConsentKind,
     DevSessionIn,
     DevSessionOut,
     LegacyClaimIn,
@@ -86,6 +93,42 @@ def legacy_claim(
 @router.get("/me", response_model=Me)
 def get_me(user: CurrentUserOrPendingDeletion, session: DbSessionOrPendingDeletion) -> Me:
     return service.get_me(session, user.id)
+
+
+@router.get("/me/consents", response_model=list[Consent])
+def list_consents(user: CurrentUser, session: DbSession) -> list[dict]:
+    """The latest row per kind, withdrawals included (04 section 5.2)."""
+    return repo.latest_consents(session, user.id)
+
+
+@router.put("/me/consents/{kind}", response_model=Consent)
+def put_consent(
+    kind: ConsentKind, body: ConsentIn, request: Request, user: CurrentUser, session: DbSession
+) -> dict:
+    """Appends a `consents` row. Withdrawing `ai_processing` makes every AI route answer `ai_consent_required` (the gate reads
+    the latest row) and stops this person's agent runs (fare hunt and deep research only; inline actions finish and settle on their own) (04 section 5.2). Nothing else is switched off."""
+    rate_limit.hit(request.app.state.engine, "write_user", str(user.id))
+    row = repo.append_consent(session, user.id, kind, body.version, body.granted)
+    if kind == "ai_processing" and not body.granted:
+        active = (
+            session.execute(
+                text(
+                    "UPDATE runs SET cancel_requested = true WHERE user_id = :u AND status IN ('queued', 'running') "
+                    "AND kind IN ('fare_hunt', 'deep_research') "
+                    "RETURNING id, status::text AS status"
+                ),
+                {"u": user.id},
+            )
+            .mappings()
+            .all()
+        )
+        queued = [r["id"] for r in active if r["status"] == "queued"]
+        if queued:
+            session.commit()  # the consent row and the flags are visible to a worker that claims a run right now
+            session.execute(text("SELECT set_config('app.user_id', :u, true)"), {"u": str(user.id)})
+            for rid in queued:
+                agent_runs.cancel_queued(request.app.state.settings, rid, user.id)
+    return row
 
 
 @dev_router.get("/personas", response_model=list[PersonaOut])

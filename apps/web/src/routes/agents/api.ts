@@ -71,7 +71,7 @@ export const useRun = (runId: string, on: boolean) =>
 export type StartResult =
   | { ok: true; run: AgentRun }
   | { ok: false; reason: "active"; activeRunId?: string }
-  | { ok: false; reason: "credits" | "tasterUsed" | "forbidden" | "invalid" | "rate" | "unavailable" | "failed"; message?: string }
+  | { ok: false; reason: "credits" | "tasterUsed" | "consent" | "aiOff" | "forbidden" | "invalid" | "rate" | "unavailable" | "failed"; message?: string }
 
 /** POST /trips/{id}/agent-runs. `key` is the Idempotency-Key: reuse it when the person retries the same confirm. */
 export async function startRun(tripId: string, body: StartBody, key: string): Promise<StartResult> {
@@ -81,7 +81,7 @@ export async function startRun(tripId: string, body: StartBody, key: string): Pr
     const e = r.error as { code?: string; detail?: string; active_run_id?: string | null } | undefined
     if (s === 409 && e?.code === "run_already_active") return { ok: false, reason: "active", activeRunId: e.active_run_id ?? undefined }
     if (s === 402) return { ok: false, reason: e?.code === "payment_required" ? "tasterUsed" : "credits", message: e?.detail }
-    if (s === 403) return { ok: false, reason: "forbidden" }
+    if (s === 403) return { ok: false, reason: e?.code === "ai_consent_required" ? "consent" : e?.code === "ai_disabled_for_trip" ? "aiOff" : "forbidden" }
     if (s === 422) return { ok: false, reason: "invalid", message: e?.detail }
     if (s === 429) return { ok: false, reason: "rate" }
     if (s === 503) return { ok: false, reason: "unavailable" }

@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from hermi.modules.ai.reports import router as reports_router
 from hermi.modules.ai.router import router as ai_router
 from hermi.modules.auth.router import router as auth_router
 from hermi.modules.billing.router import router as billing_router
@@ -38,3 +39,4 @@ router.include_router(notes_router)
 router.include_router(samples_router)
 router.include_router(notifications_router)
 router.include_router(ai_router)
+router.include_router(reports_router)

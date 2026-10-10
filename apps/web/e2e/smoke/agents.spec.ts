@@ -74,3 +74,59 @@ test("the start screen is disabled offline and says AI needs a connection", asyn
   await expect(page.getByRole("status").filter({ hasText: "AI needs a connection." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Start free run" })).toBeDisabled();
 });
+
+// WF-054: the consent sheet shows its error and offline states, and the thumbs are disabled offline.
+test("the consent sheet shows an error when saving fails", async ({ page }) => {
+  await stubStart(page, () => false);
+  let asked = false;
+  await page.route("**/v1/me/consents", (r) => ((asked = true), r.fulfill({ json: [] })));
+  await page.route("**/v1/me/consents/ai_processing", (r) => r.fulfill({ status: 500, json: {} }));
+  await signIn(page);
+  await page.goto("/trips/t1/agents");
+  const start = page.getByRole("button", { name: "Start free run" });
+  await expect(start).toBeEnabled();
+  await expect.poll(() => asked).toBe(true);
+  await page.waitForTimeout(200); // the answer is cached before the tap, so the gate opens on first use
+  await start.click();
+  const sheet = page.getByRole("dialog", { name: "Allow AI on your trips?" });
+  await sheet.getByRole("button", { name: "Allow" }).click();
+  await expect(sheet.getByText("We could not save your choice. Try again.")).toBeVisible();
+});
+
+test("the consent sheet is offline aware", async ({ page, context }) => {
+  await stubStart(page, () => false);
+  let asked = false;
+  await page.route("**/v1/me/consents", (r) => ((asked = true), r.fulfill({ json: [] })));
+  await signIn(page);
+  await page.goto("/trips/t1/agents");
+  const start = page.getByRole("button", { name: "Start free run" });
+  await expect(start).toBeEnabled();
+  await expect.poll(() => asked).toBe(true);
+  await page.waitForTimeout(200); // the answer is cached before the tap, so the gate opens on first use
+  await start.click();
+  const sheet = page.getByRole("dialog", { name: "Allow AI on your trips?" });
+  await context.setOffline(true);
+  await expect(sheet.getByText("AI needs a connection.")).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Allow" })).toBeDisabled();
+});
+
+test("thumbs are disabled offline on a finished run", async ({ page, context }) => {
+  const done = { ...run, status: "succeeded", finished_at: "2027-03-01T10:05:00Z", accepted_count: 1, credits: { ...run.credits, charged: 31 } };
+  const note = { seq: 4, ts: "2027-03-01T10:00:04Z", type: "note.saved", tool_name: null, summary: "Saved note", payload: { title: "Tram 28 is crowded", source_urls: ["https://lisbon-guide.org/t"] } };
+  const fin = { seq: 9, ts: "2027-03-01T10:05:00Z", type: "run.finished", tool_name: null, summary: "", payload: { status: "succeeded", accepted: 1, credits: { reserved: 40, charged: 31, balance_after: null } } };
+  await page.route("**/v1/trips/t1", (r) => r.fulfill({ json: trip }));
+  await page.route("**/v1/agent-runs/r1", (r) => r.fulfill({ json: done }));
+  await page.route("**/v1/agent-runs/r1/stream", (r) => r.fulfill({ status: 200, contentType: "text/event-stream", body: [started, note, fin].map((e) => `id: ${e.seq}
+event: x
+data: ${JSON.stringify(e)}
+
+`).join("") }));
+  await page.route("**/v1/agent-runs/r1/events**", (r) => r.fulfill({ json: [started, note, fin] }));
+  await signIn(page);
+  await page.goto("/trips/t1/agents/r1");
+  await expect(page.getByRole("button", { name: "Helpful", exact: true })).toBeEnabled();
+  await context.setOffline(true);
+  await expect(page.getByText("Feedback needs a connection.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Helpful", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Not helpful" })).toBeDisabled();
+});
