@@ -538,9 +538,20 @@ def check_note(
 
 
 def save_note(
-    session: Session, bind: RunBinding, *, title: str, body: str, topic: str, urls: list[str]
+    session: Session,
+    bind: RunBinding,
+    *,
+    title: str,
+    body: str,
+    topic: str,
+    urls: list[str],
+    checked_at: datetime | None = None,
 ) -> bool:
-    """Insert one checked note as an agent note on the run's trip. False when this run already saved the same one."""
+    """Insert one checked note as an agent note on the run's trip. False when this run already saved the same one, or
+    when it has no source link (WF-055: no AI-saved fact without `source_url` and `checked_at`). `checked_at` is the day
+    the page was seen: now for a fresh run, the cache entry's fetch time for a shared hit."""
+    if not any(u.strip() for u in urls):
+        return False
     dup = session.execute(
         text(
             "SELECT 1 FROM notes WHERE run_id = :r AND trip_id = :t AND title = :ti AND body = :b LIMIT 1"
@@ -551,8 +562,8 @@ def save_note(
         return False
     session.execute(
         text(
-            """INSERT INTO notes (trip_id, kind, author_user_id, title, topic, body, urls, run_id, is_private)
-               VALUES (:t, 'agent', NULL, :ti, :tp, :b, :u, :r, false)"""
+            """INSERT INTO notes (trip_id, kind, author_user_id, title, topic, body, urls, run_id, is_private, checked_at)
+               VALUES (:t, 'agent', NULL, :ti, :tp, :b, :u, :r, false, COALESCE(:c, now()))"""
         ),
         {
             "t": bind.trip_id,
@@ -561,6 +572,7 @@ def save_note(
             "b": body,
             "u": urls,
             "r": bind.run_id,
+            "c": checked_at,
         },
     )
     return True

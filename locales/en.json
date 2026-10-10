@@ -612,7 +612,6 @@
     "savedSeeNotes": "Saved. See in Notes",
     "dismiss": "Dismiss",
     "dismissLabel": "Dismiss {title}",
-    "noPage": "No page link",
     "notSaved": "Not saved ({n})",
     "fareCount_one": "1 fare",
     "fareCount_other": "{n} fares",
@@ -779,7 +778,15 @@
     "found": "Found on {site}, checked {date}",
     "foundNoDate": "Found on {site}",
     "stale": "Seen {date}. May be out of date.",
-    "open": "Open {site} in a new tab"
+    "open": "Open {site} in a new tab",
+    "pasted": "From your pasted text",
+    "missing": "No source recorded",
+    "ageToday": "Seen today",
+    "ageOne": "Seen 1 day ago",
+    "ageN": "Seen {n} days ago",
+    "priceDifferent": "Price was different",
+    "priceThanks": "Thanks. We will look at it.",
+    "priceFailed": "We could not send that. Try again."
   },
   "notes": {
     "tab": "Notes",

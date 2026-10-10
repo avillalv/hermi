@@ -43,17 +43,20 @@ export async function setAiConsent(granted: boolean): Promise<boolean> {
 
 export type ReportReason = "spam" | "harmful" | "wrong_info" | "copyright" | "privacy"
 export type ReportTarget = { runId: string } | { noteId: string }
-export type ReportResult = "ok" | "rate" | "gone" | "failed"
+/** `ok` is a new report (201); `repeat` is the first report returned again (200), so nothing new was filed. */
+export type ReportResult = "ok" | "repeat" | "rate" | "gone" | "failed"
 
 /** POST /reports. A repeat on the same target is a 200 with the first id, so a second tap is harmless. */
-export async function sendReport(target: ReportTarget, reason: ReportReason): Promise<ReportResult> {
+export async function sendReport(target: ReportTarget, reason: ReportReason, detail?: string): Promise<ReportResult> {
   try {
-    const body = "runId" in target ? { run_id: target.runId, reason } : { note_id: target.noteId, reason }
+    const who = "runId" in target ? { run_id: target.runId } : { note_id: target.noteId }
+    const body = { ...who, reason, ...(detail ? { detail } : {}) }
     const r = await api.post<{ id: string }>("/v1/reports", body)
     const s = r.response.status
     if (s === 429) return "rate"
     if (s === 404) return "gone"
-    return r.error === undefined && r.data ? "ok" : "failed"
+    if (r.error !== undefined || !r.data) return "failed"
+    return s === 200 ? "repeat" : "ok"
   } catch {
     return "failed"
   }

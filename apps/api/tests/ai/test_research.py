@@ -247,6 +247,8 @@ def test_cold_pays_eight_then_a_hit_pays_one(engine, settings, world):
     # both runs saved their notes to their trip, each with its source link
     assert one(c, "SELECT count(*) FROM notes WHERE trip_id = %s AND kind = 'agent'", world["tid"])[0] == 4
     assert one(c, "SELECT urls FROM notes WHERE run_id = %s LIMIT 1", second.run_id)[0] == [PAGE]
+    # WF-055: a note saved from a cache hit shows when the page was seen (the entry's fetch time), not today
+    assert one(c, "SELECT bool_and(n.checked_at = e.fetched_at) FROM notes n, shared_research_cache e WHERE n.run_id = %s AND e.key = %s", second.run_id, k)[0] is True
 
 
 def test_destination_brief_uses_its_own_kind(engine, settings, world):

@@ -225,3 +225,19 @@ test("a hidden cheapest fare does not take the Lowest label", async () => {
   open()
   expect(await screen.findByText("Lowest in this list")).toBeInTheDocument()
 })
+
+test("an agent fare shows the evidence label and Price was different, which names the fare", async () => {
+  const f = mockApi(api({ fares: [fare({ source: "agent", confidence: "indicative", source_url: "https://fares.example.com/lis", source_domain: "fares.example.com", run_id: "run1" })] }))
+  open()
+  expect(await screen.findByRole("link", { name: /Found on fares\.example\.com, checked/ })).toHaveAttribute("href", "https://fares.example.com/lis")
+  fireEvent.click(screen.getByRole("button", { name: "Price was different" }))
+  await waitFor(() => expect(bodyOf(f, "/v1/reports")).toEqual({ run_id: "run1", reason: "wrong_info", detail: "Price was different: fare f1, https://fares.example.com/lis, 41200 USD" }))
+})
+
+test("a provider fare has no agent evidence label", async () => {
+  mockApi(api())
+  open()
+  await price()
+  expect(screen.queryByRole("button", { name: "Price was different" })).toBeNull()
+  expect(screen.queryByText(/Found on/)).toBeNull()
+})

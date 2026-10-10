@@ -149,6 +149,16 @@ def test_report_is_idempotent_per_user_and_target(client, world):
     assert n == 2
 
 
+def test_price_was_different_after_a_thumbs_down_keeps_both_signals(client, world):
+    down = _report(client, world["o"], run_id=world["run"])
+    price = _report(client, world["o"], run_id=world["run"], detail="Price was different: fare f1, https://x.example/a, 68400 USD")
+    assert down.status_code == 201 and price.status_code == 201 and price.json()["id"] != down.json()["id"]
+    again = _report(client, world["o"], run_id=world["run"], detail="Price was different: fare f1, https://x.example/a, 68400 USD")
+    assert again.status_code == 200 and again.json()["id"] == price.json()["id"]
+    details = world["conn"].execute("SELECT detail FROM content_reports WHERE run_id = %s ORDER BY created_at", (world["run"],)).fetchall()
+    assert [d[0] for d in details] == ["", "Price was different: fare f1, https://x.example/a, 68400 USD"]
+
+
 def test_report_target_rules(client, world):
     assert _report(client, world["s"], run_id=world["run"]).status_code == 404  # a stranger cannot see the run
     assert _report(client, world["o"], run_id=str(uuid.uuid4())).status_code == 404

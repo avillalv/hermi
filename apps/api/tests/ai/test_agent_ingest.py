@@ -891,3 +891,41 @@ def test_a_failing_handler_rolls_the_session_back_so_the_run_can_go_on(world, en
         assert (
             s.execute(text("SELECT 1")).scalar_one() == 1
         )  # usable again, not InFailedSqlTransaction
+
+
+# --- WF-055: no AI-saved fact without a source and a checked_at ---------------------------------------------------
+
+
+def _save(st, **kw):
+    args = {"title": "T", "body": "B", "topic": "events", "urls": [URL]} | kw
+    with Session(st["engine"]) as s:
+        ok = ingest.save_note(s, st["bind"], **args)
+        s.commit()
+        return ok
+
+
+def test_save_note_without_a_source_is_refused_and_writes_nothing(started):
+    assert _save(started, urls=[]) is False
+    assert notes(started) == []
+
+
+def test_save_note_keeps_the_day_the_page_was_seen(started):
+    seen_at = datetime.now(UTC) - timedelta(days=3)
+    assert _save(started, checked_at=seen_at) is True
+    (got,) = started["conn"].execute("SELECT checked_at FROM notes WHERE run_id = %s", (started["rid"],)).fetchone()
+    assert abs((got - seen_at).total_seconds()) < 1
+
+
+def test_scan_finds_no_ai_saved_row_without_source_or_checked_at(started):
+    submit(started, [quote(), quote(source_url="")], seen(found=[URL]))
+    add(started, note(), seen(found=[URL]))
+    add(started, note(title="Other", urls=[]), seen(found=[URL]))
+    c = started["conn"]
+    bad_notes = c.execute(
+        "SELECT count(*) FROM notes WHERE kind = 'agent' AND (urls IS NULL OR cardinality(urls) = 0 OR checked_at IS NULL)"
+    ).fetchone()[0]
+    bad_fares = c.execute(
+        "SELECT count(*) FROM fare_observations WHERE source = 'agent' AND (source_url IS NULL OR source_url = '' OR observed_at IS NULL)"
+    ).fetchone()[0]
+    assert (bad_notes, bad_fares) == (0, 0)
+    assert len(notes(started)) == 1 and len(observations(started)) == 1

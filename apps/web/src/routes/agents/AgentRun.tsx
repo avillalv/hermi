@@ -270,9 +270,9 @@ export function AgentRunPage() {
           <section aria-label={t("agents.findings", { n: shownAll })}>
             <h2 className="h-label h-label--section">{t("agents.findings", { n: shownAll })}</h2>
             {shownFares.length > 0 && <h3 className="h-label agents__group">{t("agents.fares", { n: shownFares.length })}</h3>}
-            {shownFares.map((f) => <EvidenceRow key={f.seq} tripId={id} f={f} onDismiss={() => setDismissed((d) => [...d, f.seq])} />)}
+            {shownFares.map((f) => <EvidenceRow key={f.seq} tripId={id} f={f} runId={runId} onDismiss={() => setDismissed((d) => [...d, f.seq])} />)}
             {shownNotes.length > 0 && <h3 className="h-label agents__group">{t("agents.notes", { n: shownNotes.length })}</h3>}
-            {shownNotes.map((f) => <EvidenceRow key={f.seq} tripId={id} f={f} onDismiss={() => setDismissed((d) => [...d, f.seq])} />)}
+            {shownNotes.map((f) => <EvidenceRow key={f.seq} tripId={id} f={f} runId={runId} onDismiss={() => setDismissed((d) => [...d, f.seq])} />)}
             <AiLabel found />
             {terminal && <AiFeedback target={{ runId: r.id }} action="agent_run" />}
           </section>

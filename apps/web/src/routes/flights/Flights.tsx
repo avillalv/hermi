@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from "react-router"
 import { EmptyState } from "../../components/EmptyState"
 import { QueryError } from "../../components/ErrorState"
 import { Skeleton } from "../../components/Skeleton"
+import { EvidenceLabel } from "../../components/evidence"
 import { Btn, Icon, SegItem, SegmentedControl } from "../../components/kit"
 import { formatDateRange } from "../../lib/dates"
 import { t } from "../../lib/i18n"
@@ -56,6 +57,7 @@ function FareChip({ fare, lowest }: { fare: Fare; lowest?: boolean }) {
           </>
         )}
       </button>
+      {fare.source === "agent" && <EvidenceLabel kind="fare" url={fare.source_url} site={fare.source_domain} checkedAt={fare.observed_at} onOpen={() => track("evidence_opened", { surface: "fare" })} />}
     </>
   )
 }

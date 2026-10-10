@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router"
+import { EvidenceLabel } from "../../components/evidence"
 import { Btn, Field, Icon, RoutePath, TextField, TicketStub, TripTicket } from "../../components/kit"
 import { formatDateRange } from "../../lib/dates"
 import { t } from "../../lib/i18n"
@@ -228,6 +229,9 @@ export function FareDetail() {
             </TripTicket>
             <section className="flights__card" aria-label={t("flights.detail.fareLabel")}>
               {lowest && <span className="h-label">{t("flights.detail.lowest")}</span>}
+              {fare.source === "agent" && (
+                <EvidenceLabel kind="fare" url={fare.source_url} site={fare.source_domain} checkedAt={fare.observed_at} runId={fare.run_id ?? undefined} fareId={fare.id} priceMinor={fare.price.amount_minor} currency={fare.price.currency} onOpen={() => track("evidence_opened", { surface: "fare" })} />
+              )}
               {stale && (
                 <p className="flights__warn">
                   <Icon name="clock" size={16} />

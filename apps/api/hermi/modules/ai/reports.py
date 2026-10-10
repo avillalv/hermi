@@ -2,7 +2,7 @@
 """POST /v1/reports (04 section 5.14): "Report a problem" on an agent note or an AI answer, and the thumbs down on AI output.
 
 The write goes through `file_content_report` (0014), which checks the caller can see the target, copies the cache key from the
-run, expires a reported cache entry and flags it at three distinct reporters. One report per person per target: a repeat
+run, expires a reported cache entry and flags it at three distinct reporters. One report per person per target and detail: a repeat
 returns the first report's id and creates nothing. The moderation queue screen is WF-106."""
 
 import uuid
@@ -41,11 +41,11 @@ class ReportOut(BaseModel):
 def create_report(body: ReportIn, request: Request, response: Response, user: CurrentUser, session: DbSession) -> dict:
     target_type, col, ref = ("agent_note", "note_id", body.note_id) if body.note_id else ("ai_answer", "run_id", body.run_id)
     # shortcut: read then insert with no unique index, so two concurrent posts from one person can both file a report.
-    # Upgrade trigger: duplicates seen in the queue. Fix: a partial unique index on (reporter_user_id, run_id) and (reporter_user_id, note_id), then ON CONFLICT.
+    # Upgrade trigger: duplicates seen in the queue. Fix: a partial unique index on (reporter_user_id, run_id, detail) and (reporter_user_id, note_id, detail), then ON CONFLICT.
     # The own-row read policy hides everyone else's reports, so this finds only this person's earlier report.
     prior = session.execute(
-        text(f"SELECT id FROM content_reports WHERE reporter_user_id = :u AND {col} = :r ORDER BY created_at LIMIT 1"),  # noqa: S608 (col is one of two literals)
-        {"u": user.id, "r": ref},
+        text(f"SELECT id FROM content_reports WHERE reporter_user_id = :u AND {col} = :r AND detail = :d ORDER BY created_at LIMIT 1"),  # noqa: S608 (col is one of two literals)
+        {"u": user.id, "r": ref, "d": body.detail},
     ).scalar()
     if prior is not None:
         response.status_code = 200

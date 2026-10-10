@@ -280,3 +280,9 @@ test("agent entry: an unused taster shows the free card, which opens the start s
   fireEvent.click(screen.getByRole("button", { name: "Start free run" }))
   await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/trips/t1/agents"))
 })
+
+test("an agent fare chip carries the evidence label with its source", async () => {
+  mockApi(api({ fares: [fare({ source: "agent", confidence: "indicative", source_url: "https://fares.example.com/lis", source_domain: "fares.example.com", run_id: "run1" })] }))
+  open()
+  expect(await screen.findByRole("link", { name: /Found on fares\.example\.com, checked/ })).toBeInTheDocument()
+})

@@ -4,6 +4,7 @@ import { EmptyState } from "../../components/EmptyState"
 import { QueryError } from "../../components/ErrorState"
 import { Skeleton } from "../../components/Skeleton"
 import { SourceChip } from "../../components/SourceChip"
+import { EvidenceLabel } from "../../components/evidence"
 import { Avatar, Btn, Icon, SegItem, SegmentedControl, TextField } from "../../components/kit"
 import { t } from "../../lib/i18n"
 import { track } from "../../lib/track"
@@ -138,8 +139,9 @@ function FindingRow({ note }: { note: Note }) {
   return (
     <article className="notes__item" aria-label={note.title}>
       <p className="notes__body"><Linked text={note.body} /></p>
+      {note.sources.length === 0 && <EvidenceLabel kind="note" url="" />}
       {note.sources.map((s) => (
-        <SourceChip key={s.url} url={s.url} site={s.site} checkedAt={note.checked_at} stale={note.stale} onOpen={() => track("evidence_opened")} />
+        <EvidenceLabel key={s.url} kind="note" url={s.url} site={s.site} checkedAt={note.checked_at} stale={note.stale} onOpen={() => track("evidence_opened")} />
       ))}
       <Btn variant="text" mod={["sm"]} aria-expanded={open} onClick={() => setOpen(!open)}>{t("notes.showMore")}</Btn>
       {open && ev.isPending && <p className="h-soft" aria-live="polite">{t("notes.loading")}</p>}

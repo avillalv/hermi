@@ -1,5 +1,5 @@
 import { Link } from "react-router"
-import { SourceChip } from "../../components/SourceChip"
+import { EvidenceLabel } from "../../components/evidence"
 import { Icon, TicketStub, TripTicket } from "../../components/kit"
 import { t } from "../../lib/i18n"
 import { formatMoney } from "../../lib/money"
@@ -13,7 +13,7 @@ const web = (url: string) => /^https?:\/\//i.test(url)
  * Open source, a link to where it was saved, and Dismiss. Accepted findings are already saved by the run, so there is
  * no "Save to trip" button; Dismiss only hides the row on this screen.
  */
-export function EvidenceRow({ tripId, f, onDismiss }: { tripId: string; f: Finding; onDismiss: () => void }) {
+export function EvidenceRow({ tripId, f, runId, onDismiss }: { tripId: string; f: Finding; runId?: string; onDismiss: () => void }) {
   const price = f.kind === "fare" && f.priceMinor !== undefined && f.currency ? formatMoney(f.priceMinor, f.currency) : null
   const title = [f.title, price].filter(Boolean).join(", ")
   const surface = f.kind
@@ -25,11 +25,7 @@ export function EvidenceRow({ tripId, f, onDismiss }: { tripId: string; f: Findi
           <h4 className="h-evidence__title">{title}</h4>
           <span className="h-label h-evidence__kind">{t(f.kind === "fare" ? "agents.kindFareLabel" : "agents.kindNoteLabel")}</span>
         </div>
-        {f.url ? (
-          <SourceChip url={f.url} site={f.site} checkedAt={f.checkedAt} onOpen={() => track("evidence_opened", { surface })} />
-        ) : (
-          <span className="h-evidence__quote">{t("agents.noPage")}</span>
-        )}
+        <EvidenceLabel kind={f.kind} url={f.url} site={f.site} checkedAt={f.checkedAt} runId={runId} onOpen={() => track("evidence_opened", { surface })} />
         {f.kind === "fare" && <span className="h-evidence__quote">{t("agents.fareSeen")}</span>}
       </div>
       <TicketStub>

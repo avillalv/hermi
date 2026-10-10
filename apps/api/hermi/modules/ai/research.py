@@ -513,7 +513,7 @@ def _hit(c: _Ctx, key: str, entry: cache.Entry) -> Done:
             for n in _notes_of(entry.response):  # the entry passed the checks when it was written; they are cheap, so again on read
                 if _accept(sys, n, seen)[0] is not None:
                     notes.append(n)
-                    ingest.save_note(sys, bind, title=n["title"], body=n["body"], topic=str(n.get("topic", "other")), urls=list(n["urls"]))
+                    ingest.save_note(sys, bind, title=n["title"], body=n["body"], topic=str(n.get("topic", "other")), urls=list(n["urls"]), checked_at=entry.fetched_at)
             cache.bump_hit(sys, key)
             ctx = MeterContext(
                 action=SPEC.action, idempotency_key=c.ikey, provider=c.provider.name, model=model, user_id=c.user_id,
