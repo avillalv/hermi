@@ -14,6 +14,7 @@ import { useAuth } from "../auth/authStore"
 import { useTrip } from "../trips/api"
 import { tripStrip } from "../trips/TripStrip"
 import "../trips/trips.css"
+import { AgentEntry } from "../agents/EntryCard"
 import { AddRoute } from "./AddRoute"
 import { AlertList, AlertSwitch } from "./Alerts"
 import { chooseFare, refreshRoute, useAirportsPerSide, useOptions, useRoutes, useSummary, type Fare, type FareSort, type Route, type RouteSummary } from "./api"
@@ -221,6 +222,7 @@ export function Flights() {
           </>
         )}
         {trip.data && routes.data?.map((r) => <RouteCard key={r.id} tripId={id} route={r} sum={sums.data?.find((s) => s.route_id === r.id)} canEdit={canEdit} online={online} home={trip.data.home_currency} />)}
+        {canEdit && !!routes.data?.length && <AgentEntry enabled={!!token} online={online} onOpen={() => nav(`/trips/${encodeURIComponent(id)}/agents`)} />}
         {canEdit && !!routes.data?.length && <AlertList tripId={id} routes={routes.data} name={routeName} />}
       </div>
     </AppShell>

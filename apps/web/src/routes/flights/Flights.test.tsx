@@ -272,3 +272,11 @@ test("a Free user entering 3 airports is told the plan cap and nothing is posted
   expect(await screen.findByText("Use at most 2 airports on each side.")).toBeInTheDocument()
   expect(called(f, "POST", "/trips/t1/routes")).toBe(false)
 })
+
+test("agent entry: an unused taster shows the free card, which opens the start screen", async () => {
+  mockApi(api({ more: (u) => (u.endsWith("/v1/me/agent-taster") ? Response.json({ used: false, used_at: null, run_id: null, available: true, credits: 40 }) : undefined) }))
+  open()
+  expect(await screen.findByRole("heading", { name: "Try a deep run, free once" })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole("button", { name: "Start free run" }))
+  await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/trips/t1/agents"))
+})
