@@ -109,6 +109,9 @@ def test_search_around_a_destination(client, world, calls):
 def test_rate_limit_is_30_a_minute(client, world, calls):
     assert rate_limit.ROUTE_CLASSES["places_search"] == (30, 60)
     h = world["o"]
+    # The counter is a fixed window per clock minute: start just after an edge so 31 requests cannot straddle one.
+    if time.time() % 60 > 40:
+        time.sleep(61 - time.time() % 60)
     for _ in range(30):
         assert _search(client, h).status_code == 200  # cached after the first, but every request counts
     r = _search(client, h)
