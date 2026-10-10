@@ -41,7 +41,16 @@ STOPS = (
     "finished", "no_finish", "cancelled", "deadline", "spend_limit", "turn_limit", "search_cap", "fetch_cap",
     "blocked_domain", "refusal", "max_tokens", "model_mismatch", "invalid_tool_input",
 )  # fmt: skip
-_LIMIT_STOPS = {"turn_limit", "search_cap", "fetch_cap", "spend_limit", "no_finish", "max_tokens", "blocked_domain", "invalid_tool_input"}
+_LIMIT_STOPS = {
+    "turn_limit",
+    "search_cap",
+    "fetch_cap",
+    "spend_limit",
+    "no_finish",
+    "max_tokens",
+    "blocked_domain",
+    "invalid_tool_input",
+}
 
 
 def final_status(stop: str, saved: int) -> tuple[str, str | None]:
@@ -68,9 +77,15 @@ def final_status(stop: str, saved: int) -> tuple[str, str | None]:
 class Hooks:
     """What the loop needs from its caller. All are cheap and synchronous; the job backs them with the database."""
 
-    is_cancelled: Callable[[], bool] = lambda: False  # also the job's heartbeat: called about once a second
-    emit: Emit = lambda *a, **k: None  # emit(type, summary, payload=None, tool_name=None) -> a run_events row
-    on_response: Callable[[int, ProviderResult], None] = lambda turn, result: None  # meter one response (record_usage)
+    is_cancelled: Callable[[], bool] = lambda: (
+        False
+    )  # also the job's heartbeat: called about once a second
+    emit: Emit = lambda *a, **k: (
+        None
+    )  # emit(type, summary, payload=None, tool_name=None) -> a run_events row
+    on_response: Callable[[int, ProviderResult], None] = lambda turn, result: (
+        None
+    )  # meter one response (record_usage)
     clock: Callable[[], float] = time.monotonic
     poll_seconds: float = 1.0  # how often a call in flight is checked for cancel and deadline
 
@@ -116,7 +131,15 @@ def _doc_text(content: Any) -> str:
 
 
 class AgentLoop:
-    def __init__(self, provider: AiProvider, spec: AgentSpec, handlers: dict[str, Handler], hooks: Hooks | None = None, *, initial_cost: int = 0) -> None:
+    def __init__(
+        self,
+        provider: AiProvider,
+        spec: AgentSpec,
+        handlers: dict[str, Handler],
+        hooks: Hooks | None = None,
+        *,
+        initial_cost: int = 0,
+    ) -> None:
         self.provider, self.spec, self.handlers = provider, spec, handlers
         self.h = hooks or Hooks()
         self.evidence = Evidence()
@@ -141,7 +164,11 @@ class AgentLoop:
         except _Stop as s:
             stop = s.stop
         status, code = final_status(stop, self.exec.accepted)
-        self.h.emit("info", f"stopped: {stop}", {"kind": "stop", "stop": stop, "status": status, "failure_code": code})
+        self.h.emit(
+            "info",
+            f"stopped: {stop}",
+            {"kind": "stop", "stop": stop, "status": status, "failure_code": code},
+        )
         return RunOutcome(
             stop, status, code, self.turns, self.searches, self.fetches, self.cost, self.usage, self.exec.accepted,
             self.exec.rejected, self.exec.report, self.evidence, self.messages, self.last,
@@ -175,7 +202,9 @@ class AgentLoop:
         try:
             while True:
                 left = self.deadline - self.h.clock()
-                done, _ = await asyncio.wait({task}, timeout=max(0.0, min(self.h.poll_seconds, left)))
+                done, _ = await asyncio.wait(
+                    {task}, timeout=max(0.0, min(self.h.poll_seconds, left))
+                )
                 if done:
                     return task.result()
                 if self.h.is_cancelled():
@@ -202,8 +231,12 @@ class AgentLoop:
             if r.stop_reason == "refusal":
                 self.messages.append({"role": "assistant", "content": r.content})
                 raise _Stop("refusal")
-            if brand := self._scan(r):  # before any tool runs: a blocked page is never evidence and never acted on
-                self.h.emit("error", f"blocked {brand} page", {"kind": "blocked_domain", "brand": brand})
+            if brand := self._scan(
+                r
+            ):  # before any tool runs: a blocked page is never evidence and never acted on
+                self.h.emit(
+                    "error", f"blocked {brand} page", {"kind": "blocked_domain", "brand": brand}
+                )
                 raise _Stop("blocked_domain")
             if r.stop_reason == "max_tokens":
                 # never run a half-parsed tool input: retry this turn once with a higher cap, else stop
@@ -211,7 +244,9 @@ class AgentLoop:
                     raise _Stop("max_tokens")
                 retried, max_tokens = True, min(MAX_TOKENS_CEILING, max_tokens * 2)
                 continue
-            self.messages.append({"role": "assistant", "content": r.content})  # exactly as returned (rule 1)
+            self.messages.append(
+                {"role": "assistant", "content": r.content}
+            )  # exactly as returned (rule 1)
             over = self._over_cap()
             calls = [b for b in r.content if b.get("type") == "tool_use"]
             if r.stop_reason == "tool_use" or calls:
@@ -272,7 +307,12 @@ class AgentLoop:
                         return self._count(searches, fetches, r, brand)
                     self.evidence.fetched[url] = _doc_text(c.get("content"))
                 elif isinstance(c, dict) and c.get("error_code"):
-                    emit("warning", f"web_fetch: {c['error_code']}", {"error_code": c["error_code"]}, "web_fetch")
+                    emit(
+                        "warning",
+                        f"web_fetch: {c['error_code']}",
+                        {"error_code": c["error_code"]},
+                        "web_fetch",
+                    )
             elif t == "web_search_tool_result":
                 c = b.get("content")
                 if isinstance(c, list):
@@ -281,12 +321,19 @@ class AgentLoop:
                         if url and not blocked_url(url):
                             self.evidence.found.add(url)
                 elif isinstance(c, dict) and c.get("error_code"):
-                    emit("warning", f"web_search: {c['error_code']}", {"error_code": c["error_code"]}, "web_search")
+                    emit(
+                        "warning",
+                        f"web_search: {c['error_code']}",
+                        {"error_code": c["error_code"]},
+                        "web_search",
+                    )
             elif t == "text" and (text := (b.get("text") or "").strip()):
                 emit("text", text[:300])
         return self._count(searches, fetches, r, None)
 
-    def _count(self, searches: int, fetches: int, r: ProviderResult, brand: str | None) -> str | None:
+    def _count(
+        self, searches: int, fetches: int, r: ProviderResult, brand: str | None
+    ) -> str | None:
         # the usage counter and the blocks can differ (a pause_turn resend); the larger is the safer count
         self.searches += max(searches, r.usage.web_searches)
         self.fetches += fetches
@@ -314,7 +361,11 @@ class AgentLoop:
                 self.evidence.found |= {u for u in run.evidence.found if not blocked_url(u)}
             if e.status == "cap_exceeded":
                 raise _Stop("search_cap" if self.searches > s.max_searches else "fetch_cap") from e
-            stop = {"blocked_domain": "blocked_domain", "timeout": "deadline", "cancelled": "cancelled"}.get(e.status)
+            stop = {
+                "blocked_domain": "blocked_domain",
+                "timeout": "deadline",
+                "cancelled": "cancelled",
+            }.get(e.status)
             if stop is None:
                 raise  # a guard failure, a missing binary, an error result: the job fails and refunds
             raise _Stop(stop) from e
@@ -329,7 +380,8 @@ class AgentLoop:
             for u in last.evidence.fetched:
                 if blocked_url(u):
                     raise _Stop("blocked_domain")
-                self.evidence.fetched.setdefault(u, "")
+                if u not in self.evidence.fetched:
+                    self.evidence.unchecked.add(u)
         self.h.on_response(out.turns, out.result)
         if s.allowed_models and out.result.model not in s.allowed_models:
             raise _Stop("model_mismatch")
@@ -344,8 +396,17 @@ class AgentLoop:
         # the same handlers as the tool path, so the evidence rules are written once
         calls: list[Block] = []
         if final["quotes"]:
-            calls.append({"id": "cli_quotes", "name": "submit_flight_quotes", "input": {"quotes": final["quotes"]}})
-        calls += [{"id": f"cli_note_{i}", "name": "add_note", "input": n} for i, n in enumerate(final["notes"])]
+            calls.append(
+                {
+                    "id": "cli_quotes",
+                    "name": "submit_flight_quotes",
+                    "input": {"quotes": final["quotes"]},
+                }
+            )
+        calls += [
+            {"id": f"cli_note_{i}", "name": "add_note", "input": n}
+            for i, n in enumerate(final["notes"])
+        ]
         for c in calls:
             await self.exec.run(c)
         report = {k: final[k] for k in ("status", "summary", "sources_checked", "issues")}

@@ -105,7 +105,7 @@ def test_note_then_finish_run_succeeds_and_meters_every_response():
     assert rec.metered == [(1, 1000), (2, 2000)] and out.report == FINISH
     # the request layout: server tools first, the caching breakpoint on the static system block, effort medium
     req = p.calls[0]
-    assert [t["name"] for t in req.tools] == ["web_search", "web_fetch", "submit_flight_quotes", "add_note", "finish_run"]
+    assert [t["name"] for t in req.tools] == ["web_search", "web_fetch", "submit_flight_quotes", "add_note", "lookup_airports", "get_task", "finish_run"]
     assert req.system[0]["cache_control"] == {"type": "ephemeral"} and req.extra["output_config"] == {"effort": "medium"}
     assert req.extra["thinking"] == {"type": "adaptive"}
 

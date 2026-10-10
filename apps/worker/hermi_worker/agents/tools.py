@@ -2,8 +2,8 @@
 """Tools of an agent run (06 sections 2.4 and 2.5): the two server tools with the blocked list generated from policy,
 the in-process client tools `submit_flight_quotes`, `add_note` and `finish_run`, and the executor.
 
-The handlers of `submit_flight_quotes` and `add_note` are injected callbacks (the evidence rules, ownership binding and
-database writes land with WF-049.2). The loop owns `finish_run`. Input is validated against the tool's schema before any
+The handlers of `get_task`, `lookup_airports`, `submit_flight_quotes` and `add_note` are injected callbacks (jobs/run_agent.py
+binds them to the runs row and the evidence rules of hermi.modules.ai.ingest). The loop owns `finish_run`. Input is validated against the tool's schema before any
 handler runs, because streamed partial JSON can be truncated (2.3 rule 7).
 """
 
@@ -68,7 +68,9 @@ SUBMIT_FLIGHT_QUOTES: Block = {
     "strict": True,
     "input_schema": {
         "type": "object",
-        "properties": {"quotes": {"type": "array", "minItems": 1, "maxItems": 50, "items": _QUOTE_ITEM}},
+        "properties": {
+            "quotes": {"type": "array", "minItems": 1, "maxItems": 50, "items": _QUOTE_ITEM}
+        },
         "required": ["quotes"],
         "additionalProperties": False,
     },
@@ -78,9 +80,32 @@ _NOTE_SCHEMA = {
     "type": "object",
     "properties": {
         "title": {"type": "string", "minLength": 1, "maxLength": 160},
-        "body": {"type": "string", "minLength": 1, "maxLength": 4000, "description": "Plain text. No markdown links, no instructions to the reader."},
-        "urls": {"type": "array", "items": {"type": "string", "maxLength": 2000}, "minItems": 1, "maxItems": 10},
-        "topic": {"type": "string", "enum": ["events", "closures", "reservations", "transport", "weather", "neighborhoods", "food", "safety_notice", "other"]},
+        "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000,
+            "description": "Plain text. No markdown links, no instructions to the reader.",
+        },
+        "urls": {
+            "type": "array",
+            "items": {"type": "string", "maxLength": 2000},
+            "minItems": 1,
+            "maxItems": 10,
+        },
+        "topic": {
+            "type": "string",
+            "enum": [
+                "events",
+                "closures",
+                "reservations",
+                "transport",
+                "weather",
+                "neighborhoods",
+                "food",
+                "safety_notice",
+                "other",
+            ],
+        },
     },
     "required": ["title", "body", "urls", "topic"],
     "additionalProperties": False,
@@ -93,10 +118,38 @@ ADD_NOTE: Block = {
     "input_schema": _NOTE_SCHEMA,
 }
 
+LOOKUP_AIRPORTS: Block = {
+    "name": "lookup_airports",
+    "description": "Turns a city or airport name into IATA codes. Returns up to 8 matches with city, country and code.",
+    "strict": True,
+    "input_schema": {
+        "type": "object",
+        "properties": {"query": {"type": "string", "minLength": 2, "maxLength": 80}},
+        "required": ["query"],
+        "additionalProperties": False,
+    },
+}
+
+GET_TASK: Block = {
+    "name": "get_task",
+    "description": "Returns the task again: trip summary, routes with their references, date rules, the cheapest price the app already knows for each route, and the blocked site list. Call it if you lose track of the route references.",
+    "strict": True,
+    "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": False,
+    },
+}
+
 _FINISH_PROPS = {
     "status": {"type": "string", "enum": ["ok", "partial", "failed"]},
     "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
-    "sources_checked": {"type": "array", "items": {"type": "string", "maxLength": 300}, "maxItems": 40},
+    "sources_checked": {
+        "type": "array",
+        "items": {"type": "string", "maxLength": 300},
+        "maxItems": 40,
+    },
     "issues": {"type": "array", "items": {"type": "string", "maxLength": 500}, "maxItems": 20},
 }
 
@@ -112,7 +165,13 @@ FINISH_RUN: Block = {
     },
 }
 
-CLIENT_TOOLS: tuple[Block, ...] = (SUBMIT_FLIGHT_QUOTES, ADD_NOTE, FINISH_RUN)
+CLIENT_TOOLS: tuple[Block, ...] = (
+    SUBMIT_FLIGHT_QUOTES,
+    ADD_NOTE,
+    LOOKUP_AIRPORTS,
+    GET_TASK,
+    FINISH_RUN,
+)
 
 # The final JSON of a claude_cli run (there are no client tools there): the report plus what to save (06 section 2.5).
 CLI_FINAL_SCHEMA: Block = {
@@ -135,7 +194,14 @@ def server_tools(spec: AgentSpec, searches: int = 0, fetches: int = 0) -> list[B
     blocked = api_blocked_domains()
     out: list[Block] = []
     if (left := spec.max_searches - searches) > 0:
-        out.append({"type": "web_search_20260209", "name": "web_search", "max_uses": left, "blocked_domains": blocked})
+        out.append(
+            {
+                "type": "web_search_20260209",
+                "name": "web_search",
+                "max_uses": left,
+                "blocked_domains": blocked,
+            }
+        )
     if (left := spec.max_fetches - fetches) > 0:
         out.append({
             "type": "web_fetch_20260209", "name": "web_fetch", "max_uses": left,
@@ -213,13 +279,16 @@ def check_schema(schema: Block, value: Any, path: str = "input") -> str | None:
 @dataclass
 class Evidence:
     """What this run really showed (06 section 2.5 item 6): URLs returned by search and pages fetched, with their text
-    for price grounding. Blocked hosts never enter it. WF-049.2 builds its provenance and grounding checks on this."""
+    for price grounding. Blocked hosts never enter it. `hermi.modules.ai.ingest` builds its provenance and grounding checks on this."""
 
     found: set[str] = field(default_factory=set)
     fetched: dict[str, str] = field(default_factory=dict)
+    # shortcut: pages the claude_cli stream says were fetched, with no document text. Ceiling: their prices cannot be grounded,
+    # so ingest accepts them as indicative only (local dev). Trigger: the CLI stream exposing document text.
+    unchecked: set[str] = field(default_factory=set)
 
     def seen(self, url: str) -> bool:
-        return url in self.found or url in self.fetched
+        return url in self.found or url in self.fetched or url in self.unchecked
 
 
 @dataclass
@@ -258,7 +327,9 @@ class ToolExecutor:
         out = await self._dispatch(name, block.get("input"))
         self.accepted += out.accepted
         self.rejected += out.rejected
-        content = out.content if isinstance(out.content, str) else json.dumps(out.content, default=str)
+        content = (
+            out.content if isinstance(out.content, str) else json.dumps(out.content, default=str)
+        )
         self.ctx.emit(
             "tool_result", f"{name}: {'error' if out.is_error else 'ok'}",
             {"tool_use_id": tid, "accepted": out.accepted, "rejected": out.rejected}, name,
@@ -274,12 +345,17 @@ class ToolExecutor:
             return ToolOutput(f"{name} is not a tool you have.", is_error=True)
         if problem := check_schema(schema, args):
             self.invalid[name] = self.invalid.get(name, 0) + 1
-            return ToolOutput(f"Invalid input: {problem}. Fix it and call {name} again.", is_error=True)
+            return ToolOutput(
+                f"Invalid input: {problem}. Fix it and call {name} again.", is_error=True
+            )
         self.invalid[name] = 0
         if name == "finish_run":
             if self.finished:
                 return ToolOutput("The run is already finished.", is_error=True)
-            self.finished, self.report = True, dict(args)  # the runner, not the model, sets the final status
+            self.finished, self.report = (
+                True,
+                dict(args),
+            )  # the runner, not the model, sets the final status
             return ToolOutput("Report saved.")
         handler = self.handlers.get(name)
         if handler is None:
@@ -287,6 +363,8 @@ class ToolExecutor:
         try:
             out = handler(args, self.ctx)
             return await out if inspect.isawaitable(out) else out
-        except Exception as e:  # a handler bug must not lose the run; the type only, the text may carry page data
+        except (
+            Exception
+        ) as e:  # a handler bug must not lose the run; the type only, the text may carry page data
             self.ctx.emit("error", f"{name} failed", {"error": type(e).__name__}, name)
             return ToolOutput(f"{name} failed. Try again later.", is_error=True)

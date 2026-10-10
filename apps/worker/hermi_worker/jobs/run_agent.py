@@ -6,8 +6,9 @@ The job claims a `queued` run (anything else is skipped, so a retry or a duplica
 per-response metering as it goes (each committed, so the SSE tail and a crash both see them), then settles exactly once:
 the full reservation when something was saved, pro rata when the person stopped it, nothing otherwise (06 section 6.3).
 
-What WF-049.2 plugs in: `handlers` (the evidence rules and the account scoped writes behind `submit_flight_quotes` and
-`add_note`) and `build_task` (the run context). With the defaults a run saves nothing and is refunded.
+The defaults are the real ones: `default_task` builds the run context from the database (hermi.modules.ai.context) and
+`default_handlers` binds `get_task`, `lookup_airports`, `submit_flight_quotes` and `add_note` to this run's row, so user, trip
+and run never come from tool input. Both can be replaced for a test. A run with `handlers={}` saves nothing and is refunded.
 """
 
 import asyncio
@@ -22,6 +23,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from hermi.config import NotConfigured, Settings
+from hermi.modules.ai import context, ingest
 from hermi.modules.ai.metering import MeterContext, record_usage
 from hermi.modules.credits import service
 from hermi.providers import ProviderError
@@ -31,7 +33,7 @@ from hermi.providers.ai.claude_cli import CliRunFailed
 from hermi_worker.agents import prompts
 from hermi_worker.agents.loop import AgentLoop, Hooks, RunOutcome
 from hermi_worker.agents.spec import AgentSpec
-from hermi_worker.agents.tools import Handler
+from hermi_worker.agents.tools import Block, Handler, ToolContext, ToolOutput
 from hermi_worker.retry import classify
 
 NAME = "run_agent"
@@ -42,7 +44,9 @@ ARGS = ("run_id",)
 NEEDS_ATTEMPTS = True  # app.py passes `attempts` (earlier tries) so the last one can fail closed
 
 HEARTBEAT_SECONDS = 15
-FAKE_SCENARIO = "agent_finish"  # the recorded response the fake backend replays: finish_run, nothing saved
+FAKE_SCENARIO = (
+    "agent_finish"  # the recorded response the fake backend replays: finish_run, nothing saved
+)
 
 log = logging.getLogger(__name__)
 
@@ -57,7 +61,9 @@ _RESERVATION = text(
     """SELECT reservation_id, idempotency_key, -sum(delta) AS reserved FROM credit_ledger
         WHERE run_id = :id AND entry_type = 'reserve' GROUP BY reservation_id, idempotency_key LIMIT 1"""
 )
-_CAPS = text("SELECT hard_stop_micros, max_turns, max_searches, max_fetches FROM credit_action_prices WHERE action = 'agent_run'")
+_CAPS = text(
+    "SELECT hard_stop_micros, max_turns, max_searches, max_fetches FROM credit_action_prices WHERE action = 'agent_run'"
+)
 _NEXT_SEQ = text("SELECT coalesce(max(seq), 0) + 1 FROM run_events WHERE run_id = :id")
 _EVENT = text(
     """INSERT INTO run_events (run_id, trip_id, seq, type, tool_name, summary, payload)
@@ -70,22 +76,73 @@ class RunRow:
 
     def __init__(self, run_id: uuid.UUID, row) -> None:
         self.id, self.status, self.kind = run_id, row.status, row.kind
-        self.user_id, self.trip_id, self.trip_name, self.email = row.user_id, row.trip_id, row.trip_name, row.email
+        self.user_id, self.trip_id, self.trip_name, self.email = (
+            row.user_id,
+            row.trip_id,
+            row.trip_name,
+            row.email,
+        )
         self.params = row.params if isinstance(row.params, dict) else json.loads(row.params or "{}")
         self.cancel_requested = row.cancel_requested
 
 
 def default_task(session: Session, run: RunRow) -> str:
-    """shortcut: the prompt from what the API stored in runs.params. Ceiling: it trusts that the admitting endpoint built
-    the RunContext (route aliases, cheapest known fares). Trigger: WF-049.2 builds it from the database in context.py."""
+    """The prompt from the database: trip, routes with their R-aliases, date rules and cheapest known fares are read from the
+    tables for this run's trip. `runs.params` supplies only the free text (`topic`, `instructions`) and a hint of which routes."""
+    ctx = context.build_run_context(session, run.id, run.trip_id)
+    session.commit()  # the route map is stored on the run
     p = run.params
     spec = _spec(session, run.kind, "")
     return prompts.task_prompt(
-        run.kind, trip_name=run.trip_name, task_json=json.dumps(p.get("task", {}), indent=2),
+        run.kind, trip_name=run.trip_name, task_json=json.dumps(ctx.task, indent=2),
         today=datetime.now(UTC).date().isoformat(), run_short_id=str(run.id)[-8:],
         max_searches=spec.max_searches, max_fetches=spec.max_fetches,
         topic=p.get("topic"), instructions=p.get("instructions"),
     )  # fmt: skip
+
+
+def default_handlers(session: Session, run: RunRow) -> dict[str, Handler]:
+    """The client tool handlers. Each closes over the binding read from the runs row; none of them reads an id from `args`."""
+    bind = ingest.RunBinding(run.id, run.user_id, run.trip_id)
+
+    def safe(fn: Handler) -> Handler:
+        """A handler that fails must not leave the job's session in an aborted transaction: the executor reports the tool
+        error to the model and the run goes on, and the next emit and commit need a usable session."""
+
+        def wrapped(args: Block, ctx: ToolContext) -> ToolOutput:
+            try:
+                return fn(args, ctx)  # type: ignore[return-value]
+            except Exception:
+                session.rollback()
+                raise
+
+        return wrapped
+
+    def get_task(args: Block, ctx: ToolContext) -> ToolOutput:
+        task = context.build_run_context(session, run.id, run.trip_id).task
+        session.commit()  # a first build stores the route map
+        return ToolOutput(task)
+
+    def lookup_airports(args: Block, ctx: ToolContext) -> ToolOutput:
+        return ToolOutput({"airports": context.lookup_airports(session, str(args["query"]))})
+
+    def submit_flight_quotes(args: Block, ctx: ToolContext) -> ToolOutput:
+        res = ingest.submit_quotes(session, bind, args["quotes"], ctx.evidence, emit=ctx.emit)
+        session.commit()  # saved as it goes: a later stop keeps this
+        return ToolOutput(res.payload(), accepted=res.accepted, rejected=res.rejected)
+
+    def add_note(args: Block, ctx: ToolContext) -> ToolOutput:
+        res = ingest.add_note(session, bind, args, ctx.evidence, emit=ctx.emit)
+        session.commit()
+        return ToolOutput(res.payload(), accepted=res.accepted, rejected=res.rejected)
+
+    named = {
+        "get_task": get_task,
+        "lookup_airports": lookup_airports,
+        "submit_flight_quotes": submit_flight_quotes,
+        "add_note": add_note,
+    }
+    return {name: safe(fn) for name, fn in named.items()}
 
 
 def _spec(session: Session, kind: str, model: str) -> AgentSpec:
@@ -94,9 +151,20 @@ def _spec(session: Session, kind: str, model: str) -> AgentSpec:
     caps = session.execute(_CAPS).one_or_none()
     limits = {}
     if caps:
-        named = {"stop_micro": caps.hard_stop_micros, "max_turns": caps.max_turns, "max_searches": caps.max_searches, "max_fetches": caps.max_fetches}
+        named = {
+            "stop_micro": caps.hard_stop_micros,
+            "max_turns": caps.max_turns,
+            "max_searches": caps.max_searches,
+            "max_fetches": caps.max_fetches,
+        }
         limits = {k: int(v) for k, v in named.items() if v is not None}
-    return AgentSpec(model=model, system=prompts.SYSTEM, kind=kind, allowed_models=frozenset({model}) if model else frozenset(), **limits)
+    return AgentSpec(
+        model=model,
+        system=prompts.SYSTEM,
+        kind=kind,
+        allowed_models=frozenset({model}) if model else frozenset(),
+        **limits,
+    )
 
 
 def _provider(settings: Settings, email: str | None) -> AiProvider:
@@ -116,7 +184,17 @@ def _fail_closed(session: Session, run_id: uuid.UUID, res, code: str, emit) -> s
         {"c": code, "r": res.reservation_id, "id": run_id},
     )
     session.commit()
-    emit("result", f"failed: {code}", {"status": "failed", "stop": "error", "accepted": 0, "credits_charged": 0, "failure_code": code})
+    emit(
+        "result",
+        f"failed: {code}",
+        {
+            "status": "failed",
+            "stop": "error",
+            "accepted": 0,
+            "credits_charged": 0,
+            "failure_code": code,
+        },
+    )
     return f"failed:{code}"
 
 
@@ -142,26 +220,42 @@ def run(
     res = session.execute(_RESERVATION, {"id": rid}).one_or_none()
     if res is None:
         session.execute(
-            text("UPDATE runs SET status = 'failed', finished_at = now(), failure_code = 'internal_error', error = 'no_reservation' WHERE id = :id"),
+            text(
+                "UPDATE runs SET status = 'failed', finished_at = now(), failure_code = 'internal_error', error = 'no_reservation' WHERE id = :id"
+            ),
             {"id": rid},
         )
         session.commit()
         return "failed:no_reservation"
     reserved, key = int(res.reserved), res.idempotency_key
     if r.cancel_requested:  # stopped in the queue: nothing was used, nothing is charged
-        service.settle_stopped_agent_run(session, res.reservation_id, turns_used=0, called_tools=False)
+        service.settle_stopped_agent_run(
+            session, res.reservation_id, turns_used=0, called_tools=False
+        )
         session.execute(
-            text("UPDATE runs SET status = 'cancelled', finished_at = now(), failure_code = 'cancelled', reservation_id = :r WHERE id = :id"),
+            text(
+                "UPDATE runs SET status = 'cancelled', finished_at = now(), failure_code = 'cancelled', reservation_id = :r WHERE id = :id"
+            ),
             {"id": rid, "r": res.reservation_id},
         )
         session.commit()
         return "done:cancelled"
 
-    def emit(type_: str, summary: str, payload: dict | None = None, tool_name: str | None = None) -> None:
+    def emit(
+        type_: str, summary: str, payload: dict | None = None, tool_name: str | None = None
+    ) -> None:
         seq = session.execute(_NEXT_SEQ, {"id": rid}).scalar_one()
         session.execute(
             _EVENT,
-            {"id": rid, "trip": r.trip_id, "seq": seq, "type": type_, "tool": tool_name, "summary": summary[:300], "payload": json.dumps(payload) if payload is not None else None},
+            {
+                "id": rid,
+                "trip": r.trip_id,
+                "seq": seq,
+                "type": type_,
+                "tool": tool_name,
+                "summary": summary[:300],
+                "payload": json.dumps(payload) if payload is not None else None,
+            },
         )
         session.commit()
 
@@ -175,7 +269,14 @@ def run(
             "UPDATE runs SET status = 'running', started_at = now(), heartbeat_at = now(), worker_id = :w, reservation_id = :r, "
             "provider = :p, model = :m, prompt_version = :v WHERE id = :id"
         ),
-        {"id": rid, "w": f"{LANE}:{uuid.uuid4().hex[:8]}", "r": res.reservation_id, "p": provider.name, "m": settings.ai_model_main, "v": prompts.PROMPT_VERSION},
+        {
+            "id": rid,
+            "w": f"{LANE}:{uuid.uuid4().hex[:8]}",
+            "r": res.reservation_id,
+            "p": provider.name,
+            "m": settings.ai_model_main,
+            "v": prompts.PROMPT_VERSION,
+        },
     )
     session.commit()
 
@@ -189,7 +290,11 @@ def run(
             if time.monotonic() - beat["at"] >= HEARTBEAT_SECONDS:
                 beat["at"] = time.monotonic()
                 s.execute(text("UPDATE runs SET heartbeat_at = now() WHERE id = :id"), {"id": rid})
-            return bool(s.execute(text("SELECT cancel_requested FROM runs WHERE id = :id"), {"id": rid}).scalar())
+            return bool(
+                s.execute(
+                    text("SELECT cancel_requested FROM runs WHERE id = :id"), {"id": rid}
+                ).scalar()
+            )
 
     def on_response(turn: int, result: ProviderResult) -> None:
         ctx = MeterContext(
@@ -201,7 +306,12 @@ def run(
         session.commit()
 
     loop = AgentLoop(
-        provider, spec, handlers or {}, Hooks(is_cancelled=is_cancelled, emit=emit, on_response=on_response, poll_seconds=poll_seconds)
+        provider,
+        spec,
+        default_handlers(session, r) if handlers is None else handlers,
+        Hooks(
+            is_cancelled=is_cancelled, emit=emit, on_response=on_response, poll_seconds=poll_seconds
+        ),
     )
     outcome: RunOutcome | None = None
     failure: str | None = None
@@ -212,7 +322,10 @@ def run(
             session.rollback()
             if attempts < RETRIES:
                 # nothing was sent or saved: put the run back and let Procrastinate retry it
-                session.execute(text("UPDATE runs SET status = 'queued', started_at = NULL WHERE id = :id"), {"id": rid})
+                session.execute(
+                    text("UPDATE runs SET status = 'queued', started_at = NULL WHERE id = :id"),
+                    {"id": rid},
+                )
                 session.commit()
                 raise
             # the last attempt: no retry will come, so a `queued` row would lock the account (admission rule c)
@@ -232,14 +345,23 @@ def run(
     if outcome is not None:
         status, code, stop = outcome.status, outcome.failure_code, outcome.stop
     else:  # an error after the first response keeps what was saved
-        status, code, stop = ("partial", failure, "error") if saved else ("failed", failure, "error")
+        status, code, stop = (
+            ("partial", failure, "error") if saved else ("failed", failure, "error")
+        )
     turns = outcome.turns if outcome else loop.turns
 
-    usage_id = session.execute(text("SELECT id FROM ai_usage WHERE idempotency_key = :k"), {"k": key}).scalar()
+    usage_id = session.execute(
+        text("SELECT id FROM ai_usage WHERE idempotency_key = :k"), {"k": key}
+    ).scalar()
     if usage_id is not None:
-        session.execute(text("UPDATE ai_usage SET credits_reserved = :n WHERE id = :i"), {"n": reserved, "i": usage_id})
+        session.execute(
+            text("UPDATE ai_usage SET credits_reserved = :n WHERE id = :i"),
+            {"n": reserved, "i": usage_id},
+        )
     if status == "cancelled":
-        charged = service.settle_stopped_agent_run(session, res.reservation_id, turns_used=turns, called_tools=turns > 0, usage_id=usage_id)
+        charged = service.settle_stopped_agent_run(
+            session, res.reservation_id, turns_used=turns, called_tools=turns > 0, usage_id=usage_id
+        )
     elif saved > 0 and status in ("succeeded", "partial", "timed_out"):
         charged = reserved
         service.settle(session, res.reservation_id, reserved, usage_id)
@@ -247,7 +369,13 @@ def run(
         charged = 0
         service.refund(session, res.reservation_id, usage_id)
 
-    report = {"report": loop.exec.report, "stop": stop, "searches": loop.searches, "fetches": loop.fetches, "credits_charged": charged}
+    report = {
+        "report": loop.exec.report,
+        "stop": stop,
+        "searches": loop.searches,
+        "fetches": loop.fetches,
+        "credits_charged": charged,
+    }
     session.execute(
         text(
             "UPDATE runs SET status = CAST(:s AS run_status), finished_at = now(), turns_used = :t, searches_used = :se, fetches_used = :fe, "
@@ -261,7 +389,19 @@ def run(
         },
     )  # fmt: skip
     session.commit()
-    emit("result", f"{status}: {stop}", {"status": status, "stop": stop, "accepted": saved, "credits_charged": charged})
-    log.info("run_agent_done", extra={"run": str(rid), "status": status, "stop": stop, "turns": turns, "cost_usd_micros": loop.cost})
+    emit(
+        "result",
+        f"{status}: {stop}",
+        {"status": status, "stop": stop, "accepted": saved, "credits_charged": charged},
+    )
+    log.info(
+        "run_agent_done",
+        extra={
+            "run": str(rid),
+            "status": status,
+            "stop": stop,
+            "turns": turns,
+            "cost_usd_micros": loop.cost,
+        },
+    )
     return f"done:{status}"
-
