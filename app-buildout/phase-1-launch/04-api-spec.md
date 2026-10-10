@@ -330,7 +330,7 @@ Table columns: **Endpoint** (method and path), **Auth** (minimum role, all requi
 |---|---|---|---|---|
 | `POST /me/bootstrap` | JWT, no users row needed | none | `BootstrapIn` to `Me` (201 new, 200 existing; 409 `email_in_use` when the email belongs to another account) | Calls the `bootstrap_user` function (03), which creates `users`, `auth_identities`, the "Me" `people` row, a `free` `entitlements` row and the user's `referral_codes` row. A `referral_code` in the body is redeemed in the same call (5.27); a bad code is ignored and never fails sign-up. No credit grant is written yet: the 12 Free credits are written on the first credit use of each month (`ensure_free_monthly_grant`, 03 section 5.13) and the taster grant at its first offer. Records Apple relay email flag. Emits `user_signed_up`. |
 | `GET /me` | user | none | `Me` | Returns server clock, `min_client_version`, feature flags evaluated for the user, and pending deletion state. Polled on foreground. |
-| `POST /me/claim` | user | none | `{ trip: TripJson, claim_id: Uuid, merge?: boolean }` to `ClaimResult` | Imports the guest's local trip (one) and people into new rows owned by the caller. `claim_id` is client generated once per claim, so a double submit returns the first result (`Idempotent-Replay: true`) instead of importing twice. If identity already owns data and `merge` is absent: `409 state_conflict` with counts in `detail`. There is no guest token; a guest holds no server credential. |
+| `POST /me/claim` | user | none | `{ trip: TripJson, claim_id: Uuid, merge?: boolean, attest_key_id?: string }` to `ClaimResult` | Imports the guest's local trip (one) and people into new rows owned by the caller. When `attest_key_id` (the guest's App Attest key) is sent, what that key spent from `guest_allowances` this UTC month is debited from the caller's Free monthly grant in the same call (capped at what the grant holds, counted once per key and month; the amount is read on the server, never from the client). `claim_id` is client generated once per claim, so a double submit returns the first result (`Idempotent-Replay: true`) instead of importing twice. If identity already owns data and `merge` is absent: `409 state_conflict` with counts in `detail`. There is no guest token; a guest holds no server credential. |
 | `POST /devices/attest/challenge` | none (rate limited per IP) | none | none to `{ nonce: string, expires_at: string }` | Issues a one-time App Attest challenge nonce (5 minutes). |
 | `POST /devices/attest` | none (rate limited per IP) | none | `{ key_id: string, attestation: string, nonce: string }` to 204 | Verifies the attestation (certificate chain, nonce, App ID hash) and stores `key_id`, the public key, the counter (0) and the environment (`development` or `production`) in `device_attestations` (03; the endpoint names are those of 10 section 2.4). `422 attestation_invalid` otherwise. |
 | `POST /guest/ai/draft-day` | App Attest assertion, no JWT | `credits(1)` (`draft_day`) from the guest allowance | `{ destination: string, day?: string, preferences?: string }` with `Idempotency-Key` and the assertion headers to `DraftDayResult` | The one guest AI route. Instead of `Authorization`, the request carries `X-Attest-Key-Id` and `X-Attest-Assertion`; the server checks the assertion against the stored public key and advances the counter in one statement (a replayed counter is `401 unauthenticated`). Spend is drawn from `guest_allowances` (one row per key and UTC month, which references `device_attestations`) through its definer function, never from `credit_grants`; an empty allowance is `402 insufficient_credits` with the sign-up prompt as the `paywall` hint. Guest consent to `ai_processing` is given on the device before the call, so there is deliberately no `ai` gate (no users row, no consent row). Nothing is stored for the guest beyond that row. |
@@ -351,7 +351,7 @@ type BootstrapIn = {
   home_airports?: Iata[]; home_currency?: string
   age_confirmed: boolean                     // 13+ (16+ EU and UK locales)
   device?: DeviceIn
-  claim?: { trip: TripJson; claim_id: Uuid }  // claim the guest trip in one step (same rules as POST /me/claim)
+  claim?: { trip: TripJson; claim_id: Uuid; attest_key_id?: string }  // claim the guest trip in one step (same rules as POST /me/claim)
   referral_code?: string                     // from a hermi.world/r/<code> link, see 5.27
 }
 type Me = {
@@ -372,7 +372,7 @@ type DeviceIn = {
 }
 type Device = DeviceIn & { id: Uuid; current: boolean; last_seen_at: string; revoked_at: string | null }
 type TripJson = unknown                      // the guest app's local trip document (trip, days, items, saved places, people), validated like TripCreate plus the guest caps (1 trip, 200 items)
-type ClaimResult = { trip_id: Uuid | null; people_imported: number; items_imported: number }
+type ClaimResult = { trip_id: Uuid | null; people_imported: number; items_imported: number; archived: boolean }  // archived: the trip was over the active trip limit and is kept archived
 ```
 
 ### 5.2 Account: profile, consents, export, deletion

@@ -355,10 +355,11 @@ CREATE TABLE guest_allowances (
 );
 SELECT add_updated_at_trigger('guest_allowances');
 
--- The only writer of guest_allowances. Spends p_credits from the key's allowance for the current UTC month when the month's total stays within
+-- The only spender of guest_allowances. Spends p_credits from the key's allowance for the current UTC month when the month's total stays within
 -- p_limit (the Free monthly credits for guests, read from plans by the caller); returns false and changes nothing otherwise. A guest has no users row,
 -- so there is no app_user_id() to check: the caller is the allowlisted SystemSession that verified the App Attest assertion (04 section 5.1),
--- and EXECUTE is granted to hermi_worker only.
+-- and EXECUTE is granted to hermi_worker only. The one other write is the refund of a failed guest AI call: the guest_ai SystemSession lowers
+-- credits_used by the credit it spent (04 section 5.1), and never below zero.
 CREATE FUNCTION spend_guest_allowance(p_key_id text, p_credits integer, p_limit integer) RETURNS boolean
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE v_period text := to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM');
@@ -3382,6 +3383,8 @@ The public token reads and synchronous writes that use a SystemSession, by purpo
 | `fare_refresh` | `POST /trips/{id}/flights/refresh` | Writes shared `fare_observations`, the route's `trip_fare_links` and `flight_routes.last_checked_at` for the trip's own routes |
 | `ai_single_call` | `POST /trips/{id}/ai/explain`, `/ai/packing-list`, `/ai/draft-day`, `/ai/draft-trip` | After the call, writes the action's `ai_usage` row, the `runs` result and the credit settlement; the API login may only select `ai_usage` and insert the queued run. The reservation was made as the caller and committed first |
 | `agent_run_control` | `POST /agent-runs/{id}/cancel` on a run still queued, and the watchdog that `GET /agent-runs/{id}`, `/events`, `/stream` and `POST /trips/{id}/agent-runs` run | The API login may only set `runs.cancel_requested`, so closing a queued run, or a run whose worker is gone, and its credit settlement and `result` event run here. Only runs of the caller's own account or the run being read are touched; a run that is `running` and over 9 minutes (`timed_out`) or silent for 5 (`interrupted`, `worker_lost`) is the only other case |
+| `device_attest` | `POST /devices/attest` | Inserts the verified key into `device_attestations`; the challenge nonce is single use in `rate_limit_counters` |
+| `guest_ai` | `POST /guest/ai/draft-day`, and the debit step of `POST /me/claim` | Advances `device_attestations.counter` for the asserted key and spends from `guest_allowances` through `spend_guest_allowance()`; a failed call returns the credit. `POST /me/claim` with an `attest_key_id` also uses it to debit that key's month from the caller's Free `monthly` grant (`adjust` ledger row). No user, trip or run row is written for a guest |
 | `unsubscribe` | `GET /unsubscribe`, `POST /unsubscribe` | Verifies the signed link, then writes a `marketing_email` consent row (granted false, source `email`) or sets `notification_preferences.email_enabled` to false for the user in the link |
 | `dev_session` | `POST /dev/session` (`AUTH_MODE=dev`, `local` and `ci` only) | Creates the dev personas and their sessions |
 

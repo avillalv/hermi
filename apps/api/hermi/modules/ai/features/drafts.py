@@ -191,6 +191,26 @@ def draft_day(
     )
 
 
+def guest_request(destination: str, day: date, preferences: str | None) -> tuple[str, Any]:
+    """The task text and the `finish` step for a guest draft (POST /guest/ai/draft-day, WF-062.1): no trip, no saved places and
+    no people, so any place id the model returns fails the output closed. Returns (task, finish)."""
+    red = Redactor([])
+    data = {
+        "destinations": [destination], "date": day.isoformat(), "weekday": day.strftime("%A"), "existing_items": [],
+        "saved_places": [], "pace": "balanced", "interests": [], "party": "1 travelers",
+    }
+    task = (
+        f"<day>{json.dumps(red.clean_deep(data), sort_keys=True, ensure_ascii=False)}</day>\n"
+        f"<instructions>{_prefs(preferences, red)}</instructions>"
+    )
+
+    def finish(o: DayOut) -> dict[str, Any]:
+        return {"day": day.isoformat(), "title": red.restore(o.title), "items": _items(o, day, set(), red),
+                "rationale": red.restore(o.summary), "label": LABEL}
+
+    return task, finish
+
+
 def draft_trip(
     session: Session, *, settings, flags, user_id: uuid.UUID, trip_id: uuid.UUID, idempotency_key: str,
     from_day: date | None = None, preferences: str | None = None, pace: str = "balanced",

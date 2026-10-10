@@ -196,6 +196,8 @@ SYSTEM_SESSION_ALLOWLIST = frozenset(
         "ai_single_call",
         "agent_run_control",
         "unsubscribe",
+        "device_attest",
+        "guest_ai",
         "dev_session",
     }
 )

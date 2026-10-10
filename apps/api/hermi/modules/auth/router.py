@@ -17,7 +17,7 @@ from hermi.deps import (
 )
 from hermi.errors import ApiError
 from hermi.modules.ai import agent_runs
-from hermi.modules.auth import repo, service
+from hermi.modules.auth import guest, repo, service
 from hermi.modules.auth.schemas import (
     BootstrapIn,
     Consent,
@@ -35,6 +35,7 @@ from hermi.security.jwt import VerifiedToken
 router = APIRouter(tags=["auth"])
 # Mounted by main.create_app only when AUTH_MODE=dev and ENVIRONMENT is local or ci, so it is not in the production OpenAPI.
 dev_router = APIRouter(prefix="/dev", tags=["dev"])
+router.include_router(guest.router)  # App Attest challenge and attestation, and the one guest AI route (WF-062.1)
 
 
 @router.post(

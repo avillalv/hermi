@@ -23,6 +23,10 @@ POLICY: dict[str, str] = {
     "POST /v1/unsubscribe": "token_feed",
     "POST /v1/me/bootstrap": "user_scoped",
     "POST /v1/me/legacy-claim": "user_scoped",
+    "POST /v1/me/claim": "user_scoped",
+    "POST /v1/devices/attest/challenge": "public",
+    "POST /v1/devices/attest": "public",
+    "POST /v1/guest/ai/draft-day": "public",  # an App Attest assertion, no JWT
     "GET /v1/me": "user_scoped",
     "GET /v1/me/entitlements": "user_scoped",
     "GET /v1/me/credits": "user_scoped",

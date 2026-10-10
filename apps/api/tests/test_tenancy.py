@@ -197,6 +197,8 @@ def test_system_session_allowlist_is_the_03_section_6_6_set():
         "ai_single_call",
         "agent_run_control",
         "unsubscribe",
+        "device_attest",
+        "guest_ai",
         "dev_session",  # local and ci only
     }  # fmt: skip
 
