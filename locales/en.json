@@ -774,6 +774,26 @@
     "mapList": "Places in the list",
     "mapRow": "{title}, Day {n}"
   },
+  "recheck": {
+    "button": "Recheck",
+    "buttonAria": "Recheck: {subject}",
+    "credit": "credit",
+    "checking": "Checking",
+    "title": "Recheck",
+    "same": "Still the same. Checked today.",
+    "changed": "It now says: {value}",
+    "changedFrom": "Source: {site}",
+    "keepsOld": "The saved text stays as it is.",
+    "gone": "The page no longer shows this.",
+    "unreachable": "We could not reach the page. You were not charged.",
+    "failed": "That did not finish. You were not charged.",
+    "offline": "Recheck needs a connection.",
+    "credits": "You do not have a credit to spend on this.",
+    "saveNote": "Save as a note",
+    "saved": "Saved as a note.",
+    "saveFailed": "We could not save that note. Try again.",
+    "close": "Close"
+  },
   "source": {
     "found": "Found on {site}, checked {date}",
     "foundNoDate": "Found on {site}",

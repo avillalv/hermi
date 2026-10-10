@@ -87,6 +87,8 @@ POLICY: dict[str, str] = {
     "PATCH /v1/notes/{note_id}": "tenant",
     "DELETE /v1/notes/{note_id}": "tenant",
     "GET /v1/notes/{note_id}/evidence": "tenant",
+    "POST /v1/notes/{note_id}/recheck": "tenant",
+    "POST /v1/items/{item_id}/recheck": "tenant",
     "POST /v1/lodging/parse-link": "user_scoped",
     "GET /v1/people": "user_scoped",
     "POST /v1/people": "user_scoped",

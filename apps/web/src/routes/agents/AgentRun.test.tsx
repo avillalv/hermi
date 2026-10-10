@@ -69,7 +69,7 @@ test("findings show the evidence label, the open source link and the fare notice
 })
 
 test("a finding older than 14 days shows May be out of date", async () => {
-  const old = { ...FARE, ts: new Date(Date.now() - 20 * 86_400_000).toISOString() }
+  const old = { ...NOTE, ts: new Date(Date.now() - 20 * 86_400_000).toISOString() }
   mockApi(runApi({ events: [STARTED, old], open: true }))
   open()
   expect(await screen.findByText(/May be out of date/)).toBeInTheDocument()

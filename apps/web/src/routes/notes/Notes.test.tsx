@@ -86,6 +86,21 @@ test("Found by AI groups findings with a source chip and shows the excerpt on ta
   expect(f.mock.calls.some(([u]) => String(u).includes("/notes/n3/evidence"))).toBe(true)
 })
 
+test("a stale finding shows the chip and Recheck for an owner, the chip only for a viewer", async () => {
+  mockApi(api("owner"))
+  open()
+  fireEvent.click(await screen.findByRole("tab", { name: "Found by AI" }))
+  expect(await screen.findByText(/May be out of date/)).toBeInTheDocument()
+  expect(screen.getByRole("button", { name: "Recheck: Hot springs hours" })).toBeInTheDocument()
+  cleanup()
+  reset("free")
+  mockApi(api("viewer"))
+  open()
+  fireEvent.click(await screen.findByRole("tab", { name: "Found by AI" }))
+  expect(await screen.findByText(/May be out of date/)).toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: /^Recheck/ })).toBeNull()
+})
+
 test("adding a note posts the text, private flag and source", async () => {
   const f = mockApi(api("owner", [], (u, i) => (u.includes("/trips/t1/notes") && i?.method === "POST" ? Response.json(note("n9"), { status: 201 }) : undefined)))
   open()

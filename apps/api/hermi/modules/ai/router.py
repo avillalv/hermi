@@ -24,9 +24,11 @@ from hermi.db import request_transaction
 from hermi.deps import ROLE_RANK, CurrentUser, DbSession, TripAccess, require_trip
 from hermi.errors import ApiError, NotFound
 from hermi.modules.ai import agent_runs
-from hermi.modules.ai.features import drafts, explain, packing_list
+from hermi.modules.ai.features import drafts, explain, packing_list, recheck
 from hermi.modules.ai.features.base import flag_runtime
 from hermi.modules.collaboration.schemas import Attribution
+from hermi.modules.itinerary.router import via_item
+from hermi.modules.trips.notes import via_note
 from hermi.pagination import decode_offset, encode_offset
 from hermi.security import rate_limit
 
@@ -99,6 +101,25 @@ def explain_route(
         **_common(request, user, key),
     )
     return {**done.output, "run_id": str(done.run_id), "credits": done.receipt.public()}
+
+
+def _recheck(kind: Literal["note", "item"], target_id: uuid.UUID, request: Request, session, user, access, key: str) -> dict:
+    """04 5.14: one fetch of the stored source and one Haiku call. Editors and owners at any age; the `ai` gate runs inside."""
+    return recheck.execute(session, kind=kind, target_id=target_id, trip_id=access.trip.id, **_common(request, user, key))
+
+
+@router.post("/notes/{note_id}/recheck")
+def recheck_note_route(
+    note_id: uuid.UUID, request: Request, session: DbSession, user: CurrentUser, access: Annotated[TripAccess, via_note("editor")], key: Idem
+) -> dict:
+    return _recheck("note", note_id, request, session, user, access, key)
+
+
+@router.post("/items/{item_id}/recheck")
+def recheck_item_route(
+    item_id: uuid.UUID, request: Request, session: DbSession, user: CurrentUser, access: Annotated[TripAccess, via_item("editor")], key: Idem
+) -> dict:
+    return _recheck("item", item_id, request, session, user, access, key)
 
 
 @router.post("/trips/{trip_id}/ai/packing-list")

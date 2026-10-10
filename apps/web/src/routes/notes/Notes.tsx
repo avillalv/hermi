@@ -4,7 +4,7 @@ import { EmptyState } from "../../components/EmptyState"
 import { QueryError } from "../../components/ErrorState"
 import { Skeleton } from "../../components/Skeleton"
 import { SourceChip } from "../../components/SourceChip"
-import { EvidenceLabel } from "../../components/evidence"
+import { EvidenceLabel, Recheck } from "../../components/evidence"
 import { Avatar, Btn, Icon, SegItem, SegmentedControl, TextField } from "../../components/kit"
 import { t } from "../../lib/i18n"
 import { track } from "../../lib/track"
@@ -132,7 +132,7 @@ function NoteRow({ note, canEdit, onFail, tripId }: { note: Note; canEdit: boole
 }
 
 /** One finding: its source chip, and a button that loads the saved excerpt (04 5.14 evidence). */
-function FindingRow({ note }: { note: Note }) {
+function FindingRow({ note, canEdit, aiOn }: { note: Note; canEdit: boolean; aiOn: boolean }) {
   const [open, setOpen] = useState(false)
   const ev = useEvidence(note.id, open)
   const site = note.sources[0]?.site ?? note.title
@@ -143,6 +143,7 @@ function FindingRow({ note }: { note: Note }) {
       {note.sources.map((s) => (
         <EvidenceLabel key={s.url} kind="note" url={s.url} site={s.site} checkedAt={note.checked_at} stale={note.stale} onOpen={() => track("evidence_opened")} />
       ))}
+      <Recheck kind="note" id={note.id} tripId={note.trip_id} subject={note.title || note.body.slice(0, 40)} canRecheck={canEdit} aiOn={aiOn} />
       <Btn variant="text" mod={["sm"]} aria-expanded={open} onClick={() => setOpen(!open)}>{t("notes.showMore")}</Btn>
       {open && ev.isPending && <p className="h-soft" aria-live="polite">{t("notes.loading")}</p>}
       {open && ev.isError && <p role="alert" className="h-input__error"><Icon name="circle-alert" size={16} />{t("notes.evidenceFailed")}</p>}
@@ -231,7 +232,7 @@ export function Notes() {
           groups.map(([topic, rows]) => (
             <section key={topic} className="h-stack" aria-label={topic}>
               <h2 className="h-label">{topic}</h2>
-              {rows.map((n) => <FindingRow key={n.id} note={n} />)}
+              {rows.map((n) => <FindingRow key={n.id} note={n} canEdit={canEdit} aiOn={trip.data?.ai_enabled !== false} />)}
             </section>
           ))
         ))}

@@ -181,8 +181,9 @@ def run_action(
     items: int = 1,
     params: dict[str, Any] | None = None,
     provider: AiProvider | None = None,
+    free: Callable[[Any], bool] | None = None,
 ) -> Done:
-    """`finish` runs on the validated output (restore names, check ids, shape the response) and raises ValueError to
+    """`free` says a validated output is not charged (a recheck that could not read the page). `finish` runs on the validated output (restore names, check ids, shape the response) and raises ValueError to
     fail the action closed. `provider` is for tests (a stub); the product path takes it from AI_PROVIDER."""
     try:
         provider = provider or ai_client.provider_for(settings, spec.call)
@@ -246,7 +247,7 @@ def run_action(
                 )
                 usage_id = sys.execute(text("SELECT id FROM ai_usage WHERE idempotency_key = :k"), {"k": key}).scalar_one()
                 sys.execute(text("UPDATE ai_usage SET credits_reserved = :n WHERE id = :i"), {"n": res.amount, "i": usage_id})
-            charged = res.amount if failure is None else 0
+            charged = res.amount if failure is None and not (free and free(output)) else 0
             service.settle(sys, res.id, charged, usage_id)
             report = {"cache_read_ratio": ratio, "label": LABEL if failure is None else None}
             sys.execute(
