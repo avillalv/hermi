@@ -119,6 +119,37 @@ CANCEL_URL = (
 )
 
 
+def credit_balance(session: Session, user_id: uuid.UUID) -> CreditBalance:
+    """04 section 5.19 `CreditBalance`: the caller's own grants, shared by GET /me/entitlements and GET /me/credits.
+    `total` is every live grant, the taster included."""
+    grants = (
+        session.execute(
+            text(
+                "SELECT kind::text AS kind, remaining, expires_at, trip_id FROM credit_grants "
+                " WHERE user_id = :u AND remaining > 0 AND (expires_at IS NULL OR expires_at > now()) ORDER BY expires_at NULLS LAST"
+            ),
+            {"u": user_id},
+        )
+        .mappings()
+        .all()
+    )
+    by_kind = lambda k: sum(g["remaining"] for g in grants if g["kind"] == k)  # noqa: E731
+    blocked = bool(
+        session.execute(
+            text("SELECT 1 FROM credit_debts WHERE user_id = :u AND amount > 0"), {"u": user_id}
+        ).first()
+    )
+    return CreditBalance(
+        total=sum(g["remaining"] for g in grants),
+        monthly=by_kind("monthly"),
+        trip_pass=by_kind("trip_pass"),
+        purchased=by_kind("purchase"),
+        grants=[CreditGrantOut(**g) for g in grants],
+        next_monthly_grant_at=None,  # shortcut: no monthly grants until the ledger lands; add the date in WF-044
+        blocked=blocked,
+    )
+
+
 def get_entitlements(session: Session, user_id: uuid.UUID) -> Entitlements:
     """04 section 5.19. Read only, never calls Apple. A lapsed tier reads as Free (`user_limits` agrees). Pass limits are per trip, so they are listed, not merged."""
     e = (
@@ -153,23 +184,6 @@ def get_entitlements(session: Session, user_id: uuid.UUID) -> Entitlements:
         )
         .mappings()
         .all()
-    )
-    grants = (
-        session.execute(
-            text(
-                "SELECT kind::text AS kind, remaining, expires_at, trip_id FROM credit_grants "
-                " WHERE user_id = :u AND remaining > 0 AND (expires_at IS NULL OR expires_at > now()) ORDER BY expires_at NULLS LAST"
-            ),
-            {"u": user_id},
-        )
-        .mappings()
-        .all()
-    )
-    by_kind = lambda k: sum(g["remaining"] for g in grants if g["kind"] == k)  # noqa: E731
-    blocked = bool(
-        session.execute(
-            text("SELECT 1 FROM credit_debts WHERE user_id = :u AND amount > 0"), {"u": user_id}
-        ).first()
     )
     taster_spent = session.execute(
         text(
@@ -213,15 +227,7 @@ def get_entitlements(session: Session, user_id: uuid.UUID) -> Entitlements:
             taster_available=taster,
             import_reward_available=not reward_used,
         ),
-        credits=CreditBalance(
-            total=sum(g["remaining"] for g in grants),
-            monthly=by_kind("monthly"),
-            trip_pass=by_kind("trip_pass"),
-            purchased=by_kind("purchase"),
-            grants=[CreditGrantOut(**g) for g in grants],
-            next_monthly_grant_at=None,  # shortcut: no monthly grants until the ledger lands; add the date in WF-044
-            blocked=blocked,
-        ),
+        credits=credit_balance(session, user_id),
     )
 
 

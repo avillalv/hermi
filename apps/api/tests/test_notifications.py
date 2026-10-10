@@ -486,7 +486,10 @@ def test_the_worker_runs_send_email_from_the_queue_and_a_second_run_sends_nothin
 
     for t in ("procrastinate_events", "procrastinate_periodic_defers", "procrastinate_jobs", "procrastinate_workers"):
         system_conn.execute(f"DELETE FROM {t}")
-    nid = note(session, user())  # queues one send_email job
+    u = user()
+    # quiet_start == quiet_end means no quiet window, so the real wall clock cannot defer the mail
+    system_conn.execute("INSERT INTO notification_preferences (user_id, quiet_start, quiet_end) VALUES (%s, '00:00', '00:00')", (u,))
+    nid = note(session, u)  # queues one send_email job
     jobs.enqueue(session, "send_email", notification_id=str(nid))  # the same notification queued twice, as a duplicate event would
     session.commit()
     app = worker_app.build_app(settings)

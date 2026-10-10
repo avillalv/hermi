@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from "react-router"
 import { EmptyState } from "../../components/EmptyState"
 import { QueryError } from "../../components/ErrorState"
 import { Skeleton } from "../../components/Skeleton"
+import { EvidenceLabel } from "../../components/evidence"
 import { Btn, Icon, SegItem, SegmentedControl } from "../../components/kit"
 import { formatDateRange } from "../../lib/dates"
 import { t } from "../../lib/i18n"
@@ -14,6 +15,7 @@ import { useAuth } from "../auth/authStore"
 import { useTrip } from "../trips/api"
 import { tripStrip } from "../trips/TripStrip"
 import "../trips/trips.css"
+import { AgentEntry } from "../agents/EntryCard"
 import { AddRoute } from "./AddRoute"
 import { AlertList, AlertSwitch } from "./Alerts"
 import { chooseFare, refreshRoute, useAirportsPerSide, useOptions, useRoutes, useSummary, type Fare, type FareSort, type Route, type RouteSummary } from "./api"
@@ -55,6 +57,7 @@ function FareChip({ fare, lowest }: { fare: Fare; lowest?: boolean }) {
           </>
         )}
       </button>
+      {fare.source === "agent" && <EvidenceLabel kind="fare" url={fare.source_url} site={fare.source_domain} checkedAt={fare.observed_at} onOpen={() => track("evidence_opened", { surface: "fare" })} />}
     </>
   )
 }
@@ -221,6 +224,7 @@ export function Flights() {
           </>
         )}
         {trip.data && routes.data?.map((r) => <RouteCard key={r.id} tripId={id} route={r} sum={sums.data?.find((s) => s.route_id === r.id)} canEdit={canEdit} online={online} home={trip.data.home_currency} />)}
+        {canEdit && !!routes.data?.length && <AgentEntry enabled={!!token} online={online} onOpen={() => nav(`/trips/${encodeURIComponent(id)}/agents`)} />}
         {canEdit && !!routes.data?.length && <AlertList tripId={id} routes={routes.data} name={routeName} />}
       </div>
     </AppShell>

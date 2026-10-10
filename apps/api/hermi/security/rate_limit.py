@@ -36,6 +36,7 @@ ROUTE_CLASSES: dict[str, tuple[int, int]] = {
     "import_confirm": (30, DAY),
     "link_preview": (20, HOUR),
     "fare_refresh": (10, HOUR),  # per trip, POST /trips/{id}/flights/refresh
+    "report": (20, DAY),  # POST /reports, per user (04 section 5.14)
     "export": (1, DAY),
     "delete": (1, DAY),
     "signup_ip": (5, DAY),  # new accounts per IP

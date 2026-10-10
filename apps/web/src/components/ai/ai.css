@@ -1,0 +1,64 @@
+/* AI consent, labels and feedback (WF-054, 05 6.15, DESIGN-LANGUAGE section 11). Tokens only; sheet, buttons and chips come from hermi.css. */
+.ai-consent { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.ai-consent p { margin: 0; }
+.ai-consent__lead { font: 600 1rem/1.35 var(--tp-font-body); color: var(--tp-ink); }
+.ai-actions { display: flex; flex-wrap: wrap; gap: var(--tp-space-3); margin-top: var(--tp-space-2); }
+.ai-actions > * { flex: 1; min-width: 8rem; justify-content: center; text-align: center; }
+.ai-label { display: inline-flex; align-items: center; gap: var(--tp-space-1); margin: 0; font: 400 0.8125rem/1.3 var(--tp-font-body); color: var(--tp-ink-soft); }
+.ai-label .h-icon { flex: none; color: var(--tp-brand); }
+.ai-off { display: flex; flex-direction: column; align-items: flex-start; gap: var(--tp-space-2); padding: var(--tp-space-4); border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-sunken); }
+.ai-off p { margin: 0; }
+.ai-off__line { display: flex; align-items: center; gap: var(--tp-space-2); }
+.ai-switch__row { display: flex; align-items: center; justify-content: space-between; gap: var(--tp-space-4); min-height: 44px; }
+.ai-switch__label { display: block; font: 600 0.9375rem/1.3 var(--tp-font-body); color: var(--tp-ink); }
+.ai-switch__help { display: block; }
+.ai-switch input[type="checkbox"] { flex: none; width: 44px; height: 28px; accent-color: var(--tp-brand); }
+.ai-switch input[type="checkbox"]:focus-visible { outline: 3px solid var(--tp-brand); outline-offset: 2px; }
+.ai-feedback { display: flex; flex-direction: column; gap: var(--tp-space-2); }
+.ai-feedback p { margin: 0; }
+.ai-feedback__row { display: flex; flex-wrap: wrap; gap: var(--tp-space-2); }
+.ai-feedback__reasons { display: flex; flex-wrap: wrap; gap: var(--tp-space-1); margin: 0; padding: 0; border: 0; }
+.ai-feedback__reasons legend { width: 100%; }
+/* AI sheet (WF-132.1, 05 6.15). The rows, balance link and confirm come from hermi.css; this only lays them out inside the shared modal. */
+.ai-sheet { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.ai-sheet__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--tp-space-2); }
+.ai-sheet__balance { flex-direction: column; align-items: flex-end; justify-content: center; gap: 2px; }
+.ai-sheet .h-actionlist { margin: 0; }
+.ai-sheet .h-confirm { position: relative; border-radius: var(--radius-xl); }
+.ai-sheet p { margin: 0; }
+.ai-chip__pool { font: 600 0.8125rem/1.2 var(--tp-font-body); color: var(--tp-ink-soft); }
+/* AI action screens (WF-132.2, 05 6.15): the form, the wait, the answer, the draft preview and the locked day. Tokens only. */
+.ai-screen { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.ai-screen p, .ai-screen h1, .ai-screen h2 { margin: 0; }
+.ai-form { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.ai-form select { width: 100%; }
+.ai-result { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.ai-answer { font: 400 1rem/1.5 var(--tp-font-body); color: var(--tp-ink); }
+.ai-sources { margin: 0; padding-left: var(--tp-space-4); }
+.ai-receipt { display: flex; align-items: center; gap: var(--tp-space-1); }
+.ai-fail { display: flex; flex-direction: column; gap: var(--tp-space-2); }
+.ai-wait { display: flex; flex-direction: column; gap: var(--tp-space-2); }
+.ai-wait__rows { display: flex; flex-direction: column; gap: var(--tp-space-2); }
+.ai-bar { display: block; height: 14px; border-radius: var(--radius-xl); background: var(--tp-sunken); width: 70%; }
+.ai-bar--long { width: 100%; }
+.ai-bar--short { width: 40%; }
+.ai-pack, .ai-day { display: flex; flex-direction: column; gap: var(--tp-space-2); margin: 0; padding: var(--tp-space-3); border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-sheet); }
+.ai-pack__row, .ai-item { display: flex; align-items: flex-start; gap: var(--tp-space-2); min-height: 44px; }
+.ai-pack__row input, .ai-item input { flex: none; width: 24px; height: 24px; margin-top: 2px; accent-color: var(--tp-brand); }
+.ai-pack__row input:focus-visible, .ai-item input:focus-visible { outline: 3px solid var(--tp-brand); outline-offset: 2px; }
+.ai-item .h-icon { flex: none; margin-top: 3px; color: var(--tp-ink-soft); }
+.ai-item__text { display: flex; flex-direction: column; gap: 2px; }
+.ai-item__title { font: 600 0.9375rem/1.3 var(--tp-font-body); color: var(--tp-ink); }
+.ai-item__verify { font: 600 0.8125rem/1.3 var(--tp-font-body); color: var(--tp-ink-soft); }
+.ai-locked { display: flex; flex-direction: column; gap: var(--tp-space-3); }
+.ai-locked__card { position: relative; overflow: hidden; border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-sheet); }
+.ai-locked__preview { display: flex; flex-direction: column; gap: var(--tp-space-3); padding: var(--tp-space-4); filter: blur(6px); user-select: none; pointer-events: none; }
+.ai-locked__row { display: flex; align-items: center; gap: var(--tp-space-3); }
+.ai-locked__over { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: var(--tp-space-2); padding: var(--tp-space-4); text-align: center; font: 600 0.9375rem/1.3 var(--tp-font-body); color: var(--tp-ink); }
+/* Research notes and the credits history (WF-132.3, 05 6.15 and 6.26). */
+.ai-note { display: flex; flex-direction: column; gap: var(--tp-space-2); padding: var(--tp-space-3); border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-sheet); }
+.ai-note h3, .ai-note p { margin: 0; }
+.ai-ledger { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-sheet); }
+.ai-ledger__row { display: flex; align-items: center; justify-content: space-between; gap: var(--tp-space-3); min-height: 44px; padding: var(--tp-space-2) var(--tp-space-3); }
+.ai-ledger__row + .ai-ledger__row { border-top: 1px solid var(--tp-rule); }
+.ai-ledger__what { display: flex; flex-direction: column; gap: 2px; }

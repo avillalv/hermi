@@ -1,0 +1,14 @@
+/* Agent run and start screens (WF-053.2, 05 6.16 and 6.17). Tokens only. The ticket, steps, evidence rows and stubs come from hermi.css. */
+.agents__entry { display: flex; flex-direction: column; gap: var(--tp-space-2); }
+.agents__stop { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-space-3); }
+.agents__actions { display: flex; flex-wrap: wrap; gap: var(--tp-space-3); margin-top: var(--tp-space-3); }
+.agents__actions > * { flex: 1; min-width: 8rem; justify-content: center; text-align: center; }
+.agents__routes { display: flex; flex-direction: column; gap: var(--tp-space-1); margin: 0; padding: 0; border: 0; }
+.agents__group { margin: var(--tp-space-3) 0 var(--tp-space-1); }
+.agents__step--current { color: var(--tp-brand); }
+.agents__notsaved { padding: var(--tp-space-3) var(--tp-space-4); border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-paper); font: 400 0.8125rem/1.3 var(--tp-font-body); }
+.agents__notsaved summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+.agents__notsaved summary:focus-visible { outline: 3px solid var(--tp-brand); outline-offset: 2px; }
+.agents__notsaved ul { margin: 0; padding-left: var(--tp-space-4); color: var(--tp-ink-soft); }
+.agents__upsell { display: flex; flex-direction: column; gap: var(--tp-space-2); padding: var(--tp-space-4); border: 1px solid var(--tp-rule); border-radius: var(--radius-xl); background: var(--tp-sunken); }
+.agents__upsell p { margin: 0; }

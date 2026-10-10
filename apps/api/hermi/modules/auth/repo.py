@@ -88,6 +88,30 @@ def current_consents(session: Session, user_id: uuid.UUID) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def latest_consents(session: Session, user_id: uuid.UUID) -> list[dict]:
+    """The latest row per kind, withdrawals included (GET /me/consents)."""
+    rows = session.execute(
+        text(
+            "SELECT DISTINCT ON (kind) kind, version, granted, created_at AS accepted_at "
+            "  FROM consents WHERE user_id = :id ORDER BY kind, created_at DESC, id DESC"
+        ),
+        {"id": user_id},
+    ).mappings()
+    return [dict(r) for r in rows]
+
+
+def append_consent(session: Session, user_id: uuid.UUID, kind: str, version: str, granted: bool) -> dict:
+    """History is kept: every change is a new row (03 section 5.11)."""
+    row = session.execute(
+        text(
+            "INSERT INTO consents (user_id, kind, version, granted, source) VALUES (:u, :k, :v, :g, 'app') "
+            "RETURNING kind, version, granted, created_at AS accepted_at"
+        ),
+        {"u": user_id, "k": kind, "v": version, "g": granted},
+    ).mappings().one()
+    return dict(row)
+
+
 def grant_persona(conn, user_id: uuid.UUID, *, tier: str, is_admin: bool) -> None:
     """Dev only, on the system login: the app role cannot write entitlements or admin_users (03 section 6.1)."""
     if tier != "free":

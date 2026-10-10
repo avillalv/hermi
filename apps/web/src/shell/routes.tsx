@@ -1,9 +1,10 @@
-import { Route, Routes } from "react-router";
+import { Link, Route, Routes } from "react-router";
+import { t } from "../lib/i18n";
 import { Activity } from "../routes/activity/Activity";
 import { SessionControl } from "../routes/auth/SessionControl";
 import { SignIn } from "../routes/auth/SignIn";
 import { Discover } from "../routes/discover/Discover";
-import { GuestTripView } from "../routes/discover/GuestTripView";
+import { GuestHome } from "../features/guest/GuestHome";
 import { SampleView } from "../routes/discover/SampleView";
 import { Claim } from "../routes/claim/Claim";
 import { InviteLanding } from "../routes/invite/InviteLanding";
@@ -13,6 +14,9 @@ import { Stays } from "../routes/lodging/Stays";
 import { Notes } from "../routes/notes/Notes";
 import { Plan } from "../routes/itinerary/Plan";
 import { Flights } from "../routes/flights/Flights";
+import { AiActionPage, AiSheetPage, Credits } from "../routes/ai";
+import { AgentRunPage } from "../routes/agents/AgentRun";
+import { AgentStart } from "../routes/agents/AgentStart";
 import { FareDetail } from "../routes/flights/FareDetail";
 import { TripGroup } from "../routes/trips/TripGroup";
 import { TripEdit } from "../routes/trips/TripEdit";
@@ -29,6 +33,8 @@ function Placeholder({ tab }: { tab: (typeof TABS)[number] }) {
       <h1 className="h-title">{tab.label}</h1>
       {/* shortcut: sign in and sign out live here until the Account screen lands, so the flow is reachable. */}
       {tab.key === "account" && <SessionControl />}
+      {/* shortcut: a bare link until the Account screen (WF-094) lists Plan and credits. */}
+      {tab.key === "account" && <Link className="h-btn h-btn--secondary" to="/account/credits">{t("ai.credits.title")}</Link>}
     </AppShell>
   );
 }
@@ -45,6 +51,11 @@ export function AppRoutes() {
       <Route path="/trips/:id/edit" element={<TripEdit />} />
       <Route path="/trips/:id/flights" element={<Flights />} />
       <Route path="/trips/:id/flights/:routeId/fares/:fareId" element={<FareDetail />} />
+      <Route path="/trips/:id/agents" element={<AgentStart />} />
+      <Route path="/trips/:id/agents/:runId" element={<AgentRunPage />} />
+      <Route path="/trips/:id/ai" element={<AiSheetPage />} />
+      <Route path="/trips/:id/ai/:action" element={<AiActionPage />} />
+      <Route path="/account/credits" element={<Credits />} />
       <Route path="/trips/:id/stays" element={<Stays />} />
       <Route path="/trips/:id/notes" element={<Notes />} />
       <Route path="/trips/:id/plan" element={<Plan />} />
@@ -54,7 +65,7 @@ export function AppRoutes() {
       <Route path="/activity" element={<Activity />} />
       <Route path="/discover" element={<Discover />} />
       <Route path="/discover/:slug" element={<SampleView />} />
-      <Route path="/guest-trip" element={<GuestTripView />} />
+      <Route path="/guest-trip" element={<GuestHome />} />
       {TABS.filter((t) => t.key !== "trips" && t.key !== "activity" && t.key !== "discover").map((t) => (
         <Route key={t.key} path={t.href} element={<Placeholder tab={t} />} />
       ))}

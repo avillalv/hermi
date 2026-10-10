@@ -73,7 +73,7 @@ def test_the_catalogue_jobs_plus_the_reaper(app):
     names = {n for n in app.tasks if not n.startswith(("builtin:", "procrastinate."))}
     assert names - worker_app.INFRA_TASKS == {
         "release_stale_reservations", "maintain_partitions", "purge_trash",
-        "send_email", "send_predeparture_reminder", "build_digest", "send_trial_ending_reminder",
+        "send_email", "send_predeparture_reminder", "build_digest", "send_trial_ending_reminder", "run_agent",
     }  # fmt: skip
     assert names & worker_app.INFRA_TASKS == {"reap_stale_jobs"}
     assert {n: t.queue for n, t in app.tasks.items() if n in names} == {
@@ -84,6 +84,7 @@ def test_the_catalogue_jobs_plus_the_reaper(app):
         "send_predeparture_reminder": "notify",
         "build_digest": "notify",
         "send_trial_ending_reminder": "notify",
+        "run_agent": "ai",
         "reap_stale_jobs": "batch",
     }
     assert set(jobs.JOB_LANES) == names - worker_app.INFRA_TASKS
@@ -355,6 +356,21 @@ def sys_session(db_urls):
     with Session(e) as s:
         yield s
     e.dispose()
+
+
+def test_the_body_passes_attempts_only_to_jobs_that_declare_needs_attempts(app, monkeypatch):
+    from types import SimpleNamespace
+
+    from hermi_worker.jobs import run_agent as run_agent_job
+    from hermi_worker.jobs import send_email as send_email_job
+
+    seen = []
+    monkeypatch.setattr(run_agent_job, "run", lambda *a, **kw: seen.append(("run_agent", kw)) or "ok")
+    monkeypatch.setattr(send_email_job, "run", lambda *a, **kw: seen.append(("send_email", kw)) or "ok")
+    ctx = SimpleNamespace(job=SimpleNamespace(id=1, attempts=2))
+    app.tasks["run_agent"].func(ctx, run_id="x")
+    app.tasks["send_email"].func(ctx, notification_id="n")
+    assert seen == [("run_agent", {"run_id": "x", "attempts": 2}), ("send_email", {"notification_id": "n"})]
 
 
 def test_release_stale_reservations_job_calls_the_credit_service(sys_session):

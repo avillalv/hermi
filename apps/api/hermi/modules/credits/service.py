@@ -24,9 +24,12 @@ class Reservation:
 
 @dataclass(frozen=True)
 class Balance:
-    available: int  # what this actor can spend on this action now
+    available: int  # what this actor can spend on this action now: own + pool
     blocked: bool  # a refund left the account in credit debt
-    version: int  # newest credit_ledger id for the user; a cached balance is valid only for the version it carries
+    version: int  # newest credit_ledger id for the user (and the trip's pass pool); a cached balance is valid only for the version it carries
+    own: int = 0  # the caller's own grants
+    pool: int = 0  # the trip's Trip Pass pool, for an owner or editor
+    payer: str = "own"  # "own" or "trip_pass": the pool reserve would draw first
 
 
 def table_price(session: Session, action: str, *, cached: bool = False, items: int = 1) -> int:
@@ -96,34 +99,48 @@ def settle_stopped_agent_run(
     return charged
 
 
-def balance(session: Session, user_id: uuid.UUID, *, trip_id: uuid.UUID | None, action: str, price: int | None = None) -> Balance:
+def balance(
+    session: Session, user_id: uuid.UUID, *, trip_id: uuid.UUID | None, action: str, price: int | None = None, taster: bool = True
+) -> Balance:
     """Spendable credits read from the grants and the ledger every time (03 section 7.2); never cached without `version`.
-    Own grants plus the trip's pass pool; the taster counts only for an agent run it covers whole. credit_grants is read as the
-    caller: a worker session sees the pool, an API session (RLS, own rows only) sees only its own grants, not another member's pass."""
+    Own grants plus the trip's pass pool; the taster counts only for an agent run it covers whole. An API session
+    (RLS, own rows only) reads through the my_credit_balance definer (0027) so it sees the pool; a worker session has no
+    app.user_id and reads the tables directly. A non-member trip raises 42501 for an API session."""
     price = table_price(session, action) if price is None else price
-    available = session.execute(
+    if not taster:
+        price = 2**31 - 1  # no taster grant can cover this, so only own grants and the pool count (a fare hunt never rides on it)
+    if session.execute(text("SELECT app_user_id() = :u"), {"u": user_id}).scalar_one():
+        r = session.execute(
+            text("SELECT own, pool, version, blocked, payer FROM my_credit_balance(:t, CAST(:a AS ai_action), :p)"),
+            {"t": trip_id, "a": action, "p": price},
+        ).one()
+        return Balance(r.own + r.pool, bool(r.blocked), int(r.version), r.own, r.pool, r.payer)
+    own, pool = session.execute(
         text(
             """
-SELECT GREATEST(
-         COALESCE(sum(g.remaining) FILTER (WHERE g.period_key IS DISTINCT FROM 'taster'), 0),
-         CASE WHEN CAST(:action AS text) = 'agent_run' AND COALESCE(sum(g.remaining) FILTER (WHERE g.period_key = 'taster' AND g.user_id = :u), 0) >= :price
-              THEN :price ELSE 0 END)::integer
+SELECT COALESCE(sum(g.remaining) FILTER (WHERE g.period_key IS DISTINCT FROM 'taster' AND g.trip_id IS NULL), 0)::integer,
+       COALESCE(sum(g.remaining) FILTER (WHERE g.kind = 'trip_pass' AND g.trip_id = :t
+         AND EXISTS (SELECT 1 FROM trip_members m WHERE m.trip_id = :t AND m.user_id = :u AND m.role IN ('owner', 'editor'))), 0)::integer
   FROM credit_grants g
  WHERE g.remaining > 0 AND (g.expires_at IS NULL OR g.expires_at > now())
-   AND ((g.user_id = :u AND g.trip_id IS NULL)
-        OR (g.kind = 'trip_pass' AND g.trip_id = :t
-            AND EXISTS (SELECT 1 FROM trip_members m WHERE m.trip_id = :t AND m.user_id = :u AND m.role IN ('owner', 'editor'))))
+   AND (g.user_id = :u OR (g.kind = 'trip_pass' AND g.trip_id = :t))
    AND (g.restricted_action IS NULL OR g.restricted_action = CAST(:action AS ai_action))"""
         ),
-        {"u": user_id, "t": trip_id, "action": action, "price": price},
+        {"u": user_id, "t": trip_id, "action": action},
+    ).one()
+    taster = session.execute(
+        text("SELECT COALESCE(sum(remaining), 0) FROM credit_grants WHERE user_id = :u AND period_key = 'taster' AND remaining > 0 AND (expires_at IS NULL OR expires_at > now())"),
+        {"u": user_id},
     ).scalar_one()
+    if action == "agent_run" and taster >= price and price > own + pool:
+        own, pool = price, 0  # the taster alone pays
     blocked = session.execute(
         text("SELECT EXISTS (SELECT 1 FROM credit_debts WHERE user_id = :u AND amount > 0)"), {"u": user_id}
     ).scalar_one()
     version = session.execute(
         text("SELECT coalesce(max(id), 0) FROM credit_ledger WHERE user_id = :u"), {"u": user_id}
     ).scalar_one()
-    return Balance(int(available), bool(blocked), int(version))
+    return Balance(own + pool, bool(blocked), int(version), own, pool, "trip_pass" if pool else "own")
 
 
 # ---- worker role only from here (monthly and purchase grants belong to the billing service, WF-064) ----

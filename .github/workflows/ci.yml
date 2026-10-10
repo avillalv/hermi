@@ -304,6 +304,12 @@ jobs:
       - name: Container smoke test
         if: steps.detect.outputs.present == 'true'
         run: |
+          # The registry mirror throttles shared runners now and then, so retry the pull only.
+          for i in 1 2 3 4 5; do
+            docker compose -f infra/docker/compose.yml pull postgres && break
+            [ "$i" = 5 ] && exit 1
+            sleep $((i * 15))
+          done
           docker compose -f infra/docker/compose.yml up -d --wait postgres
           {
             echo "\set migrate_pw 'ci-throwaway'"; echo "\set api_pw 'ci-throwaway'"

@@ -40,6 +40,8 @@ export type Fare = {
   depart_at_local: string | null
   passengers?: number
   source_url: string | null
+  source_domain?: string | null
+  run_id?: string | null
   airline_search_url?: string | null
   hidden?: boolean
   suspect?: boolean

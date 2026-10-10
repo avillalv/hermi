@@ -7,6 +7,7 @@ import { Icon } from "../../components/kit"
 import { t } from "../../lib/i18n"
 import { useOnline } from "../../lib/useOnline"
 import { AppShell } from "../../shell/AppShell"
+import { useGuest } from "../../features/guest/store"
 import { useAuth } from "../auth/authStore"
 import { isOnboarded, useMe, useTrips, type TripSummary } from "../onboarding/trips"
 import { TripCard, tripStatus } from "./TripCard"
@@ -41,6 +42,7 @@ export const group = (trips: TripSummary[]) =>
 /** 05 6.5: sections of trip cards, and the loading, empty, error and offline states. Per-card actions are a button, the tap alternative to swipe and long press. The "+" menu and the limit line come with the paywall and import tickets. */
 export function TripsHome() {
   const { token, persona } = useAuth()
+  const guest = useGuest()
   // Arriving from a trip that was just moved to trash (Overview) shows the same Undo line.
   const arrived = (useLocation().state as { trashed?: { id: string; name: string } } | null)?.trashed
   const nav = useNavigate()
@@ -57,7 +59,7 @@ export function TripsHome() {
   const ready = !check || me.data === true
   const trips = useTrips(!!token && ready)
   const retry = () => void (me.isError ? me.refetch() : trips.refetch())
-  if (!token) return <Navigate to="/welcome" replace />
+  if (!token) return <Navigate to={guest ? "/guest-trip" : "/welcome"} replace />
   if (check && me.data === false) return <Navigate to="/onboarding" replace />
 
   return (

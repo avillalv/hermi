@@ -140,6 +140,9 @@ export function TripActions({
       </Btn>
       {open && (
         <div id={panel} className="h-listcard actions__panel">
+          <Link className="h-listcard__row" to={`/trips/${trip.id}/ai`}>
+            <span className="h-listcard__text">{t("trips.ask")}</span>
+          </Link>
           <Link className="h-listcard__row" to={`/trips/${trip.id}/edit`}>
             <span className="h-listcard__text">{t("trips.edit")}</span>
           </Link>

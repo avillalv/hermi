@@ -110,12 +110,13 @@ def test_seed_demo_runs_the_demo_seed(monkeypatch, capsys):
 
     def ok(settings, *, system_url):
         calls.append(system_url)
-        return {"demo_trips": 1, "sample_trips": 3}
+        return {"demo_trips": 1, "sample_trips": 3, "credits_granted": 40}
 
     _stub_seed_environment(monkeypatch, ok)
     cli.seed(demo=True)
     assert calls == ["postgresql://x/y"]
-    assert "3 sample trips" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "3 sample trips" in out and "40 demo credits" in out
 
 
 def test_access_log_is_off_so_invite_tokens_stay_out_of_logs():

@@ -33,8 +33,8 @@ REQUIRED_TEMPLATES = (
     "/trips/{id}/ai/*",
     "/trips/{id}/agent-runs",
     "/agent-runs/{id}/cancel",
-    # shortcut: guests have no users row, so the middleware skips this route and does not enforce the key (ceiling).
-    # Upgrade in the guest draft-day ticket, which keys on the App Attest key id.
+    # Guests have no users row, so this middleware skips the route; the route itself requires the key and keys it on the
+    # App Attest key id (modules/auth/guest.py). A reused key is 409 and is not charged twice; the response is not stored.
     "/guest/ai/draft-day",
     "/trips/{id}/flights/live-search",
     "/trips/{id}/lodging/rental-search",

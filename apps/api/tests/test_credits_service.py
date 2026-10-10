@@ -66,6 +66,13 @@ def _remaining(c, user):
     return c.execute("SELECT coalesce(sum(remaining), 0) FROM credit_grants WHERE user_id = %s", (user,)).fetchone()[0]
 
 
+def _deep_run(c, user, trip, kind="deep_research"):
+    """A queued run row: the taster is drawn only by a deep_research run of a Free account (0026)."""
+    return c.execute(
+        "INSERT INTO runs (trip_id, user_id, kind, action) VALUES (%s, %s, %s, 'agent_run') RETURNING id", (trip, user, kind)
+    ).fetchone()[0]
+
+
 def _reserve(engine, user, trip, action="explain", key=None, **kw):
     with db.request_transaction(engine, user) as s:
         return service.reserve(s, user_id=user, trip_id=trip, action=action, idempotency_key=key or _key(), **kw)
@@ -213,20 +220,23 @@ def test_trip_pass_credits_are_a_pool_for_editors_only(engine, sys_engine, syste
     for u, role in ((editor, "editor"), (viewer, "viewer")):
         system_conn.execute("INSERT INTO trip_members (trip_id, user_id, role) VALUES (%s, %s, %s)", (trip, u, role))
     pool = _grant(system_conn, owner, 5, "trip_pass", trip_id=trip)
-    # balance() reads credit_grants as the caller: a worker session sees the pool, an API session (RLS: own rows only) does not.
+    # An API session reads the pool through the my_credit_balance definer; a worker session reads the tables.
     with Session(sys_engine) as w:
         assert service.balance(w, editor, trip_id=trip, action="explain").available == 5
         assert service.balance(w, viewer, trip_id=trip, action="explain").available == 0
-    with db.request_transaction(engine, editor) as s:  # pins the RLS blind spot: the pool is not visible to the API session
-        assert service.balance(s, editor, trip_id=trip, action="explain").available == 0
+    with db.request_transaction(engine, editor) as s:
+        b = service.balance(s, editor, trip_id=trip, action="explain")
+        assert (b.available, b.own, b.pool, b.payer) == (5, 0, 5, "trip_pass")
+    with db.request_transaction(engine, viewer) as s:
+        assert service.balance(s, viewer, trip_id=trip, action="explain").available == 0
     with pytest.raises(ApiError):
         _reserve(engine, viewer, trip)
     res = _reserve(engine, editor, trip, "draft_trip")
     assert system_conn.execute("SELECT user_id, grant_id FROM credit_ledger WHERE reservation_id = %s", (res.id,)).fetchone() == (editor, pool)
 
 
-def test_taster_is_granted_once_and_draws_its_own_grant(engine, sys_engine, system_conn, make_paid):
-    user, _ = make_paid()
+def test_taster_is_granted_once_and_draws_its_own_grant(engine, sys_engine, system_conn, make_user):
+    user, _ = make_user()  # Free: no entitlement row, so the lazy monthly 12 credits arrive with the first reserve
     trip = _trip(system_conn, user)
     for _ in range(3):
         with db.request_transaction(engine, user) as s:
@@ -236,19 +246,19 @@ def test_taster_is_granted_once_and_draws_its_own_grant(engine, sys_engine, syst
     with db.request_transaction(engine, user) as s:
         assert service.balance(s, user, trip_id=trip, action="agent_run").available == 100
         assert service.balance(s, user, trip_id=trip, action="explain").available == 100  # the taster never pays for anything else
-    res = _reserve(engine, user, trip, "agent_run")
+    res = _reserve(engine, user, trip, "agent_run", run_id=_deep_run(system_conn, user, trip))
     draws = system_conn.execute(
         "SELECT g.period_key, -l.delta FROM credit_ledger l JOIN credit_grants g ON g.id = l.grant_id WHERE l.reservation_id = %s", (res.id,)
     ).fetchall()
     assert draws == [("taster", 40)]  # whole price from the taster alone
-    assert _remaining(system_conn, user) == 100
+    assert _remaining(system_conn, user) == 112  # 100 bought plus the 12 monthly credits, none of them touched
     for _ in range(2):  # a spent taster is never granted again
         with db.request_transaction(engine, user) as s:
             repo.ensure_taster_grant(s, user)
     assert system_conn.execute("SELECT count(*) FROM credit_grants WHERE user_id = %s AND period_key = 'taster'", (user,)).fetchone()[0] == 1
     res2 = _reserve(engine, user, trip, "agent_run")  # now paid from the other grants
-    assert system_conn.execute("SELECT count(*) FROM credit_ledger WHERE reservation_id = %s", (res2.id,)).fetchone()[0] == 1
-    assert _remaining(system_conn, user) == 60
+    assert system_conn.execute("SELECT count(*) FROM credit_ledger WHERE reservation_id = %s", (res2.id,)).fetchone()[0] == 2
+    assert _remaining(system_conn, user) == 72
 
 
 # ---- monthly, purchase, adjust, expire, stale ----
@@ -320,28 +330,28 @@ def test_reserve_price_follows_the_credit_action_prices_table(engine, system_con
     assert _reserve(engine, user, None, "research").amount == 8
 
 
-def test_stopped_run_paid_from_the_taster_is_charged_in_full_and_replay_charges_nothing(engine, system_conn, make_paid):
-    user, _ = make_paid()
+def test_stopped_run_paid_from_the_taster_is_charged_in_full_and_replay_charges_nothing(engine, system_conn, make_user):
+    user, _ = make_user()
     trip = _trip(system_conn, user)
     with db.request_transaction(engine, user) as s:
         repo.ensure_taster_grant(s, user)
-    res = _reserve(engine, user, trip, "agent_run")
+    res = _reserve(engine, user, trip, "agent_run", run_id=_deep_run(system_conn, user, trip))
     with db.request_transaction(engine, user) as s:
         assert service.settle_stopped_agent_run(s, res.id, turns_used=2) == 40  # the taster stays spent
         assert service.settle_stopped_agent_run(s, res.id, turns_used=2) == 0  # replay
-    assert _remaining(system_conn, user) == 0
+    assert _remaining(system_conn, user) == 12  # only the monthly credits are left
     assert system_conn.execute("SELECT count(*) FROM credit_ledger WHERE reservation_id = %s AND entry_type = 'settle'", (res.id,)).fetchone()[0] == 1
 
 
-def test_taster_run_stopped_in_the_queue_is_refunded(engine, system_conn, make_paid):
-    user, _ = make_paid()
+def test_taster_run_stopped_in_the_queue_is_refunded(engine, system_conn, make_user):
+    user, _ = make_user()
     trip = _trip(system_conn, user)
     with db.request_transaction(engine, user) as s:
         repo.ensure_taster_grant(s, user)
-    res = _reserve(engine, user, trip, "agent_run")
+    res = _reserve(engine, user, trip, "agent_run", run_id=_deep_run(system_conn, user, trip))
     with db.request_transaction(engine, user) as s:
         assert service.settle_stopped_agent_run(s, res.id, turns_used=0, called_tools=False) == 0
-    assert _remaining(system_conn, user) == 40
+    assert _remaining(system_conn, user) == 52  # the taster is back, plus the monthly 12
 
 
 def test_stopped_run_uses_max_turns_from_the_table(engine, system_conn, make_paid):
@@ -379,6 +389,22 @@ def test_balance_carries_a_ledger_version_that_moves(engine, system_conn, make_p
     with db.request_transaction(engine, user) as s:
         v1 = service.balance(s, user, trip_id=None, action="explain")
     assert (v0.available, v1.available) == (10, 9) and v1.version > v0.version
+
+
+def test_preview_balance_equals_the_definer_value_with_a_pool(engine, system_conn, make_paid):
+    from hermi.modules.ai import agent_runs
+
+    owner, _ = make_paid()
+    editor, _ = make_paid()
+    trip = _trip(system_conn, owner)
+    system_conn.execute("INSERT INTO trip_members (trip_id, user_id, role) VALUES (%s, %s, 'editor')", (trip, editor))
+    _grant(system_conn, owner, 40, "trip_pass", trip_id=trip)
+    _grant(system_conn, editor, 7, "purchase")
+    _grant(system_conn, editor, 40, "promo", period_key="taster", restricted_action="agent_run")
+    with db.request_transaction(engine, editor) as s:
+        assert agent_runs._spendable(s, editor, trip) == 47  # the taster is left out
+        b = service.balance(s, editor, trip_id=trip, action="agent_run")
+        assert (b.own, b.pool, b.available) == (7, 40, 47)
 
 
 # ---- caller check and append-only ----

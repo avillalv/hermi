@@ -50,6 +50,16 @@ class CreditBalance(BaseModel):
     blocked: bool
 
 
+class CreditsNow(CreditBalance):
+    """GET /me/credits (04 section 5.19): the `CreditBalance`, plus what this caller can spend on one action and trip, and who pays."""
+
+    available: int
+    own: int
+    pool: int
+    payer: Literal["own", "trip_pass"]
+    version: int
+
+
 class Usage(BaseModel):
     active_trips: int
 
@@ -75,3 +85,23 @@ class Entitlements(BaseModel):
     trip_passes: list[TripPassOut]
     flags: Flags
     credits: CreditBalance
+
+
+class LedgerEntry(BaseModel):
+    """04 section 5.19 `LedgerEntry`: one `credit_ledger` row. The bigint id is never exposed."""
+
+    reservation_id: uuid.UUID | None
+    at: datetime
+    kind: Literal["grant", "reserve", "settle", "refund", "expire", "clawback", "adjust"]
+    delta: int
+    charged: int | None
+    action: str | None
+    trip_id: uuid.UUID | None
+    run_id: uuid.UUID | None
+    note: str | None
+
+
+class LedgerPage(BaseModel):
+    items: list[LedgerEntry]
+    next_cursor: str | None
+    has_more: bool

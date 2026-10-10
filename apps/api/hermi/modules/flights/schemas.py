@@ -115,6 +115,8 @@ class Fare(BaseModel):
     book_offer: None = None
     airline_search_url: str | None = None
     source_url: str | None
+    source_domain: str | None = None
+    run_id: uuid.UUID | None = None  # the agent run that found it (source "agent"); the evidence label reports against it
     observed_at: datetime
     age_label: str
     suspect: bool

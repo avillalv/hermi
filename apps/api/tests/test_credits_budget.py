@@ -163,12 +163,21 @@ def test_an_admitted_run_blocks_other_paid_actions_that_day(engine, system_conn,
     _refused(engine, user, "day")
 
 
+def _deep_run(c, user):
+    """A queued deep_research run: the taster is drawn only by one (0026). No trip: runs.trip_id is NOT NULL, so one is made."""
+    trip = c.execute("INSERT INTO trips (owner_user_id, name, home_currency) VALUES (%s, 'T', 'USD') RETURNING id", (user,)).fetchone()[0]
+    return c.execute(
+        "INSERT INTO runs (trip_id, user_id, kind, action, status, finished_at) VALUES (%s, %s, 'deep_research', 'agent_run', 'cancelled', now()) RETURNING id",
+        (trip, user),
+    ).fetchone()[0]
+
+
 def test_free_run_needs_the_taster_and_the_taster_spend_is_outside_the_ceiling(engine, system_conn, make_tier):
     user = make_tier("free")
     _refused(engine, user, "month", action="agent_run")  # $0.80 does not fit a $0.25 ceiling
     system_conn.execute("SELECT ensure_taster_grant(%s)", (user,))
     with db.request_transaction(engine, user) as s:
-        res = budget.admit(s, user_id=user, trip_id=None, action="agent_run", idempotency_key=f"k:{uuid.uuid4()}")
+        res = budget.admit(s, user_id=user, trip_id=None, action="agent_run", idempotency_key=f"k:{uuid.uuid4()}", run_id=_deep_run(system_conn, user))
         assert res.amount == 40
     _check(engine, user, now=None)  # the open taster reservation (800,000) does not eat the Free ceiling
 
@@ -334,12 +343,13 @@ def test_two_parallel_runs_cannot_both_take_the_taster_path(engine, system_conn,
     system_conn.execute("INSERT INTO credit_grants (user_id, kind, credits, remaining) VALUES (%s, 'purchase', 400, 400)", (user,))
     _usage(system_conn, user, None, 250_000, datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0))  # month used up
     barrier, out = threading.Barrier(2), []
+    run_ids = [_deep_run(system_conn, user), _deep_run(system_conn, user)]
 
     def go():
         try:
             with db.request_transaction(engine, user) as s:
                 barrier.wait(timeout=15)
-                out.append(budget.admit(s, user_id=user, trip_id=None, action="agent_run", idempotency_key=f"k:{uuid.uuid4()}"))
+                out.append(budget.admit(s, user_id=user, trip_id=None, action="agent_run", idempotency_key=f"k:{uuid.uuid4()}", run_id=run_ids.pop()))
         except ApiError as e:
             out.append(e)
 

@@ -8,8 +8,8 @@ import "./onboarding.css"
 
 /**
  * 05 6.1, ported from design/screens/01-welcome.html: the map, then a floating boarding pass holding the lockup, the
- * headline and the two buttons. Guest mode is not built, so both buttons go to sign in (shortcut: "Plan a trip" opens
- * Create trip as a guest once guests exist). The swipeable value cards are left for a later slice.
+ * headline and the two buttons. "Plan a trip" opens the local guest trip (05 6.2). The swipeable value cards are left
+ * for a later slice.
  */
 export function Welcome() {
   const { token } = useAuth()
@@ -33,7 +33,7 @@ export function Welcome() {
           <p className="h-lead">{t("welcome.body")}</p>
         </div>
         <TicketStub>
-          <Link to="/sign-in" className="h-btn h-btn--primary">
+          <Link to="/guest-trip" className="h-btn h-btn--primary">
             {t("welcome.plan")}
           </Link>
           <Link to="/sign-in" className="h-btn h-btn--secondary">

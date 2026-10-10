@@ -18,6 +18,7 @@ from hermi_worker.jobs import (
     purge_trash,
     reap_stale_jobs,
     release_stale_reservations,
+    run_agent,
     send_email,
     send_predeparture_reminder,
     send_trial_ending_reminder,
@@ -36,6 +37,7 @@ JOBS = (
     send_predeparture_reminder,
     build_digest,
     send_trial_ending_reminder,
+    run_agent,
 )
 INFRA_TASKS = frozenset({reap_stale_jobs.NAME})
 
@@ -56,7 +58,8 @@ def build_app(settings: Settings) -> procrastinate.App:
             with job_context(str(context.job.id)), Session(engine) as session:
                 # A job that declares ARGS takes the settings and those named job arguments; the others take the session only.
                 if hasattr(_mod, "ARGS"):
-                    result = _mod.run(session, settings, **{k: _args[k] for k in _mod.ARGS})
+                    extra = {"attempts": context.job.attempts} if getattr(_mod, "NEEDS_ATTEMPTS", False) else {}
+                    result = _mod.run(session, settings, **{k: _args[k] for k in _mod.ARGS}, **extra)
                 else:
                     result = _mod.run(session)
                 session.commit()

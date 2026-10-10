@@ -237,3 +237,10 @@ def test_fare_carries_a_plain_airline_search_link(client, session):
         assert url.startswith("https://www.google.com/travel/flights?q=")
         assert f["origin"] in url and f["destination"] in url
         assert not any(w in url.lower() for w in ("marker", "airbnb", "vrbo", "booking.com", "aviasales", "travelpayouts"))
+
+
+def test_fare_carries_run_id_and_source_domain_for_the_evidence_label(client, session):
+    h = _user(client)
+    trip, rid, items = _seed(client, session, h)
+    assert all("run_id" in f and "source_domain" in f for f in items)
+    assert all(f["run_id"] is None for f in items)  # provider fares have no agent run

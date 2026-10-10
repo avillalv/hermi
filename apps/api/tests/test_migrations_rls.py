@@ -50,6 +50,7 @@ DEFINER_FUNCTIONS = [  # (signature, search_path pinned, app can execute, worker
     ("clear_run_content(uuid)", True, True, False),
     ("clear_my_ai_history()", True, True, False),
     ("my_provider_spend_micros(timestamptz)", True, True, False),
+    ("my_credit_balance(uuid,ai_action,integer)", True, True, False),
 ]
 
 
@@ -113,7 +114,7 @@ def _member(c, trip, user, role):
 def test_chain_is_linear_and_0014_follows_0013():
     s = ScriptDirectory.from_config(_alembic_cfg())
     assert s.get_revision("0014_rls").down_revision == "0013_notifications_samples"
-    assert s.get_heads() == ["0025_notification_prefs"]  # 0025 (WF-047) is the head now
+    assert s.get_heads() == ["0027_credit_balance_definer"]  # 0027 (WF-132.1) is the head now
 
 
 # --- RLS on every tenant table ---------------------------------------------------------------------

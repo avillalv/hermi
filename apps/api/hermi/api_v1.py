@@ -2,6 +2,8 @@
 
 from fastapi import APIRouter
 
+from hermi.modules.ai.reports import router as reports_router
+from hermi.modules.ai.router import router as ai_router
 from hermi.modules.auth.router import router as auth_router
 from hermi.modules.billing.router import router as billing_router
 from hermi.modules.collaboration.router import router as collaboration_router
@@ -14,6 +16,7 @@ from hermi.modules.itinerary.router import router as itinerary_router
 from hermi.modules.lodging.router import router as lodging_router
 from hermi.modules.notifications.router import router as notifications_router
 from hermi.modules.places.router import router as places_router
+from hermi.modules.trips.claim import router as claim_router
 from hermi.modules.trips.notes import router as notes_router
 from hermi.modules.trips.people import router as people_router
 from hermi.modules.trips.router import router as trips_router
@@ -35,4 +38,7 @@ router.include_router(places_router)
 router.include_router(lodging_router)
 router.include_router(notes_router)
 router.include_router(samples_router)
+router.include_router(claim_router)
 router.include_router(notifications_router)
+router.include_router(ai_router)
+router.include_router(reports_router)

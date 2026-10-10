@@ -157,7 +157,7 @@ The `.p8` private keys are secrets: never commit one (`*.p8` is in `.gitignore`)
 
 | Variable | Purpose | Local need | Fallback when missing | Where to get it |
 |---|---|---|---|---|
-| `APPLE_TEAM_ID`, `APPLE_BUNDLE_ID` | App identity for App Attest and Apple APIs | Production only | App Attest checks are skipped | developer.apple.com, Membership, and the bundle id you register |
+| `APPLE_TEAM_ID`, `APPLE_BUNDLE_ID` | App identity for App Attest and Apple APIs | Production only | With `PROVIDERS_MODE=live`, the App Attest routes answer 503 `feature_disabled` and guest AI is off | developer.apple.com, Membership, and the bundle id you register |
 | `APPLE_APP_ATTEST_ENV` | `development` or `production` attestation | Production only | Skipped | Your choice per build |
 | `APPLE_SIGNIN_KEY_ID`, `APPLE_SIGNIN_PRIVATE_KEY` | Sign in with Apple key, used to revoke tokens on deletion | Production only | Revocation logs and skips | developer.apple.com, Keys |
 | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` | Token-based push | Production only | Push logs and skips | developer.apple.com, Keys (APNs) |
