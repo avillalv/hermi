@@ -70,6 +70,24 @@ class ConsentOut(BaseModel):
     accepted_at: datetime
 
 
+ConsentKind = Literal["terms", "privacy", "ai_processing", "marketing_email", "push_notifications", "analytics"]
+
+
+class ConsentIn(BaseModel):
+    """PUT /me/consents/{kind} (04 section 5.2). `version` names the policy or consent text the person saw."""
+
+    model_config = ConfigDict(extra="forbid")
+    version: str = Field(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9._-]+$")
+    granted: bool
+
+
+class Consent(BaseModel):
+    kind: ConsentKind
+    version: str
+    granted: bool
+    accepted_at: datetime
+
+
 Tier = Literal["free", "plus"]  # 04 type Tier; Phase 2 adds more, additively
 
 

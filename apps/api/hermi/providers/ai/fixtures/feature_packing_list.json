@@ -1,0 +1,18 @@
+{
+ "id": "msg_fake",
+ "model": "claude-haiku-4-5",
+ "role": "assistant",
+ "content": [
+  {
+   "type": "text",
+   "text": "{\"groups\": [{\"name\": \"clothing\", \"items\": [{\"label\": \"T-shirts\", \"qty\": null, \"reason\": null}, {\"label\": \"Light jacket\", \"qty\": null, \"reason\": null}, {\"label\": \"Comfortable walking shoes\", \"qty\": null, \"reason\": null}, {\"label\": \"Underwear and socks\", \"qty\": null, \"reason\": null}, {\"label\": \"Rain jacket\", \"qty\": null, \"reason\": null}]}, {\"name\": \"toiletries\", \"items\": [{\"label\": \"Toothbrush and paste\", \"qty\": null, \"reason\": null}, {\"label\": \"Sunscreen\", \"qty\": null, \"reason\": null}, {\"label\": \"Deodorant\", \"qty\": null, \"reason\": null}, {\"label\": \"Shampoo\", \"qty\": null, \"reason\": null}, {\"label\": \"Medication in labeled bags\", \"qty\": null, \"reason\": null}]}, {\"name\": \"documents\", \"items\": [{\"label\": \"Passport\", \"qty\": null, \"reason\": null}, {\"label\": \"Check entry rules on the official government site\", \"qty\": null, \"reason\": null}, {\"label\": \"Printed booking copies\", \"qty\": null, \"reason\": null}, {\"label\": \"Travel insurance papers\", \"qty\": null, \"reason\": null}]}, {\"name\": \"electronics\", \"items\": [{\"label\": \"Phone charger\", \"qty\": null, \"reason\": null}, {\"label\": \"Power adapter\", \"qty\": null, \"reason\": null}, {\"label\": \"Headphones\", \"qty\": null, \"reason\": null}, {\"label\": \"Portable battery\", \"qty\": null, \"reason\": null}]}, {\"name\": \"health\", \"items\": [{\"label\": \"Pain relief\", \"qty\": null, \"reason\": null}, {\"label\": \"Plasters\", \"qty\": null, \"reason\": null}, {\"label\": \"Hand sanitizer\", \"qty\": null, \"reason\": null}]}, {\"name\": \"other\", \"items\": [{\"label\": \"Daypack\", \"qty\": null, \"reason\": null}, {\"label\": \"Reusable water bottle\", \"qty\": null, \"reason\": null}, {\"label\": \"Sunglasses\", \"qty\": null, \"reason\": null}]}]}"
+  }
+ ],
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 300,
+  "output_tokens": 120,
+  "cache_read_input_tokens": 0,
+  "cache_creation_input_tokens": 0
+ }
+}

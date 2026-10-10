@@ -1,0 +1,18 @@
+{
+ "id": "msg_fake",
+ "model": "claude-sonnet-5-5",
+ "role": "assistant",
+ "content": [
+  {
+   "type": "text",
+   "text": "{\"days\": [{\"date\": \"2027-05-01\", \"title\": \"Old town and river\", \"items\": [{\"start\": \"09:30\", \"duration_min\": 90, \"title\": \"Morning walk\", \"place_id\": null, \"place_name\": \"Old town\", \"kind\": \"sight\", \"note\": null, \"verify\": true}, {\"start\": \"12:30\", \"duration_min\": 60, \"title\": \"Lunch\", \"place_id\": null, \"place_name\": null, \"kind\": \"food\", \"note\": \"Somewhere local\", \"verify\": true}], \"summary\": \"A relaxed day in the old town.\"}], \"overview\": \"A short trip.\"}"
+  }
+ ],
+ "stop_reason": "end_turn",
+ "usage": {
+  "input_tokens": 300,
+  "output_tokens": 120,
+  "cache_read_input_tokens": 0,
+  "cache_creation_input_tokens": 0
+ }
+}

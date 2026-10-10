@@ -2,7 +2,7 @@
 """Itinerary days and items (04 section 5.10) and the ICS file export (04 section 5.29 content rules).
 
 Every write runs through RLS (editors and the owner write, viewers cannot), and the router checks the role first, so a viewer gets 403.
-`/items/{item_id}` carries no trip id: `_via_item` resolves the item's trip, then runs the same `require_trip` check as every trip route.
+`/items/{item_id}` carries no trip id: `via_item` resolves the item's trip, then runs the same `require_trip` check as every trip route.
 Items list in the order day, start time, `sort_order`, id, with no-day items last; reorder and move renumber `sort_order` from 1.
 """
 
@@ -88,7 +88,7 @@ def _day_items(session: Session, trip_id: uuid.UUID, day: date | None, exclude: 
     return [_item(r) for r in rows]
 
 
-def _via_item(min_role: str):
+def via_item(min_role: str):
     """Depends() resolving the trip of an item id (404 when not visible), then the role check (403 below `min_role`)."""
     check = require_trip(min_role).dependency
 
@@ -193,7 +193,7 @@ def bulk_items(body: BulkIn, access: Annotated[TripAccess, require_trip("editor"
 
 
 @router.get("/items/{item_id}", response_model=Item)
-def get_item(item_id: uuid.UUID, access: Annotated[TripAccess, _via_item("viewer")], session: DbSession, response: Response) -> Item:
+def get_item(item_id: uuid.UUID, access: Annotated[TripAccess, via_item("viewer")], session: DbSession, response: Response) -> Item:
     item = _get(session, access.trip.id, item_id)
     response.headers["ETag"] = f'"{item.version}"'
     return item
@@ -204,7 +204,7 @@ _PATCHABLE = ("title", "category", "status", "day", "start_time", "end_time", "l
 
 @router.patch("/items/{item_id}", response_model=Item)
 def update_item(
-    item_id: uuid.UUID, body: ItemUpdate, request: Request, access: Annotated[TripAccess, _via_item("editor")], user: CurrentUser, session: DbSession, response: Response
+    item_id: uuid.UUID, body: ItemUpdate, request: Request, access: Annotated[TripAccess, via_item("editor")], user: CurrentUser, session: DbSession, response: Response
 ) -> Item:
     version = resolve_version(request, body.version)
     tid = access.trip.id
@@ -236,7 +236,7 @@ def update_item(
 
 
 @router.delete("/items/{item_id}", status_code=204)
-def delete_item(item_id: uuid.UUID, request: Request, access: Annotated[TripAccess, _via_item("editor")], user: CurrentUser, session: DbSession) -> Response:
+def delete_item(item_id: uuid.UUID, request: Request, access: Annotated[TripAccess, via_item("editor")], user: CurrentUser, session: DbSession) -> Response:
     version = resolve_version(request)
     tid = access.trip.id
     if session.execute(text("DELETE FROM itinerary_items WHERE id = :id AND trip_id = :t AND version = :v RETURNING id"), {"id": item_id, "t": tid, "v": version}).first() is None:
@@ -267,7 +267,7 @@ def reorder_day(day: date, body: ReorderIn, access: Annotated[TripAccess, requir
 
 @router.post("/items/{item_id}/move", response_model=list[Item])
 def move_item(
-    item_id: uuid.UUID, body: MoveIn, request: Request, access: Annotated[TripAccess, _via_item("editor")], user: CurrentUser, session: DbSession
+    item_id: uuid.UUID, body: MoveIn, request: Request, access: Annotated[TripAccess, via_item("editor")], user: CurrentUser, session: DbSession
 ) -> list[Item]:
     version = resolve_version(request, body.version)
     tid = access.trip.id

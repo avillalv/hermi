@@ -12,10 +12,12 @@ from datetime import date, timedelta
 
 from sqlalchemy import create_engine, pool, text
 from sqlalchemy.engine import Connection
+from sqlalchemy.orm import Session
 
 from hermi import db
 from hermi.config import LOCAL_ENVIRONMENTS, Settings
 from hermi.modules.auth import service as auth_service
+from hermi.modules.credits import service as credits
 
 CONTENT_EMAIL = "content@hermi.test"
 DEMO_TRIP = "Lisbon in March"
@@ -474,6 +476,24 @@ def _demo_trip(conn: Connection, plus, start: date) -> bool:
     return True
 
 
+DEMO_CREDITS = 40
+DEMO_CREDITS_REASON = "demo seed"
+
+
+def _demo_credits(conn: Connection, plus) -> int:
+    """A funded demo account: one adjustment grant for the Plus persona, so the AI sheet shows a balance. Once only."""
+    if _one(
+        conn,
+        "SELECT 1 FROM credit_ledger WHERE user_id = :u AND entry_type = 'adjust' AND note = :r",
+        u=plus,
+        r=DEMO_CREDITS_REASON,
+    ):
+        return 0
+    with Session(bind=conn) as s:
+        credits.adjust(s, plus, DEMO_CREDITS, reason=DEMO_CREDITS_REASON)
+    return DEMO_CREDITS
+
+
 def seed_demo(settings: Settings, *, system_url: str, today: date | None = None) -> dict[str, int]:
     """Create the personas through the dev session path, then the demo trip and the sample trips. Returns what was added."""
     if settings.environment not in LOCAL_ENVIRONMENTS or settings.auth_mode != "dev":
@@ -491,6 +511,7 @@ def seed_demo(settings: Settings, *, system_url: str, today: date | None = None)
             return {
                 "demo_trips": int(_demo_trip(conn, plus, start)),
                 "sample_trips": _sample_trips(conn, start),
+                "credits_granted": _demo_credits(conn, plus),
             }
     finally:
         system.dispose()

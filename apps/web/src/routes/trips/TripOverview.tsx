@@ -9,6 +9,7 @@ import { useOnline } from "../../lib/useOnline"
 import { SyncIndicator } from "../../components/sync-indicator/SyncIndicator"
 import { AppShell } from "../../shell/AppShell"
 import { useAuth } from "../auth/authStore"
+import { AgentEntry } from "../agents/EntryCard"
 import { useTrip, type Trip } from "./api"
 import { nights, tripStatus, when } from "./TripCard"
 import { tripStrip } from "./TripStrip"
@@ -160,6 +161,13 @@ export function TripOverview() {
                 <Icon name="plus" size={18} />
                 {t("group.invite")}
               </Link>
+            )}
+            <Link to={`/trips/${trip.id}/ai`} className="h-btn h-btn--secondary h-btn--sm overview__invite">
+              <Icon name="sparkles" size={18} />
+              {t("overview.askAi")}
+            </Link>
+            {trip.my_role !== "viewer" && trip.ai_enabled !== false && (
+              <AgentEntry enabled={!!token} online={online} onOpen={() => nav(`/trips/${trip.id}/agents`)} />
             )}
             <TripActions
               trip={trip}

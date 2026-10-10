@@ -20,6 +20,7 @@ export type Note = {
   sources: Source[]
   checked_at: string
   stale: boolean
+  stale_after_days?: number
   created_at: string
 }
 export type NotePage = { items: Note[]; has_more: boolean; next_cursor: string | null }

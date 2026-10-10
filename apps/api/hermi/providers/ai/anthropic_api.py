@@ -23,7 +23,7 @@ from hermi.providers.ai.fake import result_from_message
 def default_client(api_key: str) -> Any:
     try:
         import anthropic
-    except ImportError as e:  # shortcut: SDK not yet a dependency; trigger: add `anthropic` to pyproject before WF-048
+    except ImportError as e:
         raise NotConfigured("the anthropic package is not installed") from e
     return anthropic.AsyncAnthropic(api_key=api_key, max_retries=2)
 
@@ -33,6 +33,12 @@ class AnthropicApiProvider:
 
     def __init__(self, client: Any) -> None:
         self._client = client
+
+    async def aclose(self) -> None:
+        """Close the SDK client (its HTTP pool). Injected stubs without `close` are left alone."""
+        close = getattr(self._client, "close", None)
+        if close is not None:
+            await close()
 
     async def single_call(self, req: ProviderRequest) -> ProviderResult:
         clash = {"model", "max_tokens", "messages"} & req.extra.keys()
@@ -49,7 +55,11 @@ class AnthropicApiProvider:
         if req.tools:
             kw["tools"] = req.tools
         if req.output_schema is not None:
-            kw["output_config"] = {"format": {"type": "json_schema", "schema": req.output_schema}}
+            # merged, so a caller's effort in extra["output_config"] survives
+            kw["output_config"] = {
+                **kw.get("output_config", {}),
+                "format": {"type": "json_schema", "schema": req.output_schema},
+            }
         msg = await self._client.messages.create(**kw)
         msg = msg if isinstance(msg, dict) else msg.model_dump()
         r = result_from_message({**msg, "model": msg.get("model") or req.model}, self.name, 0)

@@ -95,14 +95,15 @@ class MeterContext:
     reservation_id: uuid.UUID | None = None
     via_batch: bool = False
     purpose: str | None = None  # platform work only
+    cache_hit: bool = False  # served from shared_research_cache (06 section 6.3 item 8)
 
 
 _UPSERT_USAGE = text(
     """INSERT INTO ai_usage (user_id, trip_id, run_id, action, model, provider, input_tokens, output_tokens,
          cache_read_tokens, cache_write_tokens, web_searches, via_batch, cost_usd_micros, reservation_id,
-         idempotency_key, purpose)
+         idempotency_key, purpose, cache_hit)
        VALUES (:user_id, :trip_id, :run_id, CAST(:action AS ai_action), :model, :provider, :input, :output, :read,
-         :write, :searches, :batch, :cost, :reservation_id, :key, :purpose)
+         :write, :searches, :batch, :cost, :reservation_id, :key, :purpose, :cache_hit)
        ON CONFLICT (idempotency_key) DO UPDATE SET
          input_tokens = ai_usage.input_tokens + EXCLUDED.input_tokens,
          output_tokens = ai_usage.output_tokens + EXCLUDED.output_tokens,
@@ -144,7 +145,7 @@ def record_usage(
             "model": ctx.model, "provider": ctx.provider, "input": usage.input_tokens, "output": usage.output_tokens,
             "read": usage.cache_read_tokens, "write": usage.cache_write_tokens, "searches": usage.web_searches,
             "batch": ctx.via_batch, "cost": cost_micros, "reservation_id": ctx.reservation_id,
-            "key": ctx.idempotency_key, "purpose": ctx.purpose,
+            "key": ctx.idempotency_key, "purpose": ctx.purpose, "cache_hit": ctx.cache_hit,
         },
     )
     if ctx.run_id is not None:

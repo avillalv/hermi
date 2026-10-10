@@ -22,6 +22,7 @@ JOB_LANES = {
     "send_predeparture_reminder": "notify",
     "build_digest": "notify",
     "send_trial_ending_reminder": "notify",
+    "run_agent": "ai",
 }
 
 # Priorities and per-account concurrency caps (02 section 5, "Fair claim"). The worker claims by priority (interactive 10, paid live-route checks 5, free cached-fare

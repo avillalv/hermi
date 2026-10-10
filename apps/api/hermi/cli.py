@@ -87,7 +87,8 @@ def seed(demo: bool = False) -> None:
             sys.exit(str(e))
         print(
             f"Demo seed: {added['demo_trips']} demo trip, "
-            f"{added['sample_trips']} sample trips added"
+            f"{added['sample_trips']} sample trips added, "
+            f"{added.get('credits_granted', 0)} demo credits granted"
         )
 
 

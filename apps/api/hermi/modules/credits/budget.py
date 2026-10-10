@@ -177,9 +177,15 @@ def admit(
         taster = (
             action == "agent_run"
             and not cached
+            and run_id is not None
             and session.execute(
-                text("SELECT EXISTS (SELECT 1 FROM credit_grants WHERE user_id = :u AND period_key = 'taster' AND remaining >= :p)"),
-                {"u": user_id, "p": service.table_price(session, action)},
+                # the same three conditions reserve_credits applies (0026): an unspent grant, a deep_research run, no paid tier
+                text(
+                    "SELECT EXISTS (SELECT 1 FROM credit_grants WHERE user_id = :u AND period_key = 'taster' AND remaining >= :p) "
+                    "AND EXISTS (SELECT 1 FROM runs WHERE id = :r AND kind = 'deep_research') "
+                    "AND NOT EXISTS (SELECT 1 FROM entitlements e WHERE e.user_id = :u AND e.tier_code <> 'free' AND (e.valid_until IS NULL OR e.valid_until > now()))"
+                ),
+                {"u": user_id, "p": service.table_price(session, action), "r": run_id},
             ).scalar_one()
         )
         check(session, user_id=user_id, trip_id=trip_id, action=action, items=items, taster=taster, cached=cached)

@@ -3,7 +3,7 @@
 
 Sources come from `notes.urls`: a link is stored as pasted and never fetched. `stale` is an agent note checked more than 14 days ago.
 Private notes are author-only: row-level security hides them from everyone else (so every route 404s for them), and they are never
-written to the activity feed. `/notes/{id}` carries no trip id: `_via_note` resolves the trip, then runs the same `require_trip` check.
+written to the activity feed. `/notes/{id}` carries no trip id: `via_note` resolves the trip, then runs the same `require_trip` check.
 Stay notes need no route here: a stay keeps its own `notes` text in 5.9 (`notes` has no lodging column, and this step adds no migration).
 """
 
@@ -70,6 +70,7 @@ class Note(BaseModel):
     sources: list[Source]
     checked_at: datetime
     stale: bool
+    stale_after_days: int = STALE_DAYS
     created_at: datetime
     updated_at: datetime
 
@@ -113,7 +114,7 @@ def _row(session: Session, note_id: uuid.UUID):
     return r
 
 
-def _via_note(min_role: str):
+def via_note(min_role: str):
     """Depends() resolving the trip of a note id. Row-level security hides other people's private notes, so they are a 404 here."""
     check = require_trip(min_role).dependency
 
@@ -182,7 +183,7 @@ def create_note(body: NoteIn, access: Annotated[TripAccess, require_trip("editor
 
 
 @router.patch("/notes/{note_id}", response_model=Note)
-def update_note(note_id: uuid.UUID, body: NoteIn, request: Request, access: Annotated[TripAccess, _via_note("editor")], user: CurrentUser, session: DbSession, response: Response) -> Note:
+def update_note(note_id: uuid.UUID, body: NoteIn, request: Request, access: Annotated[TripAccess, via_note("editor")], user: CurrentUser, session: DbSession, response: Response) -> Note:
     version = resolve_version(request, body.version)
     tid, sent = access.trip.id, body.model_fields_set - {"version"}
     cur = _row(session, note_id)
@@ -217,7 +218,7 @@ def update_note(note_id: uuid.UUID, body: NoteIn, request: Request, access: Anno
 
 
 @router.delete("/notes/{note_id}", status_code=204)
-def delete_note(note_id: uuid.UUID, access: Annotated[TripAccess, _via_note("editor")], user: CurrentUser, session: DbSession) -> Response:
+def delete_note(note_id: uuid.UUID, access: Annotated[TripAccess, via_note("editor")], user: CurrentUser, session: DbSession) -> Response:
     cur = _row(session, note_id)
     if cur["author_user_id"] != user.id and access.role != "owner":
         raise ApiError(403, "insufficient_role", "Only the author or the trip owner can delete this note.")
@@ -227,6 +228,6 @@ def delete_note(note_id: uuid.UUID, access: Annotated[TripAccess, _via_note("edi
 
 
 @router.get("/notes/{note_id}/evidence", response_model=Evidence)
-def get_evidence(note_id: uuid.UUID, access: Annotated[TripAccess, _via_note("viewer")], session: DbSession) -> Evidence:
+def get_evidence(note_id: uuid.UUID, access: Annotated[TripAccess, via_note("viewer")], session: DbSession) -> Evidence:
     r = _row(session, note_id)
     return Evidence(note_id=r["id"], run_id=r["run_id"], sources=_sources(r), excerpt=None, checked_at=r["checked_at"], stale=r["stale"])

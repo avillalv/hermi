@@ -1,0 +1,48 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`an AI note shows Found on site, checked date, as a link with an accessible name 1`] = `
+<div>
+  <span
+    class="evidence-label"
+  >
+    <span
+      class="source-chip"
+    >
+      <a
+        aria-label="Found on example.com, checked 9 Oct. Open example.com in a new tab"
+        class="source-chip__link"
+        href="https://www.example.com/p"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        Found on example.com, checked 9 Oct
+        <svg
+          aria-hidden="true"
+          class="h-icon"
+          focusable="false"
+          height="14"
+          width="14"
+        >
+          <use
+            href="#i-external-link"
+          />
+        </svg>
+      </a>
+    </span>
+  </span>
+</div>
+`;
+
+exports[`an imported confirmation says From your pasted text and has no link 1`] = `
+<div>
+  <span
+    class="evidence-label"
+  >
+    <span
+      class="source-chip__text"
+    >
+      From your pasted text
+    </span>
+  </span>
+</div>
+`;

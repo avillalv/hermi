@@ -7,9 +7,9 @@ import { t } from "../../lib/i18n"
 import { track } from "../../lib/track"
 import { useOnline } from "../../lib/useOnline"
 import { AppShell } from "../../shell/AppShell"
+import { createGuestTripFromSample } from "../../features/guest/store"
 import { useAuth } from "../auth/authStore"
 import { copySample, useSample } from "./api"
-import { saveGuestTrip } from "./guestTrip"
 import { SampleBody } from "./SampleBody"
 import { ThirdTripSheet } from "./ThirdTripSheet"
 import "./discover.css"
@@ -32,8 +32,7 @@ export function SampleView() {
     if (!slug || !q.data || busy) return
     setNote(null)
     if (!token) {
-      if (!saveGuestTrip(q.data)) return setNote(t("discover.guestLimit"))
-      track("guest_trip_created")
+      if (!createGuestTripFromSample(q.data)) return setNote(t("discover.guestLimit"))
       track("sample_trip_copied", { slug, was_guest: true }) // the server sends the signed-in event itself
       return nav("/guest-trip")
     }

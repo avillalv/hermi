@@ -11,9 +11,11 @@ dependencies = [
     "uvicorn>=0.32",
     "alembic>=1.14",
     "PyJWT[crypto]>=2.10",
+    "cryptography>=46",
     "sqlalchemy>=2.0",
     "sentry-sdk>=2.0",
     "procrastinate[psycopg]>=3.10,<3.11",
+    "anthropic>=1.13",
 ]
 
 [project.scripts]
