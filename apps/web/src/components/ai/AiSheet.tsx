@@ -85,7 +85,9 @@ export function AiSheet({
   const choose = (r: Row) => {
     const go = () => {
       setOutcome(null)
-      if (!freeAgent(r) && price(r) > have) return setOutcome({ kind: "credits", credits: price(r) })
+      // A draft at 0 credits goes on to its screen, which shows day one blurred behind the offer (07 6.2, out_of_credits_draft).
+      const draft = r.key === "day" || r.key === "trip"
+      if (!freeAgent(r) && price(r) > have && !draft) return setOutcome({ kind: "credits", credits: price(r) })
       if (r.key !== "agent" && price(r) >= CONFIRM_AT) return setPicked(r.key)
       void run(r)
     }

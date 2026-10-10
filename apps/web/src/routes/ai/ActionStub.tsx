@@ -10,7 +10,7 @@ const TITLES: Record<string, string> = {
   research: "ai.sheet.research",
 }
 
-/** shortcut: the landing page of a sheet row whose result screen is not built yet. Ceiling: no action runs from here. Trigger: WF-132.2 and WF-132.3 replace it route by route. */
+/** shortcut: the landing page of a sheet row whose result screen is not built yet. Ceiling: no action runs from here. Trigger: WF-132.3 builds research and removes it. */
 export function ActionStub() {
   const { id = "", action = "" } = useParams()
   const title = TITLES[action]

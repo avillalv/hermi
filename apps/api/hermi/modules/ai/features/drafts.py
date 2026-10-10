@@ -187,7 +187,7 @@ def draft_day(
     return run_action(
         session, settings=settings, flags=flags, spec=DAY_SPEC, user_id=user_id, trip_id=trip_id,
         idempotency_key=idempotency_key, task=task, out_model=DayOut, finish=finish,
-        route="POST /v1/trips/{trip_id}/ai/draft-day", provider=provider, params={"day": day.isoformat(), "pace": pace},
+        route="POST /v1/trips/{trip_id}/ai/draft-day", provider=provider, repeat=True, params={"day": day.isoformat(), "pace": pace},
     )
 
 
@@ -234,6 +234,6 @@ def draft_trip(
     return run_action(
         session, settings=settings, flags=flags, spec=TRIP_SPEC, user_id=user_id, trip_id=trip_id,
         idempotency_key=idempotency_key, task=task, out_model=TripOut, finish=finish,
-        route="POST /v1/trips/{trip_id}/ai/draft-trip", provider=provider,
+        route="POST /v1/trips/{trip_id}/ai/draft-trip", provider=provider, repeat=True,
         params={"from": first.isoformat(), "days": len(wanted), "pace": pace},
     )

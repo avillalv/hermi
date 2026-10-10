@@ -235,3 +235,12 @@ test("Escape closes the sheet", async () => {
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
   expect(onClose).toHaveBeenCalled()
 })
+
+test("a draft at 0 credits still opens its screen, which shows day one blurred behind the offer", async () => {
+  const onRun = vi.fn()
+  mockApi(api({ credits: Response.json(credits({ available: 0, own: 0 })) }))
+  open(onRun)
+  fireEvent.click(await row(/^Draft the trip, costs 4 credits/))
+  await waitFor(() => expect(onRun).toHaveBeenCalledWith("trip"))
+  expect(screen.queryByRole("alert")).toBeNull()
+})

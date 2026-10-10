@@ -9,6 +9,7 @@ by an action: the output is a preview labeled as a suggestion.
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 import re
@@ -61,13 +62,13 @@ class Receipt:
     reserved: int
     charged: int
     balance_after: int | None
-    reservation_id: uuid.UUID
+    reservation_id: uuid.UUID | None  # None on a free repeat: nothing was reserved
     from_cache: bool = False
 
     def public(self) -> dict[str, Any]:
         return {
             "action": self.action, "reserved": self.reserved, "charged": self.charged, "from_cache": self.from_cache,
-            "balance_after": self.balance_after, "reservation_id": str(self.reservation_id),
+            "balance_after": self.balance_after, "reservation_id": str(self.reservation_id) if self.reservation_id else None,
         }
 
 
@@ -182,9 +183,13 @@ def run_action(
     params: dict[str, Any] | None = None,
     provider: AiProvider | None = None,
     free: Callable[[Any], bool] | None = None,
+    repeat: bool = False,
+    repeat_hours: int = 6,
 ) -> Done:
     """`free` says a validated output is not charged (a recheck that could not read the page). `finish` runs on the validated output (restore names, check ids, shape the response) and raises ValueError to
-    fail the action closed. `provider` is for tests (a stub); the product path takes it from AI_PROVIDER."""
+    fail the action closed. `provider` is for tests (a stub); the product path takes it from AI_PROVIDER.
+    `repeat` makes an identical request (same user, trip, action and input) within `repeat_hours` (6; the packing list 168) return the earlier output free
+    (01 F-AI-1, F-AI-2): the output is kept in `runs.report` for that window and no credit is reserved."""
     try:
         provider = provider or ai_client.provider_for(settings, spec.call)
     except (NotConfigured, ProviderRefused) as e:  # no key or not allowed here: off, before any reservation
@@ -196,6 +201,20 @@ def run_action(
     # must not call the provider again: admit() would skip the ceiling check and settle() would be a no-op.
     if already_settled(api, key):
         raise ApiError(409, "idempotency_key_reused", "That request was already handled. Start it again with a new key.")
+    if repeat:
+        same = hashlib.sha256(task.encode()).hexdigest()
+        params = {**(params or {}), "repeat": same}
+        hit = api.execute(
+            text(
+                "SELECT id, report -> 'output' AS output FROM runs WHERE trip_id = :t AND user_id = :u AND kind = CAST(:k AS run_kind) "
+                "AND status = 'succeeded' AND params ->> 'repeat' = :h AND report ? 'output' "
+                "AND finished_at > now() - make_interval(hours => :w) ORDER BY finished_at DESC LIMIT 1"
+            ),
+            {"t": trip_id, "u": user_id, "k": spec.run_kind, "h": same, "w": repeat_hours},
+        ).first()
+        if hit is not None:
+            left = int(api.execute(text("SELECT coalesce(sum(remaining), 0) FROM credit_balances WHERE user_id = :u"), {"u": user_id}).scalar_one())
+            return Done(hit.id, hit.output, Receipt(spec.action, 0, 0, left, None, from_cache=True))
     run_id = admit_run(
         api, trip_id=trip_id, user_id=user_id, kind=spec.run_kind, action=spec.action, params=json.dumps(params or {}),
         model=req.model, provider=provider.name, prompt_version=spec.prompt_version,
@@ -250,6 +269,8 @@ def run_action(
             charged = res.amount if failure is None and not (free and free(output)) else 0
             service.settle(sys, res.id, charged, usage_id)
             report = {"cache_read_ratio": ratio, "label": LABEL if failure is None else None}
+            if repeat and failure is None:
+                report["output"] = output
             sys.execute(
                 text(
                     "UPDATE runs SET status = CAST(:s AS run_status), started_at = :st, finished_at = now(), turns_used = 1, "

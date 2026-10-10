@@ -202,8 +202,42 @@ def test_draft_trip_bills_four_and_block_is_checked(engine, settings, world):
     bad = json.loads(json.loads((FIXTURES / "feature_draft_trip.json").read_text(encoding="utf-8"))["content"][0]["text"])
     bad["days"][0]["date"] = "2027-09-09"
     with pytest.raises(ApiError):
-        _run(engine, world, drafts.draft_trip, **_kw(settings, world, provider=Stub("feature_draft_trip", text=json.dumps(bad))))
+        _run(engine, world, drafts.draft_trip, **_kw(settings, world, preferences="other", provider=Stub("feature_draft_trip", text=json.dumps(bad))))
     assert _balance(world["conn"], world["uid"]) == START - 4
+
+
+# ---- a repeat of the same request within 6 hours is free (01 F-AI-1, F-AI-2) ----
+
+
+def test_an_identical_request_within_six_hours_is_free_and_skips_the_provider(engine, settings, world):
+    stub = Stub("feature_explain")
+    first = _run(engine, world, explain.execute, **_kw(settings, world, question="Why?", provider=stub))
+    again = _run(engine, world, explain.execute, **_kw(settings, world, question="Why?", provider=stub))
+    assert again.output == first.output and again.run_id == first.run_id
+    assert (again.receipt.charged, again.receipt.reserved, again.receipt.from_cache) == (0, 0, True)
+    assert again.receipt.public()["reservation_id"] is None
+    assert len(stub.calls) == 1 and _balance(world["conn"], world["uid"]) == START - 1
+    other = _run(engine, world, explain.execute, **_kw(settings, world, question="Why not?", provider=stub))
+    assert other.receipt.charged == 1 and len(stub.calls) == 2
+
+
+def test_a_draft_repeat_is_free_and_a_run_older_than_six_hours_is_charged(engine, settings, world):
+    stub = Stub("feature_draft_day")
+    first = _run(engine, world, drafts.draft_day, **_kw(settings, world, day=date(2027, 5, 2), provider=stub))
+    again = _run(engine, world, drafts.draft_day, **_kw(settings, world, day=date(2027, 5, 2), provider=stub))
+    assert again.output == first.output and again.receipt.charged == 0 and len(stub.calls) == 1
+    world["conn"].execute("UPDATE runs SET finished_at = now() - interval '7 hours' WHERE id = %s", (first.run_id,))
+    late = _run(engine, world, drafts.draft_day, **_kw(settings, world, day=date(2027, 5, 2), provider=stub))
+    assert late.receipt.charged == 1 and len(stub.calls) == 2
+    assert _balance(world["conn"], world["uid"]) == START - 2
+
+
+def test_a_repeat_is_free_at_zero_credits(engine, settings, world):
+    stub = Stub("feature_packing_list")
+    _run(engine, world, packing_list.execute, **_kw(settings, world, provider=stub))
+    world["conn"].execute("UPDATE credit_grants SET remaining = 0 WHERE user_id = %s", (world["uid"],))
+    again = _run(engine, world, packing_list.execute, **_kw(settings, world, provider=stub))
+    assert again.receipt.charged == 0 and again.receipt.balance_after == 0 and len(stub.calls) == 1
 
 
 # ---- outputs fail validation closed, with a full refund ----
@@ -274,12 +308,12 @@ def test_hard_stops_and_max_tokens_match_the_price_table_and_06(system_conn):
     [("explain", 10_000), ("packing", 10_000), ("draft_day", 30_000), ("draft_trip", 100_000)],
 )
 def test_a_call_that_reaches_its_hard_stop_is_refunded(engine, settings, world, which, hard):
-    def go(cost):
+    def go(cost):  # the cost differs per call, and so does the input: an identical request would be a free repeat
         fn, kw, sc = {
-            "explain": (explain.execute, {"question": "Why?"}, "feature_explain"),
-            "packing": (packing_list.execute, {}, "feature_packing_list"),
-            "draft_day": (drafts.draft_day, {"day": date(2027, 5, 2)}, "feature_draft_day"),
-            "draft_trip": (drafts.draft_trip, {}, "feature_draft_trip"),
+            "explain": (explain.execute, {"question": f"Why {cost}?"}, "feature_explain"),
+            "packing": (packing_list.execute, {"preferences": f"p{cost}"}, "feature_packing_list"),
+            "draft_day": (drafts.draft_day, {"day": date(2027, 5, 2), "preferences": f"p{cost}"}, "feature_draft_day"),
+            "draft_trip": (drafts.draft_trip, {"preferences": f"p{cost}"}, "feature_draft_trip"),
         }[which]
         return _run(engine, world, fn, **_kw(settings, world, provider=Stub(sc, cost=cost), **kw))
 
@@ -537,3 +571,15 @@ def test_http_kill_switch_returns_503_feature_disabled(client, world):
     assert r.status_code == 503 and r.json()["code"] == "feature_disabled"
     r = client.post(f"/v1/trips/{tid}/ai/explain", json={"question": "x"}, headers={**h, "Idempotency-Key": uuid.uuid4().hex})
     assert r.status_code == 200  # only that feature is off
+
+
+def test_a_packing_repeat_is_free_for_seven_days_and_charged_after(engine, settings, world):
+    stub = Stub("feature_packing_list")
+    first = _run(engine, world, packing_list.execute, **_kw(settings, world, provider=stub))
+    c = world["conn"]
+    c.execute("UPDATE runs SET finished_at = now() - interval '7 hours' WHERE id = %s", (first.run_id,))
+    again = _run(engine, world, packing_list.execute, **_kw(settings, world, provider=stub))
+    assert again.receipt.charged == 0 and again.receipt.from_cache and len(stub.calls) == 1
+    c.execute("UPDATE runs SET finished_at = now() - interval '8 days' WHERE id = %s", (first.run_id,))
+    late = _run(engine, world, packing_list.execute, **_kw(settings, world, provider=stub))
+    assert late.receipt.charged == 1 and len(stub.calls) == 2

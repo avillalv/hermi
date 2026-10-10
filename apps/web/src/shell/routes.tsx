@@ -13,7 +13,7 @@ import { Stays } from "../routes/lodging/Stays";
 import { Notes } from "../routes/notes/Notes";
 import { Plan } from "../routes/itinerary/Plan";
 import { Flights } from "../routes/flights/Flights";
-import { ActionStub, AiSheetPage } from "../routes/ai";
+import { AiActionPage, AiSheetPage } from "../routes/ai";
 import { AgentRunPage } from "../routes/agents/AgentRun";
 import { AgentStart } from "../routes/agents/AgentStart";
 import { FareDetail } from "../routes/flights/FareDetail";
@@ -51,7 +51,7 @@ export function AppRoutes() {
       <Route path="/trips/:id/agents" element={<AgentStart />} />
       <Route path="/trips/:id/agents/:runId" element={<AgentRunPage />} />
       <Route path="/trips/:id/ai" element={<AiSheetPage />} />
-      <Route path="/trips/:id/ai/:action" element={<ActionStub />} />
+      <Route path="/trips/:id/ai/:action" element={<AiActionPage />} />
       <Route path="/trips/:id/stays" element={<Stays />} />
       <Route path="/trips/:id/notes" element={<Notes />} />
       <Route path="/trips/:id/plan" element={<Plan />} />

@@ -74,5 +74,5 @@ def execute(
     return run_action(
         session, settings=settings, flags=flags, spec=SPEC, user_id=user_id, trip_id=trip_id,
         idempotency_key=idempotency_key, task=task, out_model=Out, finish=finish,
-        route="POST /v1/trips/{trip_id}/ai/explain", provider=provider,
+        route="POST /v1/trips/{trip_id}/ai/explain", provider=provider, repeat=True,
     )
