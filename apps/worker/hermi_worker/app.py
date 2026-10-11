@@ -16,6 +16,7 @@ from hermi_worker import fairness, scheduler
 from hermi_worker.jobs import (
     build_digest,
     check_fare_route,
+    evaluate_breakers,
     evaluate_price_alerts,
     maintain_partitions,
     purge_trash,
@@ -45,6 +46,7 @@ JOBS = (
     check_fare_route,
     evaluate_price_alerts,
     refresh_cached_fares,
+    evaluate_breakers,
 )
 INFRA_TASKS = frozenset({reap_stale_jobs.NAME})
 

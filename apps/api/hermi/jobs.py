@@ -26,6 +26,7 @@ JOB_LANES = {
     "check_fare_route": "api",
     "refresh_cached_fares": "api",
     "evaluate_price_alerts": "notify",
+    "evaluate_breakers": "api",
 }
 
 # Priorities and per-account concurrency caps (02 section 5, "Fair claim"). The worker claims by priority (interactive 10, paid live-route checks 5, free cached-fare

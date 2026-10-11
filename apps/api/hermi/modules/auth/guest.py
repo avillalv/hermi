@@ -25,6 +25,7 @@ from starlette.concurrency import run_in_threadpool
 from hermi import db
 from hermi.config import NotConfigured
 from hermi.errors import ApiError
+from hermi.modules.ai import breakers
 from hermi.modules.ai import client as ai_client
 from hermi.modules.ai.features import drafts
 from hermi.modules.ai.features.base import FAILED, flag_runtime, parse_output
@@ -205,10 +206,10 @@ async def guest_draft_day(request: Request) -> dict:
     _guest_mode(request)
     flags = flag_runtime(request.app)
     # kill switches first: a paused feature must not move a counter or a credit. ai.free_tier covers guests (they are Free).
-    keys = [drafts.DAY_SPEC.kill_key]
+    flags.ensure_paid_allowed(drafts.DAY_SPEC.kill_key, tier="free")
     if request.app.state.settings.ai_provider == "anthropic_api":
-        keys.append("provider.anthropic")
-    flags.ensure_paid_allowed(*keys, tier="free")
+        # read only here: the probe is claimed in _run, after the caller is authenticated and has credit
+        breakers.refuse_unless_probe_possible(flags)
     if not key_id or not assertion or len(key_id) > 256 or len(assertion) > 65536:
         raise _unauthenticated()
     if idem is None:
@@ -306,6 +307,10 @@ def _run(request: Request, key_id: str, assertion: str, idem: str, raw: bytes) -
             body.destination, body.day or datetime.now(UTC).date(), body.preferences
         )
         req = ai_client.build_request(settings, spec.call, task)
+        if settings.ai_provider == "anthropic_api":  # the half-open probe, claimed right before the provider call
+            breakers.ensure_anthropic_allowed(
+                flag_runtime(request.app), spec.kill_key, tier="free", route="guest_ai"
+            )
         output, failure = None, None
         try:
             result = asyncio.run(ai_client.single_call(provider, req))

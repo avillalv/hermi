@@ -27,6 +27,7 @@ from hermi import db
 from hermi.config import NotConfigured
 from hermi.errors import ApiError
 from hermi.modules.admin.flags import FlagRuntime, engine_loader
+from hermi.modules.ai import breakers
 from hermi.modules.ai import client as ai_client
 from hermi.modules.ai.client import CallSpec
 from hermi.modules.ai.metering import MeterContext, record_usage
@@ -87,6 +88,7 @@ def flag_runtime(app) -> FlagRuntime:
     rt = getattr(app.state, "flags", None)
     if rt is None:
         rt = app.state.flags = FlagRuntime(engine_loader(app.state.engine))
+        rt.settings = getattr(app.state, "settings", None)  # the breaker probe claim opens the system session with it
     return rt
 
 
@@ -110,10 +112,14 @@ def gate(
         raise ApiError(403, "ai_consent_required", "Allow AI processing to use this.")
     if not row.ai_enabled:
         raise ApiError(403, "ai_disabled_for_trip", "AI is turned off for this trip.")
-    keys = [spec.kill_key]
-    if provider == "anthropic_api":
-        keys.append("provider.anthropic")
-    flags.ensure_paid_allowed(*keys, user_id=user_id, tier=row.tier)
+    # shortcut: the half-open probe is claimed here, at admission, not right before the provider call. A path that returns
+    # after the gate without calling the provider (cache hit, insufficient credits, validation) wastes the claim, so
+    # recovery waits one extra cooldown (one minute) per such path. Upgrade trigger: a probe that keeps being wasted in
+    # incidents; then move breakers.ensure_anthropic_allowed next to single_call in run_action, research and agent_runs.
+    if provider == "anthropic_api":  # provider.anthropic admits only the half-open probe
+        breakers.ensure_anthropic_allowed(flags, spec.kill_key, user_id=user_id, tier=row.tier, route="ai_gate")
+    else:
+        flags.ensure_paid_allowed(spec.kill_key, user_id=user_id, tier=row.tier)
 
 
 # --- output checks ------------------------------------------------------------------------------------------------
