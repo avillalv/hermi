@@ -57,6 +57,7 @@ the URLs with generated passwords. You never type a database password. The super
 | `MIGRATION_DATABASE_URL` | Migrate login (`hermi_migrate_login`, a member of the NOLOGIN `hermi_owner`): used only by `hermi migrate` | Required | Migrations cannot run | Written by `npm run setup` |
 | `TEST_DATABASE_URL` | App login on the `hermi_test` database | Required | pytest refuses to run | Written by `npm run setup` |
 | `TEST_MIGRATION_DATABASE_URL` | Migrate login on `hermi_test`, used by migration tests and role checks | Required | pytest refuses to run | Written by `npm run setup` |
+| `TEST_DATABASE_URL_ADMIN` | Admin login (`hermi_admin_login`) on `hermi_test`: the admin API tests use it | Derived | admin tests skip | `npm run test:api` derives it from `DATABASE_URL_ADMIN` and the `TEST_DATABASE_URL` database name |
 | `TEST_DATABASE_URL_SYSTEM` | Worker login on `hermi_test`: test fixtures write through it | Required | pytest refuses to run | Written by `npm run setup` |
 | `DATABASE_URL_ADMIN` | Admin login (`hermi_admin_login`, `BYPASSRLS`): the admin console only. New | Required | Startup fails | Written by `npm run setup` |
 | `DATABASE_POOL_SIZE`, `DATABASE_MAX_OVERFLOW` | Pool size per process | Required | Startup fails | `10`, `5` |

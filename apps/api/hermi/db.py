@@ -164,6 +164,20 @@ def open_app_engine(settings) -> Engine:
     return engine
 
 
+def open_admin_engine(settings) -> Engine:
+    """The admin console engine (DATABASE_URL_ADMIN, hermi_admin_login, BYPASSRLS). Used only by /v1/admin: it reads
+    admin_users and writes audited operational rows (03 section 6.1). Refuses a superuser, which would skip the grants."""
+    engine = make_engine(settings.require("DATABASE_URL_ADMIN"), pool_size=3, max_overflow=2, statement_timeout_ms=settings.database_statement_timeout_ms)
+    try:
+        with engine.connect() as conn:
+            if conn.exec_driver_sql("SELECT rolsuper FROM pg_roles WHERE rolname = current_user").scalar():
+                raise MigrationError("The admin connection must not be a superuser.")
+    except Exception:
+        engine.dispose()
+        raise
+    return engine
+
+
 @contextmanager
 def request_transaction(engine: Engine, user_id: uuid.UUID) -> Iterator[Session]:
     """One transaction per request. app.user_id is transaction-local, so it dies with the commit or rollback

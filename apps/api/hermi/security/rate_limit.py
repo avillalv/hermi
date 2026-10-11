@@ -46,6 +46,13 @@ ROUTE_CLASSES: dict[str, tuple[int, int]] = {
     "read_ip": (1200, MINUTE),
     "write_user": (120, MINUTE),
     "write_ip": (600, MINUTE),
+    # Admin (08 section 9 rule 5), keyed by admin user id, so never shared with a customer bucket.
+    "admin_read": (120, MINUTE),
+    "admin_write": (20, MINUTE),
+    "admin_x": (5, MINUTE),  # `X` actions: step-up and typed confirmation (WF-058.2 picks this class for them)
+    "admin_reveal": (30, HOUR),
+    "admin_export": (5, HOUR),
+    "admin_stepup": (10, HOUR),
 }
 SETTING_KEY = "setting_rate_limits"
 CACHE_TTL = 30.0  # seconds a limits read is reused, so an admin edit lands within half a minute

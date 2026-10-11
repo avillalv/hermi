@@ -26,7 +26,7 @@ _DEBUG_ONLY_KEY = re.compile(r"prompt|feed_?url", re.I)
 # `email` field is the one email that stays. Every other logger has emails masked.
 _RECORD_LOGGERS = {"hermi.waitlist"}
 _static: dict[str, str] = {}  # service, env, release: on every line (02 section 9)
-_CTX_KEYS = ("request_id", "job_id", "run_id", "user_id")
+_CTX_KEYS = ("request_id", "job_id", "run_id", "user_id", "admin_id", "admin_role")
 # One mutable dict per request or job, so a bind inside a threadpool dependency is seen by the
 # middleware that logs after it.
 _ctx: ContextVar[dict | None] = ContextVar("hermi_log_ctx", default=None)

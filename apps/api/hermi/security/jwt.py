@@ -1,5 +1,6 @@
 # ruff: noqa: E501  (long comments and SQL)
-"""Bearer token verification (02 section 3 step 3, 04 section 1.2). Only module that imports PyJWT.
+"""Bearer token verification (02 section 3 step 3, 04 section 1.2) and the Cloudflare Access assertion check
+(08 section 2.2). Only module that imports PyJWT.
 
 `supabase` mode checks Supabase JWTs against the cached JWKS. `dev` mode checks tokens signed by a key
 pair generated in this process (so a restart ends dev sessions), served as a local JWKS. Dev mode is
@@ -30,6 +31,9 @@ JWKS_MAX_STALE_SECONDS = 24 * 3600  # hard ceiling on serving keys after refetch
 DEV_ISSUER = "hermi-dev"
 DEV_AUDIENCE = "authenticated"
 PROVIDERS = frozenset({"apple", "google", "email"})  # auth_identities.provider (03 section 3)
+ACCESS_DEV_TEAM = "hermi-dev.cloudflareaccess.com"  # what the fake-Access signer uses when no team is configured
+ACCESS_DEV_AUDIENCE = "hermi-admin-dev"
+ACCESS_DEV_KID_PREFIX = "access-dev-"
 
 
 class TokenError(Exception):
@@ -207,3 +211,107 @@ class TokenVerifier:
             raise TokenError()
         email = claims.get("email")
         return VerifiedToken(subject, provider, email if isinstance(email, str) else None, claims)
+
+
+# --- Cloudflare Access (08 sections 2.2, 2.3 and 9) ------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class AccessIdentity:
+    email: str  # lowercased
+    subject: str | None
+    claims: dict
+
+
+def _refuse_admin_dev_outside_local(settings: Settings) -> None:
+    if settings.admin_auth_mode == "dev" and settings.environment not in LOCAL_ENVIRONMENTS:
+        raise AuthModeError("ADMIN_AUTH_MODE=dev is refused outside local and ci")
+
+
+def _access_team(settings: Settings) -> str:
+    """The team host, `<team>.cloudflareaccess.com`. The setting may be a bare team name or a full host or URL."""
+    raw = settings.cf_access_team_domain
+    if not raw:
+        if settings.admin_auth_mode == "dev":
+            return ACCESS_DEV_TEAM
+        raise TokenError()  # fail closed: no team configured, no assertion is acceptable
+    host = raw.strip().lower().removeprefix("https://").strip("/")
+    return host if "." in host else f"{host}.cloudflareaccess.com"
+
+
+def _access_audience(settings: Settings) -> str:
+    if settings.cf_access_aud:
+        return settings.cf_access_aud
+    if settings.admin_auth_mode == "dev":
+        return ACCESS_DEV_AUDIENCE
+    raise TokenError()
+
+
+_access_dev_keys: _DevKeys | None = None
+
+
+def _access_dev() -> _DevKeys:
+    """A key pair apart from the customer dev keys, so a customer token never verifies as an assertion."""
+    global _access_dev_keys
+    with _dev_lock:
+        if _access_dev_keys is None:
+            _access_dev_keys = _DevKeys()
+            _access_dev_keys.kid = ACCESS_DEV_KID_PREFIX + _access_dev_keys.kid
+        return _access_dev_keys
+
+
+def mint_access_token(settings: Settings, email: str, *, subject: str | None = None, ttl_seconds: int = 3600) -> str:
+    """The fake-Access signer (ADMIN_AUTH_MODE=dev, local and ci only): the claim shape Cloudflare Access sends."""
+    if settings.admin_auth_mode != "dev":
+        raise AuthModeError("The fake-Access signer needs ADMIN_AUTH_MODE=dev")
+    _refuse_admin_dev_outside_local(settings)
+    keys, now = _access_dev(), int(time.time())
+    claims = {
+        "iss": "https://" + _access_team(settings),
+        "aud": [_access_audience(settings)],
+        "sub": subject or str(uuid.uuid5(uuid.NAMESPACE_DNS, email.lower())),
+        "email": email,
+        "type": "app",
+        "iat": now,
+        "exp": now + ttl_seconds,
+    }
+    return jwt.encode(claims, keys.private, algorithm="ES256", headers={"kid": keys.kid})
+
+
+class AccessVerifier(TokenVerifier):
+    """Verifies the `Cf-Access-Jwt-Assertion` header: signature, audience, issuer and expiry. The same code runs in
+    `cf_access` and `dev` mode; only the key source differs (Cloudflare's certs, or this process's dev keys)."""
+
+    def _source(self) -> dict:
+        if self._fetch:
+            return self._fetch()
+        if self._settings.admin_auth_mode == "dev":
+            return _access_dev().jwks()
+        return _http_fetch(f"https://{_access_team(self._settings)}/cdn-cgi/access/certs")
+
+    def verify(self, token: str) -> AccessIdentity:  # type: ignore[override]
+        s = self._settings
+        _refuse_admin_dev_outside_local(s)
+        issuer, audience = "https://" + _access_team(s), _access_audience(s)
+        try:
+            header = jwt.get_unverified_header(token)
+            kid = header.get("kid")
+            if header.get("alg") not in ALGORITHMS or not isinstance(kid, str):
+                raise TokenError()
+            claims = jwt.decode(
+                token,
+                self._key(kid),
+                algorithms=ALGORITHMS,
+                audience=audience,
+                issuer=issuer,
+                leeway=LEEWAY_SECONDS,
+                options={"require": ["exp", "iss", "aud", "email"]},
+            )
+        except jwt.ExpiredSignatureError:
+            raise TokenError("token_expired") from None
+        except (jwt.PyJWTError, TypeError, ValueError):
+            raise TokenError() from None
+        email, subject = claims.get("email"), claims.get("sub")
+        if not isinstance(email, str) or "@" not in email:
+            raise TokenError()
+        return AccessIdentity(email.strip().lower(), subject if isinstance(subject, str) else None, claims)

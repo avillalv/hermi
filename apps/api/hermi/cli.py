@@ -1,7 +1,11 @@
+# ruff: noqa: E501  (long help strings and SQL)
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
+
+from hermi.modules.admin.permissions import ROLES
 
 HOST = "127.0.0.1"
 
@@ -175,6 +179,73 @@ def import_legacy(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+
+
+def admin_grant(args: argparse.Namespace) -> None:
+    """Write an admin_users row for an email (the first admin, 08 section 2.2). Idempotent: a repeat changes nothing and
+    writes no audit row. Runs on the worker login (DATABASE_URL_SYSTEM): the app login cannot write admin_users."""
+    from sqlalchemy import text
+
+    from hermi.config import ConfigError, NotConfigured, load_settings
+    from hermi.db import make_engine
+
+    email = (args.email_flag or args.email or "").strip().lower()
+    if "@" not in email:
+        sys.exit("Give the admin's email: hermi admin-grant <email>")
+    try:
+        settings = load_settings(bind_host=HOST)
+        url = settings.require("DATABASE_URL_SYSTEM")
+    except ConfigError as e:
+        sys.exit(str(e))
+    except NotConfigured:
+        sys.exit("DATABASE_URL_SYSTEM is not set (the worker login admin-grant writes with)")
+    engine = make_engine(url, pool_size=1, max_overflow=0)
+    try:
+        with engine.begin() as conn:
+            row = conn.execute(
+                text("SELECT id, status FROM users WHERE email = :e AND deleted_at IS NULL"), {"e": email}
+            ).first()
+            if row is None:
+                if not args.create_user:
+                    sys.exit(
+                        f"No account for {email}. Sign in to the app with that email once and run this again, or add "
+                        "--create-user to create the account row now (that email then cannot sign up as a customer)."
+                    )
+                row = conn.execute(
+                    text("INSERT INTO users (email) VALUES (:e) RETURNING id, status"), {"e": email}
+                ).first()
+            uid, status = row
+            if status != "active":
+                sys.exit(f"The account for {email} is {status}, so it cannot be an admin.")
+            before = conn.execute(
+                text("SELECT role::text, disabled_at IS NOT NULL FROM admin_users WHERE user_id = :u FOR UPDATE"), {"u": uid}
+            ).first()
+            if before == (args.role, False):
+                print(f"{email} is already an enabled admin ({args.role}). Nothing changed.")
+                return
+            conn.execute(
+                text(
+                    "INSERT INTO admin_users (user_id, role) VALUES (:u, CAST(:r AS admin_role)) "
+                    "ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role, disabled_at = NULL"
+                ),
+                {"u": uid, "r": args.role},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO audit_log (actor_type, action, entity_type, entity_id, before, after, reason, retention_class) "
+                    "VALUES ('system', 'admin_user.grant', 'admin_user', :u, CAST(:b AS jsonb), CAST(:a AS jsonb), 'hermi admin-grant', 'extended')"
+                ),
+                {
+                    "u": str(uid),
+                    "b": None if before is None else json.dumps({"role": before[0], "disabled": before[1]}),
+                    "a": json.dumps({"role": args.role, "disabled": False}),
+                },
+            )
+    finally:
+        engine.dispose()
+    print(f"{email} is now an enabled admin ({args.role}).")
+
+
 PLACEHOLDERS: dict[str, str] = {}
 
 
@@ -209,6 +280,13 @@ def main(argv: list[str] | None = None) -> None:
     legacy.add_argument(
         "--dry-run", action="store_true", help="run everything, report, keep nothing"
     )
+    grant = sub.add_parser("admin-grant", help="give an account an admin role (safe to re-run)")
+    grant.add_argument("email", nargs="?", help="the admin's email")
+    grant.add_argument("--email", dest="email_flag", help="the same, as a flag")
+    grant.add_argument("--role", choices=ROLES, default="owner")
+    grant.add_argument(
+        "--create-user", action="store_true", help="create the account row when the email has none yet"
+    )
     sub.add_parser("ai-smoke", help="one no-tool and one capped web call through claude_cli")
     worker_parser = sub.add_parser("worker", help="run the background job workers")
     worker_parser.add_argument("--lanes", help="comma separated lanes (default: WORKER_LANES)")
@@ -233,6 +311,9 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.command == "seed":
         seed(args.demo)
+        return
+    if args.command == "admin-grant":
+        admin_grant(args)
         return
     if args.command == "import-legacy":
         import_legacy(args)
