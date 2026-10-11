@@ -74,7 +74,7 @@ def test_the_catalogue_jobs_plus_the_reaper(app):
     assert names - worker_app.INFRA_TASKS == {
         "release_stale_reservations", "maintain_partitions", "purge_trash",
         "send_email", "send_predeparture_reminder", "build_digest", "send_trial_ending_reminder", "run_agent",
-        "check_fare_route",
+        "check_fare_route", "evaluate_price_alerts", "refresh_cached_fares",
     }  # fmt: skip
     assert names & worker_app.INFRA_TASKS == {"reap_stale_jobs"}
     assert {n: t.queue for n, t in app.tasks.items() if n in names} == {
@@ -87,6 +87,8 @@ def test_the_catalogue_jobs_plus_the_reaper(app):
         "send_trial_ending_reminder": "notify",
         "run_agent": "ai",
         "check_fare_route": "api",
+        "evaluate_price_alerts": "notify",
+        "refresh_cached_fares": "api",
         "reap_stale_jobs": "batch",
     }
     assert set(jobs.JOB_LANES) == names - worker_app.INFRA_TASKS
@@ -100,6 +102,7 @@ def test_periodic_schedules_only_on_the_leader(db_urls, clean_queue):
         crons = {k[0]: p.cron for k, p in on.scheduled_registry.periodic_tasks.items()}
         assert crons == {
             "release_stale_reservations": "*/5 * * * *",
+            "refresh_cached_fares": "17 */6 * * *",
             "maintain_partitions": "30 2 * * *",
             "purge_trash": "30 4 * * *",
             "send_predeparture_reminder": "0 * * * *",

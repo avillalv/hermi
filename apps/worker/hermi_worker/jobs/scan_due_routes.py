@@ -3,7 +3,7 @@
 
 Not a Procrastinate job: the scheduler loop calls run() every tick, because cron cannot go below a minute. It enqueues one
 `check_fare_route` per due route and moves next_check_at to the next daily slot strictly after now, so an outage fires one
-check and slots never stack. Eligibility, the kill switch and budget reservation arrive with WF-051.2.
+check and slots never stack. Eligibility is decided in the job (check_fare_route.skip_reason); the slot advances either way.
 """
 
 import logging
