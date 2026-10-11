@@ -46,6 +46,20 @@ def worker(lanes: str | None = None) -> None:
     runner.run(settings, lanes)
 
 
+def scheduler() -> None:
+    """Run only the scheduler loop: leader election, the route scan and the periodic jobs."""
+    from hermi.config import ConfigError, NotConfigured, load_settings
+
+    try:
+        settings = load_settings(bind_host=HOST)
+        settings.require("DATABASE_URL_SYSTEM")
+    except (ConfigError, NotConfigured) as e:
+        sys.exit(str(e))
+    from hermi_worker import runner
+
+    runner.run_scheduler(settings)
+
+
 def migrate() -> None:
     """Upgrade to head as hermi_migrate_login (MIGRATION_DATABASE_URL), one migrator at a time."""
     from alembic import command
@@ -161,7 +175,7 @@ def import_legacy(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
-PLACEHOLDERS = {"scheduler": "WF-051"}
+PLACEHOLDERS: dict[str, str] = {}
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -198,6 +212,7 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("ai-smoke", help="one no-tool and one capped web call through claude_cli")
     worker_parser = sub.add_parser("worker", help="run the background job workers")
     worker_parser.add_argument("--lanes", help="comma separated lanes (default: WORKER_LANES)")
+    sub.add_parser("scheduler", help="run the scheduler leader loop only")
     for name in PLACEHOLDERS:
         sub.add_parser(name, help=f"arrives with {PLACEHOLDERS[name]}")
     args = parser.parse_args(argv)
@@ -209,6 +224,9 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.command == "ai-smoke":
         ai_smoke()
+        return
+    if args.command == "scheduler":
+        scheduler()
         return
     if args.command == "worker":
         worker(args.lanes)

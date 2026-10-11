@@ -43,8 +43,21 @@ def test_api_host_flag_binds_container_address(monkeypatch):
     assert seen["host"] == "0.0.0.0"
 
 
-def test_scheduler_placeholder_exits_non_zero_with_a_pointer():
-    with pytest.raises(SystemExit, match="arrives with WF-"):
+def test_scheduler_subcommand_runs_only_the_scheduler(monkeypatch):
+    from hermi_worker import runner
+
+    monkeypatch.setenv("ENVIRONMENT", "ci")
+    monkeypatch.setenv("DATABASE_URL_SYSTEM", "postgresql+psycopg://u:p@localhost/x")
+    seen = []
+    monkeypatch.setattr(runner, "run_scheduler", lambda s: seen.append(bool(s.database_url_system)))
+    cli.main(["scheduler"])
+    assert seen == [True]
+
+
+def test_scheduler_exits_without_the_worker_login(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "ci")
+    monkeypatch.delenv("DATABASE_URL_SYSTEM", raising=False)
+    with pytest.raises(SystemExit, match="DATABASE_URL_SYSTEM"):
         cli.main(["scheduler"])
 
 

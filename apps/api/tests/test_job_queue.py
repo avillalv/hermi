@@ -74,6 +74,7 @@ def test_the_catalogue_jobs_plus_the_reaper(app):
     assert names - worker_app.INFRA_TASKS == {
         "release_stale_reservations", "maintain_partitions", "purge_trash",
         "send_email", "send_predeparture_reminder", "build_digest", "send_trial_ending_reminder", "run_agent",
+        "check_fare_route",
     }  # fmt: skip
     assert names & worker_app.INFRA_TASKS == {"reap_stale_jobs"}
     assert {n: t.queue for n, t in app.tasks.items() if n in names} == {
@@ -85,6 +86,7 @@ def test_the_catalogue_jobs_plus_the_reaper(app):
         "build_digest": "notify",
         "send_trial_ending_reminder": "notify",
         "run_agent": "ai",
+        "check_fare_route": "api",
         "reap_stale_jobs": "batch",
     }
     assert set(jobs.JOB_LANES) == names - worker_app.INFRA_TASKS
@@ -94,8 +96,8 @@ def test_periodic_schedules_only_on_the_leader(db_urls, clean_queue):
     off = worker_app.build_app(Settings(_env_file=None, environment="ci", database_url_system=db_urls["system"], scheduler_enabled=False))
     on = worker_app.build_app(Settings(_env_file=None, environment="ci", database_url_system=db_urls["system"], scheduler_enabled=True))
     try:
-        assert off.periodic_registry.periodic_tasks == {}
-        crons = {k[0]: p.cron for k, p in on.periodic_registry.periodic_tasks.items()}
+        assert off.scheduled_registry.periodic_tasks == {} and on.periodic_registry.periodic_tasks == {}
+        crons = {k[0]: p.cron for k, p in on.scheduled_registry.periodic_tasks.items()}
         assert crons == {
             "release_stale_reservations": "*/5 * * * *",
             "maintain_partitions": "30 2 * * *",
