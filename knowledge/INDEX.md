@@ -9,6 +9,7 @@ This repo is the specification itself, so its reference material lives in `app-b
 | File | Read it when |
 |---|---|
 | `autopilot.md` | You start, watch, stop or resume the unattended build, meet an exit code or a usage-limit pause, or need to know why sessions never merge. |
+| `scheduler-live-fares-evals.md` | You touch the scheduler leader, fare checks, live search, global breakers, usage reconciliation or `npm run evals`. |
 | `local-dev-windows.md` | You set up, run or debug Hermi on this Windows machine: the PostgreSQL superuser password, the commands, ports, dev sign-in and the Windows hazards. |
 | `env-and-accounts.md` | You add or change an environment variable, or need to know what an account or key is for, whether you need it locally, and where to get it. |
 | `ai-provider-claude-cli.md` | You touch the `AiProvider` seam, run product AI through the owner's own `claude -p`, or move to the Anthropic API for production. |
