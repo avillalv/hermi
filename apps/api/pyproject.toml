@@ -3,7 +3,7 @@ name = "hermi-api"
 version = "0.0.0"
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi>=0.115",
+    "fastapi>=0.143.0",
     "httpx>=0.27",
     "python-dotenv>=1.0",
     "psycopg[binary]>=3.2",
