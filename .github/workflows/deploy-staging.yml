@@ -59,11 +59,11 @@ jobs:
     env:
       IMAGE: ghcr.io/avillalv/hermi
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       # Install and build before the GHCR login, so npm scripts never run with packages: write in reach.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -73,14 +73,14 @@ jobs:
         env:
           VITE_API_BASE_URL: ${{ vars.STAGING_API_URL }}
           VITE_APP_ENV: staging
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: infra/docker/Dockerfile
