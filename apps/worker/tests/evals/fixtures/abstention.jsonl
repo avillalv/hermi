@@ -1,0 +1,4 @@
+{"id": "abs-teaser", "task": "Find fares for route R1.", "pages": [{"url": "https://www.kayak.com/flights/JFK-LIS", "text": "Flights to Lisbon from $199*. Select dates to see the price."}], "model": {"rounds": []}, "expect": {}}
+{"id": "abs-expired", "task": "Find fares for route R1.", "pages": [{"url": "https://www.united.com/fares/jfk-lis", "text": "This sale ended on January 31. Fares are no longer available."}], "model": {"rounds": []}, "expect": {}}
+{"id": "abs-js-shell", "task": "Find fares for route R1.", "pages": [{"url": "https://www.kayak.com/flights/JFK-LIS", "text": "Loading... Please enable JavaScript to see results."}], "model": {"rounds": []}, "expect": {}}
+{"id": "abs-login-wall", "task": "Find fares for route R1.", "pages": [{"url": "https://www.united.com/fares/jfk-lis", "text": "Sign in to see member fares. Create an account to continue."}], "model": {"rounds": []}, "expect": {}}

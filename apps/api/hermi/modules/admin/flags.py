@@ -235,6 +235,10 @@ class FlagRuntime:
     def switch_engaged(self, key: str) -> bool:
         return self._engaged(self._snapshot()[0], key)
 
+    def switch(self, key: str) -> Switch | None:
+        """The cached row of one switch, for a read only decision (an expired or cleared row is returned as stored)."""
+        return self._snapshot()[0].switches.get(key)
+
     def ensure_paid_allowed(self, *feature_keys: str, user_id: uuid.UUID | None = None, tier: str | None = None) -> None:
         """Raise 503 ai_unavailable before a paid call when ai.all, a named feature switch, the tier switch or the
         user's hold is engaged, or when the tables cannot be read."""

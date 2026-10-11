@@ -1,0 +1,43 @@
+{
+ "search_metadata": {"google_flights_url": "https://www.google.com/travel/flights?tfs=fixture"},
+ "best_flights": [
+  {
+   "flights": [
+    {"departure_airport": {"name": "Los Angeles International Airport", "id": "LAX", "time": "2026-11-05 11:10"},
+     "arrival_airport": {"name": "Narita International Airport", "id": "NRT", "time": "2026-11-06 15:20"},
+     "duration": 690, "airline": "ANA", "flight_number": "NH 105"}
+   ],
+   "layovers": [],
+   "total_duration": 690,
+   "price": 1240,
+   "type": "Round trip"
+  }
+ ],
+ "other_flights": [
+  {
+   "flights": [
+    {"departure_airport": {"id": "LAX", "time": "2026-11-05 22:10"},
+     "arrival_airport": {"id": "HND", "time": "2026-11-07 05:00"},
+     "duration": 650, "airline": "Japan Airlines", "flight_number": "JL 61"}
+   ],
+   "layovers": [],
+   "total_duration": 650,
+   "price": 1310,
+   "type": "Round trip"
+  },
+  {
+   "flights": [
+    {"departure_airport": {"id": "LAX", "time": "2026-11-05 11:10"},
+     "arrival_airport": {"id": "MNL", "time": "2026-11-06 18:45"},
+     "duration": 935, "airline": "Philippine Airlines", "flight_number": "PR 113"},
+    {"departure_airport": {"id": "MNL", "time": "2026-11-07 03:00"},
+     "arrival_airport": {"id": "NRT", "time": "2026-11-07 08:00"},
+     "duration": 240, "airline": "Philippine Airlines", "flight_number": "PR 430"}
+   ],
+   "layovers": [{"duration": 495, "name": "Ninoy Aquino International Airport", "id": "MNL"}],
+   "total_duration": 1670,
+   "price": 980,
+   "type": "Round trip"
+  }
+ ]
+}

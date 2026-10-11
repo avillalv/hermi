@@ -103,7 +103,7 @@ local one.
 | `AI_CLI_SCRATCH_DIR` | Empty working folder for each call | Optional | A folder under `.data/` | Your choice |
 | `AI_CLI_ALLOWED_EMAILS` | Comma list of users who may use `claude_cli` when `AUTH_MODE` is not `dev` | Optional | Empty: nobody | Your own email |
 | `ANTHROPIC_API_KEY` | API key, one workspace per environment with a spend limit | Production only | Not needed for `claude_cli` or `fake`; stripped from the CLI's environment on purpose | console.anthropic.com: prepaid credit and a workspace spend limit |
-| `ANTHROPIC_ADMIN_API_KEY` | Usage reconcile (an organization admin key) | Production only | The reconcile job logs and skips | console.anthropic.com, organization settings, Admin keys |
+| `ANTHROPIC_ADMIN_API_KEY` | Usage reconcile (an organization admin key) | Production and staging | The reconcile job logs and skips | console.anthropic.com, organization settings, Admin keys |
 | `AI_MODEL_FAST` | Haiku id for short answers, page summaries and pasted-text import | Required | Startup fails | `claude-haiku-4-5` |
 | `AI_MODEL_MAIN` | Sonnet id | Required | Startup fails | `claude-sonnet-5-5` |
 | `AI_GLOBAL_DAILY_CAP_USD` | Circuit breaker for total daily spend | Required | Startup fails | `150` |

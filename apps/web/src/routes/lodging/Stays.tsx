@@ -3,6 +3,8 @@ import { Navigate, useNavigate, useParams, useSearchParams } from "react-router"
 import { EmptyState } from "../../components/EmptyState"
 import { QueryError } from "../../components/ErrorState"
 import { Skeleton } from "../../components/Skeleton"
+import { refreshCredits } from "../../components/ai"
+import { LiveCheck, postLive, useLiveSearchOn } from "../../components/live/LiveCheck"
 import { Avatar, Btn, Icon, SegItem, SegmentedControl, StatusStub, TicketStub, TripTicket } from "../../components/kit"
 import { daysBetween, parseDate } from "../../lib/dates"
 import { t } from "../../lib/i18n"
@@ -17,7 +19,7 @@ import { tripStrip } from "../trips/TripStrip"
 import "../trips/trips.css"
 import "../itinerary/plan.css"
 import { AddStay, type Prefill } from "./AddStay"
-import { setHeart, setStatus, SORTS, useMe, useStays, type Sort, type Stay, type Status } from "./api"
+import { rentalSearchPath, setHeart, setStatus, SORTS, useMe, useStays, type RentalSearch, type Sort, type Stay, type Status } from "./api"
 import { Bookmarklet } from "./Bookmarklet"
 import { Compare } from "./Compare"
 import "./stays.css"
@@ -156,6 +158,50 @@ function StayCard({ stay, travelers, meId, canEdit, locked, booked, picked, pick
   )
 }
 
+/** Live rental search (05 6.11): behind the same flag as live fares. Results link out to the site that lists them; nothing is fetched from it. */
+function RentalSearchPanel({ tripId, place, from, to, adults }: { tripId: string; place: string; from: string; to: string; adults: number }) {
+  const [found, setFound] = useState<RentalSearch | null>(null)
+  const search = async (key: string) => {
+    const r = await postLive<RentalSearch>(rentalSearchPath(tripId), { check_in: from, check_out: to, adults }, key)
+    if (r.ok) void refreshCredits()
+    return r
+  }
+  return (
+    <section className="h-stack" aria-label={t("live.rentalsTitle")}>
+      <h2 className="h-label">{t("live.rentalsTitle")}</h2>
+      <p className="h-soft">{t("live.rentalsNote", { place, from: day(from), to: day(to), sorted: found?.sorted_by ?? t("live.rentalsSortedDefault") })}</p>
+      <LiveCheck<RentalSearch> pausedKey="live.pausedRentals" subject={t("live.rentalsAria", { place })} search={search} isEmpty={(d) => d.offers.length === 0} onResult={setFound} />
+      {found && found.offers.length > 0 && (
+        <ul className="live__offers">
+          {found.offers.map((o, i) => {
+            const href = o.link && web(o.link) ? o.link : null
+            const price = o.price_per_night_minor !== null ? t("live.rentalsRow", { price: formatMoney(o.price_per_night_minor, found.currency) }) : t("live.rentalsNoPrice")
+            const site = o.site ?? ""
+            return (
+              <li key={`${i}-${o.title}`}>
+                <TripTicket mod={["side", "stub-wide"]} role="group" aria-label={`${o.title}, ${price}`}>
+                  <div className="h-ticket__body">
+                    <span className="h-provider__name">{o.title}</span>
+                    <span className="h-provider__price">{[price, o.rating !== null ? t("live.rentalsRating", { n: o.rating }) : "", site].filter(Boolean).join(", ")}</span>
+                  </div>
+                  <TicketStub>
+                    {href && (
+                      <a className="h-btn h-btn--secondary h-btn--stub h-btn--wrap" href={href} target="_blank" rel="noopener noreferrer" aria-label={t("live.rentalsOpenAria", { title: o.title, site: site || t("live.rentalsSiteAria") })}>
+                        {t("live.rentalsOpen", { site: site || t("live.rentalsSiteLabel") })}
+                        <Icon name="external-link" size={14} />
+                      </a>
+                    )}
+                  </TicketStub>
+                </TripTicket>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 /** 05 6.11 Stays: shortlist, compare and vote. */
 export function Stays() {
   const { token } = useAuth()
@@ -176,6 +222,7 @@ export function Stays() {
   )
   const [showRejected, setShowRejected] = useState(false)
   const [note, setNote] = useState<Note | null>(null)
+  const liveOn = useLiveSearchOn(!!token)
   if (!token) return <Navigate to="/welcome" replace />
 
   const canEdit = !!trip.data && trip.data.my_role !== "viewer"
@@ -304,6 +351,13 @@ export function Stays() {
               </section>
             )}
           </>
+        )}
+        {ready && canEdit && liveOn && view === "list" && (
+          trip.data?.start_date && trip.data.end_date && nights > 0 && trip.data.destinations.length > 0 ? (
+            <RentalSearchPanel tripId={id} place={trip.data.destinations[0]!.name} from={trip.data.start_date} to={trip.data.end_date} adults={Math.min(9, Math.max(1, travelers.length))} />
+          ) : (
+            <p className="h-soft">{t("live.rentalsNoDates")}</p>
+          )
         )}
         {ready && canEdit && <Bookmarklet tripId={id} />}
         {ready && view === "list" && picked.length >= 2 && picked.length <= MAX_COMPARE && (

@@ -10,20 +10,22 @@ import json
 import math
 import uuid
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from hermi.deps import CurrentUser, DbSession, TripAccess, require_trip
 from hermi.errors import ApiError, NotFound
+from hermi.modules.ai.features.base import flag_runtime
 from hermi.modules.collaboration.activity import record
 from hermi.modules.collaboration.schemas import Attribution
+from hermi.modules.flights import live
 from hermi.modules.flights.schemas import Money
-from hermi.modules.lodging import service
+from hermi.modules.lodging import rentals, service
 from hermi.modules.lodging.schemas import (
     CompareRow,
     LinkParse,
@@ -33,6 +35,8 @@ from hermi.modules.lodging.schemas import (
     LodgingPage,
     LodgingUpdate,
     ParseLinkIn,
+    RentalSearchIn,
+    RentalSearchResult,
     Sort,
     Status,
     Vote,
@@ -353,3 +357,45 @@ def parse_link(body: ParseLinkIn, user: CurrentUser) -> LinkParse:
     for f in ("check_in", "check_out", "guests"):
         parsed[f] = getattr(body, f) or parsed[f]
     return LinkParse(**parsed, note=service.NOTE)
+
+
+@router.post("/trips/{trip_id}/lodging/rental-search", response_model=RentalSearchResult, operation_id="lodging_rental_search")
+def rental_search(
+    body: RentalSearchIn,
+    request: Request,
+    access: Annotated[TripAccess, require_trip("editor")],
+    user: CurrentUser,
+    session: DbSession,
+    key: Annotated[str, Header(alias="Idempotency-Key", min_length=1, max_length=200)],
+) -> RentalSearchResult:
+    """Licensed rental search through SerpApi behind the same flag as live fares: 1 credit, free from a shared search under
+    6 hours old (04 section 5.9). The place is the trip's first destination. Nothing here fetches a rental site.
+
+    shortcut: answers inline with the result, not the 04 5.9 `offer_ref`, `observed_at`, credits receipt, `book_offer` and
+    `save_first` shape. Results link out only; there is no save to the shortlist yet. Upgrade trigger: the shortlist save
+    ticket (the web needs to keep an offer after the search).
+    Links go straight to the provider link, not through /go; route them through /go when partner search lands."""
+    flags = flag_runtime(request.app)
+    trip_id, currency = access.trip.id, body.currency or access.trip.home_currency
+    if body.check_in < datetime.now(UTC).date():
+        raise ApiError(422, "validation_failed", "Pick a check-in date that is today or later.")
+    live.gate(session, flags, user_id=user.id, trip_id=trip_id)
+    place = session.execute(text("SELECT name FROM trip_destinations WHERE trip_id = :t ORDER BY position LIMIT 1"), {"t": trip_id}).scalar()
+    if not place:
+        raise ApiError(422, "validation_failed", "Add a destination to the trip first.")
+    res = rentals.search_live_rentals(
+        session,
+        settings=request.app.state.settings,
+        flags=flags,
+        user_id=user.id,
+        trip_id=trip_id,
+        place=place,
+        check_in=body.check_in,
+        check_out=body.check_out,
+        adults=body.adults,
+        children=body.children,
+        currency=currency,
+        sort=body.sort,
+        idempotency_key=key,
+    )
+    return RentalSearchResult(**res.data, cached=res.cached, checked_at=res.checked_at, age_seconds=res.age_seconds, credits_charged=res.credits_charged)

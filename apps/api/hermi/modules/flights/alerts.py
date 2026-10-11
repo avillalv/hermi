@@ -1,10 +1,10 @@
 # ruff: noqa: E501  (long SQL strings)
 """Price alerts on cached fares (04 section 5.8, WF-031.1): the pure drop rule and the idempotent trigger.
 
-Delivery is not here (WF-047) and neither is the scheduled check (WF-051): `evaluate_alert` records a trigger and returns it.
+`evaluate_alert` records a trigger through the notification service (WF-047), which queues the email on the notify lane. The scheduled
+check is the `evaluate_price_alerts` worker job (WF-051.2).
 """
 
-import json
 import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -12,6 +12,8 @@ from decimal import Decimal
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+from hermi.modules.notifications import service
 
 
 @dataclass(frozen=True)
@@ -68,14 +70,10 @@ def evaluate_alert(session: Session, alert_id: uuid.UUID) -> Trigger | None:
     # The unique (user_id, dedupe_key) is the second gate: a reset alert never tells about the same price twice.
     exponent = session.execute(text("SELECT currency_exponent(:c)"), {"c": alert["currency"]}).scalar_one()
     shown = f"{Decimal(price).scaleb(-exponent):.{exponent}f}"
-    sent = session.execute(
-        text(
-            """INSERT INTO notifications (user_id, trip_id, kind, dedupe_key, title, body, payload, want_push, want_email)
-                VALUES (:u, :t, 'price_drop', :k, 'Price drop', :b, CAST(:pl AS jsonb), :push, :email)
-                ON CONFLICT (user_id, dedupe_key) DO NOTHING RETURNING id"""
-        ),
-        {"u": alert["user_id"], "t": alert["trip_id"], "k": f"price_drop:{alert_id}:{price}", "b": f"A fare is down to {shown} {alert['currency']}.",
-         "pl": json.dumps({"alert_id": str(alert_id), "route_id": str(alert["route_id"]), "price_minor": price, "currency": alert["currency"]}),
-         "push": alert["channel_push"], "email": alert["channel_email"]},
-    ).first()
+    sent = service.create(
+        session, user_id=alert["user_id"], trip_id=alert["trip_id"], kind="price_drop", dedupe_key=f"price_drop:{alert_id}:{price}",
+        title="Price drop", body=f"A fare is down to {shown} {alert['currency']}.",
+        payload={"alert_id": str(alert_id), "route_id": str(alert["route_id"]), "price_minor": price, "currency": alert["currency"]},
+        want_push=alert["channel_push"], want_email=alert["channel_email"],
+    )
     return Trigger(alert_id, price, alert["currency"]) if sent else None

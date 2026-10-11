@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router"
+import { refreshCredits } from "../../components/ai"
 import { EvidenceLabel } from "../../components/evidence"
+import { LiveCheck, postLive, useLiveSearchOn } from "../../components/live/LiveCheck"
 import { Btn, Field, Icon, RoutePath, TextField, TicketStub, TripTicket } from "../../components/kit"
 import { formatDateRange } from "../../lib/dates"
 import { t } from "../../lib/i18n"
@@ -13,7 +15,8 @@ import { useTrip } from "../trips/api"
 import { tripStrip } from "../trips/TripStrip"
 import "../trips/trips.css"
 import { AlertSwitch } from "./Alerts"
-import { ageText, chooseFare, refreshRoute, useHistory, useRoutes, useRouteFares, useSummary, type Fare, type Money } from "./api"
+import { queryClient } from "../../lib/queryClient"
+import { ageText, chooseFare, flightsKey, refreshRoute, useHistory, useRoutes, useRouteFares, useSummary, type Fare, type LiveFares, type Money } from "./api"
 import { PriceChart, daily, shortDay } from "./PriceChart"
 import "./flights.css"
 
@@ -97,6 +100,8 @@ export function FareDetail() {
   const [booked, setBooked] = useState(false)
   const [failed, setFailed] = useState(false)
   const [checking, setChecking] = useState(false)
+  const [liveFare, setLiveFare] = useState<Fare | null>(null)
+  const liveOn = useLiveSearchOn(on)
   // The list read is the first 100 cheapest; a fare past that comes from the tapped chip (router state) instead.
   const fare = fares.data?.items.find((f) => f.id === fareId) ?? (tapped?.id === fareId && tapped.route_id === routeId ? tapped : undefined)
   const viewed = useRef(false)
@@ -119,7 +124,19 @@ export function FareDetail() {
   const travelers = Math.max(1, fare?.passengers ?? 1)
   const url = fare?.airline_search_url?.startsWith("https://") ? fare.airline_search_url : null
   const age = fare ? ageText(fare.observed_at) : ""
-  const cabin = t(`flights.detail.cabin.${routes.data?.find((r) => r.id === routeId)?.cabin ?? "economy"}`)
+  const route = routes.data?.find((r) => r.id === routeId)
+  const cabin = t(`flights.detail.cabin.${route?.cabin ?? "economy"}`)
+  // The flag decides whether the control exists at all; the server gate (live route, 120 days, credits) decides each tap.
+  const canLive = liveOn && canEdit && route?.mode === "live"
+  const liveSearch = async (key: string) => {
+    if (!fare) return { ok: false as const, reason: "failed" as const }
+    const r = await postLive<LiveFares>(`/v1/trips/${encodeURIComponent(id)}/flights/live-search`, { route_id: routeId, depart_date: fare.depart_date, return_date: fare.return_date }, key)
+    if (r.ok) {
+      void queryClient.invalidateQueries({ queryKey: flightsKey(id) }) // not awaited: the label must not wait on the refetch
+      void refreshCredits()
+    }
+    return r
+  }
 
   const save = async (paid: Money | null) => {
     const r = await chooseFare(id, routeId, fareId, { ...(paid ? { paid } : {}), booked_at: new Date().toISOString() })
@@ -274,6 +291,22 @@ export function FareDetail() {
                     </Btn>
                   </div>
                 ))}
+              {canLive && (
+                <section className="live" aria-label={t("live.flightsTitle")}>
+                  <p className="h-soft">{t("live.flightsNote")}</p>
+                  <LiveCheck<LiveFares>
+                    subject={`${fare.origin} ${t("flights.to").toLowerCase()} ${fare.destination}`}
+                    search={liveSearch}
+                    isEmpty={(d) => d.fares.length === 0}
+                    onResult={(d) => setLiveFare(d.fares[0] ?? null)}
+                  />
+                  {liveFare && (
+                    <Link to={`/trips/${id}/flights/${routeId}/fares/${liveFare.id}`} state={{ fare: liveFare }}>
+                      {t("live.flightsResult", { route: `${liveFare.origin} ${t("flights.to").toLowerCase()} ${liveFare.destination}`, price: formatMoney(liveFare.price.amount_minor, liveFare.price.currency) })}
+                    </Link>
+                  )}
+                </section>
+              )}
               <AlertSwitch tripId={id} routeId={routeId} currency={fare.price.currency} canEdit={canEdit} online={online} />
               {failed && (
                 <p role="alert" className="h-input__error">

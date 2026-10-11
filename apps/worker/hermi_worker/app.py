@@ -6,17 +6,25 @@ import logging
 
 import procrastinate
 from procrastinate.job_context import JobContext
+from procrastinate.periodic import PeriodicRegistry
 from sqlalchemy.orm import Session
 
 from hermi.config import Settings
 from hermi.db import make_engine, psycopg_url
 from hermi.jobs import JOB_LANES, LANES
-from hermi_worker import fairness
+from hermi_worker import fairness, scheduler
 from hermi_worker.jobs import (
     build_digest,
+    check_fare_route,
+    evaluate_alert_rules,
+    evaluate_breakers,
+    evaluate_business_alerts,
+    evaluate_price_alerts,
     maintain_partitions,
     purge_trash,
     reap_stale_jobs,
+    reconcile_anthropic_usage,
+    refresh_cached_fares,
     release_stale_reservations,
     run_agent,
     send_email,
@@ -38,16 +46,25 @@ JOBS = (
     build_digest,
     send_trial_ending_reminder,
     run_agent,
+    check_fare_route,
+    evaluate_price_alerts,
+    refresh_cached_fares,
+    evaluate_breakers,
+    evaluate_alert_rules,
+    evaluate_business_alerts,
+    reconcile_anthropic_usage,
 )
 INFRA_TASKS = frozenset({reap_stale_jobs.NAME})
 
 
 def build_app(settings: Settings) -> procrastinate.App:
-    """Periodic schedules are registered only when SCHEDULER_ENABLED, so one process (the leader) defers them."""
+    """Periodic schedules are registered, only when SCHEDULER_ENABLED, in `app.scheduled_registry` and not in the lane workers own
+    registry, so only the scheduler loop that holds the leader lock defers them (hermi_worker.scheduler)."""
     url = psycopg_url(settings.require("DATABASE_URL_SYSTEM"))
     app = procrastinate.App(connector=procrastinate.PsycopgConnector(conninfo=url))
     engine = make_engine(url, pool_size=2, max_overflow=2)
     app.sqlalchemy_engine = engine  # disposed by the runner at exit
+    app.scheduled_registry = PeriodicRegistry()
     app.fairness_engine = fairness.install(app, url, pool_size=len(LANES))  # disposed by the runner at exit
 
     for mod in JOBS:
@@ -68,9 +85,8 @@ def build_app(settings: Settings) -> procrastinate.App:
 
         task = app.task(name=mod.NAME, queue=mod.LANE, retry=HermiRetry(mod.RETRIES), pass_context=True)(body)
         # The per-slot lock key of 02 section 5.2 is the unique (task, periodic_id, timestamp) row in procrastinate_periodic_defers.
-        # The leader election and scheduler loop land in WF-051; until then SCHEDULER_ENABLED picks the one process that registers these.
         if settings.scheduler_enabled and mod.SCHEDULE:
-            app.periodic_registry.register_task(task, cron=mod.SCHEDULE, periodic_id="", configure_kwargs={})
+            app.scheduled_registry.register_task(task, cron=mod.SCHEDULE, periodic_id="", configure_kwargs={})
 
     async def reap(context: JobContext, timestamp: int | None = None) -> int:
         with job_context(str(context.job.id)):
@@ -78,7 +94,7 @@ def build_app(settings: Settings) -> procrastinate.App:
 
     task = app.task(name=reap_stale_jobs.NAME, queue=reap_stale_jobs.LANE, pass_context=True)(reap)
     if settings.scheduler_enabled:
-        app.periodic_registry.register_task(task, cron=reap_stale_jobs.SCHEDULE, periodic_id="", configure_kwargs={})
+        app.scheduled_registry.register_task(task, cron=reap_stale_jobs.SCHEDULE, periodic_id="", configure_kwargs={})
     return app
 
 
@@ -110,12 +126,26 @@ async def run_workers(app: procrastinate.App, settings: Settings, lanes: list[st
             for w in workers:
                 w.stop()
 
+        stopping = asyncio.Event()
+
+        def stop_all() -> None:
+            stop()
+            stopping.set()
+
         if install_signals:
-            _on_signals(loop, stop)
-        await asyncio.gather(*(w.run() for w in workers))
+            on_signals(loop, stop_all)
+        lead = None
+        if settings.scheduler_enabled:  # the leader loop runs beside the lane workers; a standby only retries the lock
+            lead = asyncio.create_task(scheduler.run(app, settings, stopping), name="scheduler")
+        try:
+            await asyncio.gather(*(w.run() for w in workers))
+        finally:
+            stopping.set()
+            if lead is not None:
+                await lead
 
 
-def _on_signals(loop: asyncio.AbstractEventLoop, stop) -> None:
+def on_signals(loop: asyncio.AbstractEventLoop, stop) -> None:
     import signal
 
     for sig in (signal.SIGINT, signal.SIGTERM):

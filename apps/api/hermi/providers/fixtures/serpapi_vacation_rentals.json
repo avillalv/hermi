@@ -1,0 +1,38 @@
+{
+ "search_metadata": {"status": "Success"},
+ "properties": [
+  {
+   "name": "Fixture Machiya House",
+   "type": "Vacation rental",
+   "property_token": "tok-a",
+   "link": "https://example.com/stay/a",
+   "gps_coordinates": {"latitude": 35.01, "longitude": 135.76},
+   "overall_rating": 4.8123,
+   "reviews": 120,
+   "rate_per_night": {"extracted_lowest": 180},
+   "total_rate": {"extracted_lowest": 540},
+   "essential_info": ["Sleeps 4", "2 bedrooms"],
+   "prices": [{"source": "Example Stays"}],
+   "images": [{"thumbnail": "https://example.com/p/a.jpg"}]
+  },
+  {
+   "name": "Fixture Riverside Apartment",
+   "type": "Apartment",
+   "property_token": "tok-b",
+   "link": "https://example.com/stay/b",
+   "gps_coordinates": {"latitude": 35.0, "longitude": 135.77},
+   "overall_rating": 4.5,
+   "reviews": 48,
+   "rate_per_night": {"extracted_lowest": 120},
+   "total_rate": {"extracted_lowest": 360},
+   "essential_info": ["Sleeps 2", "1 bedroom"]
+  },
+  {
+   "name": "Fixture Unrated Studio",
+   "property_token": "tok-c",
+   "rate_per_night": {"extracted_lowest": 95},
+   "total_rate": {"extracted_lowest": 285}
+  }
+ ],
+ "ads": [{"name": "An ad that is ignored", "extracted_price": 1}]
+}
