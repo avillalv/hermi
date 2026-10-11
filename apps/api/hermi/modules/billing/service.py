@@ -150,7 +150,22 @@ def credit_balance(session: Session, user_id: uuid.UUID) -> CreditBalance:
     )
 
 
-def get_entitlements(session: Session, user_id: uuid.UUID) -> Entitlements:
+def _live_search_on(flags, user_id: uuid.UUID, live: bool, passes) -> bool:
+    """Whether `serpapi_live_fares` is on for this user, so the web can hide the Live check control. The per-trip gate decides again."""
+    if flags is None:
+        return False
+    from hermi.modules.admin.flags import (
+        Ctx,  # local imports: billing sits below flights and the flags module
+    )
+    from hermi.modules.flights.live import FLAG, KILL_KEY
+
+    now = datetime.now(UTC)
+    on_pass = any(p["status"] == "active" and p["starts_at"] <= now < p["expires_at"] for p in passes)
+    tier = "trip_pass" if on_pass else ("plus" if live else "free")
+    return not flags.switch_engaged(KILL_KEY) and flags.evaluate(FLAG, Ctx(user_id=user_id, tier=tier))
+
+
+def get_entitlements(session: Session, user_id: uuid.UUID, flags=None) -> Entitlements:
     """04 section 5.19. Read only, never calls Apple. A lapsed tier reads as Free (`user_limits` agrees). Pass limits are per trip, so they are listed, not merged."""
     e = (
         session.execute(
@@ -226,6 +241,7 @@ def get_entitlements(session: Session, user_id: uuid.UUID) -> Entitlements:
             agent_runs=live or taster,
             taster_available=taster,
             import_reward_available=not reward_used,
+            live_search=_live_search_on(flags, user_id, live, passes),
         ),
         credits=credit_balance(session, user_id),
     )

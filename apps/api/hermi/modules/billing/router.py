@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from hermi.deps import CurrentUser, DbSession
 from hermi.errors import ApiError, NotFound
+from hermi.modules.ai.features.base import flag_runtime
 from hermi.modules.billing import service
 from hermi.modules.billing.schemas import CreditsNow, Entitlements, LedgerPage
 from hermi.modules.credits import repo as credit_repo
@@ -22,7 +23,7 @@ router = APIRouter(tags=["billing"])
 
 @router.get("/me/entitlements", response_model=Entitlements)
 def get_entitlements(request: Request, response: Response, user: CurrentUser, session: DbSession):
-    body = service.get_entitlements(session, user.id)
+    body = service.get_entitlements(session, user.id, flag_runtime(request.app))
     etag = '"' + hashlib.sha256(body.model_dump_json().encode()).hexdigest()[:16] + '"'
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers={"ETag": etag})

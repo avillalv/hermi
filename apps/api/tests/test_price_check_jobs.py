@@ -120,8 +120,8 @@ def test_a_pass_grants_the_window_until_its_checks_run_out(sys_session, system_c
     _tier(system_conn, rid, "free")
     system_conn.execute("DELETE FROM trip_passes WHERE trip_id = %s", (trip,))
     system_conn.execute(
-        "INSERT INTO trip_passes (trip_id, plan_code, starts_at, expires_at, status, live_checks_max, live_checks_used) VALUES (%s, 'trip_pass', now() - interval '1 day', now() + interval '30 days', 'active', 60, 59)",
-        (trip,),
+        "INSERT INTO trip_passes (trip_id, plan_code, starts_at, expires_at, status, live_checks_max, live_checks_used) VALUES (%s, 'trip_pass', %s, %s, 'active', 60, 59)",
+        (trip, NOW - timedelta(days=1), NOW + timedelta(days=30)),
     )
     assert _check(sys_session, db_urls, rid) == "checked"
     system_conn.execute("UPDATE trip_passes SET live_checks_used = 60 WHERE trip_id = %s", (trip,))

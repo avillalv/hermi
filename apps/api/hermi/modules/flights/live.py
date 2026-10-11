@@ -259,7 +259,7 @@ def run_live_search(
             client.close()
 
 
-def _as_user(api: Session, user_id: uuid.UUID) -> None:
+def as_user(api: Session, user_id: uuid.UUID) -> None:
     api.execute(
         text("SELECT set_config('app.user_id', :u, true)"), {"u": str(user_id)}
     )  # the last commit ended the transaction
@@ -376,7 +376,7 @@ def _miss(
 ) -> LiveResult:
     with db.system_session(PURPOSE, settings=settings, route=route, caller=str(user_id)) as sys:
         _check_quota(sys, settings)
-    _as_user(api, user_id)
+    as_user(api, user_id)
     res = budget.admit(api, user_id=user_id, trip_id=trip_id, action=ACTION, idempotency_key=idem)
     api.commit()  # the reservation must be visible to the system session
 
@@ -490,7 +490,7 @@ def search_live_flights(
     Ceiling: a second stop count or airline for the same pair is not kept. Upgrade: store the top N when the live view lists them."""
     currency = currency.upper()
     if not _CURRENCY.match(currency):
-        raise ApiError(422, "invalid_request", "Use a three letter currency code.")
+        raise ApiError(422, "validation_failed", "Use a three letter currency code.")
     r = (
         api.execute(
             text(
@@ -507,7 +507,7 @@ def search_live_flights(
     if (r["trip_type"] == "one_way") != (return_date is None) or (
         return_date is not None and return_date < depart_date
     ):
-        raise ApiError(422, "invalid_request", "Check the dates for this route.")
+        raise ApiError(422, "validation_failed", "Check the dates for this route.")
     spec = dict(r)
     key = flight_search_key(
         spec["origins"],

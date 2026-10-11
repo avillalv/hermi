@@ -68,6 +68,7 @@ class Flags(BaseModel):
     agent_runs: bool
     taster_available: bool
     import_reward_available: bool
+    live_search: bool  # `serpapi_live_fares` is on for this user: false hides the Live check control
 
 
 class Entitlements(BaseModel):

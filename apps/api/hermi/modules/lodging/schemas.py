@@ -152,3 +152,42 @@ class LinkParse(BaseModel):
 
 class VoteIn(BaseModel):
     voted: bool
+
+
+class RentalSearchIn(BaseModel):
+    """POST /trips/{trip_id}/lodging/rental-search (WF-052.2). The place is the trip's first destination, never free text."""
+
+    model_config = ConfigDict(extra="forbid")
+    check_in: date
+    check_out: date
+    adults: Annotated[int, Field(ge=1, le=9)] = 2
+    children: Annotated[int, Field(ge=0, le=8)] = 0
+    currency: Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")] | None = None
+    sort: Literal["price", "rating"] = "price"
+
+
+class RentalOffer(BaseModel):
+    title: str
+    link: str | None
+    site: str | None
+    kind: str | None
+    price_per_night_minor: int | None
+    price_total_minor: int | None
+    rating: float | None
+    review_count: int | None
+    lat: float | None
+    lon: float | None
+    sleeps: int | None
+    bedrooms: int | None
+    photos: list[str]
+    property_token: str | None
+
+
+class RentalSearchResult(BaseModel):
+    offers: list[RentalOffer]
+    currency: str
+    sorted_by: str  # the sort stated in words, never commission
+    cached: bool
+    checked_at: datetime
+    age_seconds: int
+    credits_charged: int

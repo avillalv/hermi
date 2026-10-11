@@ -113,3 +113,15 @@ export const createStay = (tripId: string, body: StayIn) => send<Stay>(() => api
 /** POST /lodging/parse-link reads the URL text only; the server makes no request to the host. */
 export const parseLink = (url: string) => send<LinkParse>(() => api.post<LinkParse>("/v1/lodging/parse-link", { url }), "", false)
 export const fetchCompare = (tripId: string, ids: string[]) => send<Compare>(() => api.get<Compare>(`${trip(tripId)}/lodging/compare`, { query: { ids: ids.join(",") } }), tripId, false)
+
+export type RentalOffer = {
+  title: string
+  link: string | null
+  site: string | null
+  price_per_night_minor: number | null
+  price_total_minor: number | null
+  rating: number | null
+}
+/** The answer of POST /lodging/rental-search: offers sorted as `sorted_by` says, and the cache label fields. */
+export type RentalSearch = { offers: RentalOffer[]; currency: string; sorted_by: string; cached: boolean; checked_at: string; age_seconds: number; credits_charged: number }
+export const rentalSearchPath = (id: string) => `${trip(id)}/lodging/rental-search`

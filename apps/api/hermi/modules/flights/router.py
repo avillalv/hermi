@@ -6,10 +6,10 @@ Fares are written by the refresh in `fares.py` (worker role). The API only reads
 
 import base64
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, Header, Query, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -18,11 +18,13 @@ from hermi.config import NotConfigured
 from hermi.db import system_session
 from hermi.deps import CurrentUser, DbSession, TripAccess, require_trip
 from hermi.errors import ApiError, NotFound
+from hermi.modules.ai.features.base import flag_runtime
 from hermi.modules.billing import service as billing
 from hermi.modules.collaboration.activity import record
 from hermi.modules.flights import fares as fares_service
+from hermi.modules.flights import live
 from hermi.modules.flights.fare_view import FARE_COLUMNS, FARE_FROM, fare_of
-from hermi.modules.flights.schemas import FarePage, Route, RouteIn
+from hermi.modules.flights.schemas import FarePage, LiveSearchIn, LiveSearchResult, Route, RouteIn
 from hermi.providers import ProviderError
 from hermi.security import rate_limit
 from hermi.security.preconditions import resolve_version, version_conflict
@@ -206,3 +208,68 @@ def refresh_flights(
     finally:
         client.close()
     return Job(id=uuid.uuid4(), status=status, location=f"/v1/trips/{access.trip.id}/routes")
+
+
+Idem = Annotated[str, Header(alias="Idempotency-Key", min_length=1, max_length=200)]
+
+
+def _require_live_slot(session: Session, trip_id: uuid.UUID, route_id: uuid.UUID, depart) -> None:
+    """The `live_route` gate (04 section 5.8): the route is in live mode and departs within `live_window_days`, and a spent
+    Trip Pass is not the only grant. 402 `limit_reached`, reason `live_routes`."""
+    route = session.execute(text("SELECT is_live FROM flight_routes WHERE id = :r AND trip_id = :t"), {"r": route_id, "t": trip_id}).first()
+    if route is None:
+        raise NotFound()
+    sources, limits = billing.trip_limits(session, trip_id)
+    slots, window = billing.limit_of(limits, "live_routes"), billing.limit_of(limits, "live_window_days")
+    refuse = billing.paywall_error("live_routes", slots, f"Live checks need a live route within {window} days of departure.")
+    if not route.is_live or window <= 0 or depart > datetime.now(UTC).date() + timedelta(days=window):
+        raise refuse
+    left = session.execute(
+        text(
+            "SELECT live_checks_max - live_checks_used, live_checks_max FROM trip_passes WHERE trip_id = :t AND status = 'active' "
+            "AND now() >= starts_at AND now() < expires_at ORDER BY expires_at DESC LIMIT 1"
+        ),
+        {"t": trip_id},
+    ).first()
+    if left is not None and left[0] <= 0:  # a spent pass blocks only when the owner's own tier grants no window
+        tier = next((s.split(":", 1)[1] for s in sources if s.startswith("tier:")), "free")
+        own = session.execute(text("SELECT coalesce((limits ->> 'live_window_days')::int, 0) FROM plans WHERE code = :c"), {"c": tier}).scalar()
+        if not own:
+            raise billing.paywall_error("live_routes", slots, f"This trip has used its {left[1]} live checks.")
+
+
+@router.post("/trips/{trip_id}/flights/live-search", response_model=LiveSearchResult, operation_id="flights_live_search")
+def live_search(
+    body: LiveSearchIn, request: Request, access: Annotated[TripAccess, require_trip("editor")], user: CurrentUser, session: DbSession, key: Idem
+) -> LiveSearchResult:
+    """One live check of one date pair: 1 credit, or free from a shared check under 6 hours old (04 section 5.8).
+
+    shortcut: answers inline with the result, not the 202 `LiveSearchJob` of the spec. Ceiling: the request is held for the
+    provider call (one call, 20 s timeout, at most 30 s waiting on a concurrent identical search). Upgrade trigger: the WF-051
+    queue and `GET /live-search/{job_id}` when the web needs progress."""
+    flags = flag_runtime(request.app)
+    trip_id, currency = access.trip.id, body.currency or access.trip.home_currency  # read now: the search commits and expires the ORM trip
+    if body.depart_date < datetime.now(UTC).date():
+        raise ApiError(422, "validation_failed", "Pick a departure date that is today or later.")
+    live.gate(session, flags, user_id=user.id, trip_id=trip_id)  # flag off or paused first: nothing else is revealed
+    _require_live_slot(session, trip_id, body.route_id, body.depart_date)
+    res = live.search_live_flights(
+        session,
+        settings=request.app.state.settings,
+        flags=flags,
+        user_id=user.id,
+        trip_id=trip_id,
+        route_id=body.route_id,
+        depart_date=body.depart_date,
+        return_date=body.return_date,
+        currency=currency,
+        idempotency_key=key,
+    )
+    live.as_user(session, user.id)  # the search committed the request transaction; RLS needs the caller again
+    rows = session.execute(
+        text(f"SELECT {FARE_COLUMNS} FROM {FARE_FROM} WHERE l.route_id = :r AND l.trip_id = :t AND l.observation_id = ANY(:ids) ORDER BY o.price_total_minor, l.id"),
+        {"r": body.route_id, "t": trip_id, "ids": [x["observation_id"] for x in res.data]},
+    ).mappings()
+    return LiveSearchResult(
+        fares=[fare_of(r) for r in rows], cached=res.cached, checked_at=res.checked_at, age_seconds=res.age_seconds, credits_charged=res.credits_charged
+    )

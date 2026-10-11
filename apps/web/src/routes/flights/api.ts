@@ -136,7 +136,7 @@ export const useEntitlements = (on: boolean) =>
       queryKey: ["entitlements", "airports"],
       enabled: on,
       queryFn: async () => {
-        const r = await api.get<{ tier?: string; limits: { airports_per_side?: number } }>("/v1/me/entitlements")
+        const r = await api.get<{ tier?: string; limits: { airports_per_side?: number }; flags?: { live_search?: boolean } }>("/v1/me/entitlements")
         if (r.error !== undefined || !r.data) throw new ApiError(r)
         return r.data
       },
@@ -160,3 +160,7 @@ export const useAlerts = (id: string, on: boolean) => useRead<Alert[]>(key(id, "
 export const createAlert = (id: string, route: string, body: AlertIn) => write(id, () => api.post(`/v1/routes/${encodeURIComponent(route)}/price-alerts`, body))
 export const updateAlert = (id: string, alert: string, body: Partial<AlertIn> & { active?: boolean }) => write(id, () => api.patch(`/v1/price-alerts/${encodeURIComponent(alert)}`, body))
 export const deleteAlert = (id: string, alert: string) => write(id, () => api.delete(`/v1/price-alerts/${encodeURIComponent(alert)}`))
+
+/** The answer of POST /flights/live-search: the fares of the date pair, cheapest first, and the cache label fields. */
+export type LiveFares = { fares: Fare[]; cached: boolean; checked_at: string; age_seconds: number; credits_charged: number }
+export const flightsKey = key

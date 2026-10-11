@@ -5,7 +5,7 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Literal, Self
 
-from pydantic import AwareDatetime, BaseModel, Field, StringConstraints, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 Iata = Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")]
 MAX_DAYS_OUT = 330  # 01 section 5.8 validation
@@ -215,3 +215,21 @@ class PriceAlert(BaseModel):
     active: bool
     last_notified_at: datetime | None
     last_notified_price: Money | None
+
+
+class LiveSearchIn(BaseModel):
+    """POST /trips/{trip_id}/flights/live-search (WF-052.2). One date pair of one route; `currency` defaults to the trip's."""
+
+    model_config = ConfigDict(extra="forbid")
+    route_id: uuid.UUID
+    depart_date: date
+    return_date: date | None = None
+    currency: Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")] | None = None
+
+
+class LiveSearchResult(BaseModel):
+    fares: list[Fare]
+    cached: bool  # true: a shared check under 6 hours old, free
+    checked_at: datetime
+    age_seconds: int
+    credits_charged: int

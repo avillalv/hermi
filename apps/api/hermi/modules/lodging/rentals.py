@@ -72,11 +72,11 @@ def search_live_rentals(
     place = " ".join(place.split())
     currency = currency.upper()
     if sort not in SORTS:
-        raise ApiError(422, "invalid_request", "Sort by price or rating.")
+        raise ApiError(422, "validation_failed", "Sort by price or rating.")
     if not place or len(place) > _PLACE_MAX or len(currency) != 3 or not currency.isalpha():
-        raise ApiError(422, "invalid_request", "Check the place and currency.")
+        raise ApiError(422, "validation_failed", "Check the place and currency.")
     if check_out <= check_in or not (1 <= adults <= 9 and 0 <= children <= 8):
-        raise ApiError(422, "invalid_request", "Check the dates and guests.")
+        raise ApiError(422, "validation_failed", "Check the dates and guests.")
     key = rental_search_key(
         place, check_in, check_out, adults=adults, children=children, currency=currency
     )
