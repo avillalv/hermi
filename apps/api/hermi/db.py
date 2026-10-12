@@ -111,7 +111,18 @@ def assert_app_login_is_safe(connection) -> None:
 
 
 # Tables 03 section 6.5 closes by grants instead of RLS.
-RLS_EXEMPT_TABLES = frozenset({"admin_users", "deletion_requests", "affiliate_conversions", "provider_calls"})
+RLS_EXEMPT_TABLES = frozenset(
+    {
+        "admin_users",
+        "admin_credentials",
+        "admin_recovery_codes",
+        "admin_sessions",
+        "admin_auth_challenges",
+        "deletion_requests",
+        "affiliate_conversions",
+        "provider_calls",
+    }
+)
 # Deny-all tables: RLS on with no policy, and no trip_id or user_id column to find them by.
 RLS_DENY_ALL_TABLES = frozenset({"identity_hashes", "device_attestations", "guest_allowances", "legacy_claims"})
 
@@ -158,6 +169,20 @@ def open_app_engine(settings) -> Engine:
         with engine.connect() as conn:
             assert_app_login_is_safe(conn)
             assert_rls_forced(conn)
+    except Exception:
+        engine.dispose()
+        raise
+    return engine
+
+
+def open_admin_engine(settings) -> Engine:
+    """The admin console engine (DATABASE_URL_ADMIN, hermi_admin_login, BYPASSRLS). Used only by /v1/admin: it reads
+    admin_users and writes audited operational rows (03 section 6.1). Refuses a superuser, which would skip the grants."""
+    engine = make_engine(settings.require("DATABASE_URL_ADMIN"), pool_size=3, max_overflow=2, statement_timeout_ms=settings.database_statement_timeout_ms)
+    try:
+        with engine.connect() as conn:
+            if conn.exec_driver_sql("SELECT rolsuper FROM pg_roles WHERE rolname = current_user").scalar():
+                raise MigrationError("The admin connection must not be a superuser.")
     except Exception:
         engine.dispose()
         raise

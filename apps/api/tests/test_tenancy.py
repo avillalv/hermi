@@ -137,6 +137,7 @@ def test_every_route_with_an_id_parameter_resolves_through_require_trip(client):
         for p, r in api
         if any(n.endswith("_id") or n == "id" for n in r.param_convertors)
         and p not in PUBLIC_ID_ROUTES
+        and not p.startswith("/v1/admin/")  # admin routes are not tenant routes: tests/test_admin_permissions.py walks them
         and not uses_require_trip(r.dependant)
     ]
     assert bad == []

@@ -1,0 +1,22 @@
+# Cloudflare Pages response headers (infra/cloudflare/access.md, 08 section 9 rule 7).
+# The same Pages project serves app.hermi.world and admin.hermi.world, so the strict policy is keyed by full URL and
+# applies to the admin hosts only. The console calls /v1/admin on its own origin (an edge route to the API), so
+# connect-src is 'self'. No script, style or font host, no inline script and no eval. WF-058.3 keeps these in step
+# with apps/web/src/routes/admin/csp.test.ts.
+https://admin.hermi.world/*
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), publickey-credentials-get=(self), publickey-credentials-create=(self)
+
+https://admin.staging.hermi.world/*
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), publickey-credentials-get=(self), publickey-credentials-create=(self)

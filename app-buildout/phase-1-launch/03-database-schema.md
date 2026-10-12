@@ -2338,6 +2338,66 @@ CREATE TABLE admin_users (
   created_at    timestamptz NOT NULL DEFAULT now()
 );
 
+-- Second factors, sessions and challenges for the admin console (WF-058.2, 08 section 2.2). Closed to hermi_app and
+-- hermi_worker by grants (like admin_users); only hermi_admin reads and writes them.
+CREATE TABLE admin_credentials (
+  id              uuid PRIMARY KEY DEFAULT uuidv7(),
+  user_id         uuid NOT NULL REFERENCES admin_users (user_id) ON DELETE CASCADE,
+  kind            text NOT NULL,                                   -- webauthn or totp
+  label           text NOT NULL DEFAULT '',
+  credential_id   bytea,                                           -- webauthn: the authenticator's credential id
+  public_key      bytea,                                           -- webauthn: DER SubjectPublicKeyInfo (ES256 or RS256)
+  sign_count      bigint NOT NULL DEFAULT 0,                       -- webauthn: last signature counter seen
+  secret_enc      bytea,                                           -- totp: AES-256-GCM sealed secret (FIELD_ENCRYPTION_KEY), bound to user_id
+  last_used_step  bigint,                                          -- totp: last accepted 30 second counter, so a code works once
+  confirmed_at    timestamptz,                                     -- null while a TOTP enrolment waits for its first code
+  last_used_at    timestamptz,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ck_admin_credentials_kind CHECK (kind IN ('webauthn', 'totp')),
+  CONSTRAINT ck_admin_credentials_shape CHECK (
+    (kind = 'webauthn' AND credential_id IS NOT NULL AND public_key IS NOT NULL AND secret_enc IS NULL)
+    OR (kind = 'totp' AND secret_enc IS NOT NULL AND credential_id IS NULL AND public_key IS NULL))
+);
+CREATE INDEX ix_admin_credentials_user ON admin_credentials (user_id);
+CREATE UNIQUE INDEX ux_admin_credentials_credential_id ON admin_credentials (credential_id) WHERE kind = 'webauthn';
+CREATE UNIQUE INDEX ux_admin_credentials_totp_pending ON admin_credentials (user_id) WHERE kind = 'totp' AND confirmed_at IS NULL;
+
+CREATE TABLE admin_recovery_codes (
+  id          bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id     uuid NOT NULL REFERENCES admin_users (user_id) ON DELETE CASCADE,
+  salt        bytea NOT NULL,
+  code_hash   bytea NOT NULL,                                      -- sha256(salt || normalized code); the code itself is shown once
+  used_at     timestamptz,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ix_admin_recovery_codes_user ON admin_recovery_codes (user_id);
+
+CREATE TABLE admin_sessions (
+  id            uuid PRIMARY KEY DEFAULT uuidv7(),
+  user_id       uuid NOT NULL REFERENCES admin_users (user_id) ON DELETE CASCADE,
+  token_hash    bytea NOT NULL UNIQUE,                             -- HMAC-SHA256 of the cookie value; the cookie is never stored
+  method        text NOT NULL,                                     -- webauthn, totp or recovery
+  created_at    timestamptz NOT NULL,
+  last_seen_at  timestamptz NOT NULL,                              -- idle clock: 30 minutes
+  expires_at    timestamptz NOT NULL,                              -- absolute clock: created_at + 8 hours
+  stepup_at     timestamptz,                                       -- last fresh WebAuthn or TOTP check: valid 5 minutes
+  user_agent    text,
+  CONSTRAINT ck_admin_sessions_method CHECK (method IN ('webauthn', 'totp', 'recovery'))
+);
+CREATE INDEX ix_admin_sessions_user ON admin_sessions (user_id);
+CREATE INDEX ix_admin_sessions_expires ON admin_sessions (expires_at);
+
+CREATE TABLE admin_auth_challenges (                               -- single use, five minutes
+  id          uuid PRIMARY KEY DEFAULT uuidv7(),
+  user_id     uuid NOT NULL REFERENCES admin_users (user_id) ON DELETE CASCADE,
+  purpose     text NOT NULL,                                       -- register, signin or stepup
+  challenge   bytea NOT NULL,
+  expires_at  timestamptz NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ck_admin_auth_challenges_purpose CHECK (purpose IN ('register', 'signin', 'stepup'))
+);
+CREATE INDEX ix_admin_auth_challenges_user ON admin_auth_challenges (user_id);
+
 CREATE TABLE feature_flags (
   key            text PRIMARY KEY,                               -- lowercase snake_case, e.g. serpapi_live_fares
   kind           text NOT NULL DEFAULT 'flag',                   -- flag, experiment (key starts with exp_) or setting (key starts with setting_; the value is in rules)
@@ -2814,6 +2874,8 @@ GRANT INSERT, UPDATE, DELETE ON rate_limit_counters, admin_users, feature_flags,
   affiliate_programs, affiliate_link_templates, sample_trips, shared_research_cache, support_tickets, content_reports TO hermi_admin;
 GRANT UPDATE ON affiliate_conversions, affiliate_payouts, webhook_events TO hermi_admin;
 GRANT INSERT ON audit_log TO hermi_admin;
+REVOKE ALL ON admin_credentials, admin_recovery_codes, admin_sessions, admin_auth_challenges FROM hermi_app, hermi_worker;   -- 0028; closed to the API and the worker
+GRANT INSERT, UPDATE, DELETE ON admin_credentials, admin_recovery_codes, admin_sessions, admin_auth_challenges TO hermi_admin;   -- 0028
 
 -- The API gets read and write on tenant tables, then loses what it must never touch.
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hermi_app;
@@ -3349,7 +3411,7 @@ SELECT r.rolsuper OR r.rolbypassrls
 
   The worker and admin processes run the same check with the `rolbypassrls` term removed (they bypass policies by design, but they must not be superusers or table owners).
 - **Tests run as the restricted role.** `pytest` connects as `hermi_api_login` (a suite that runs as the owner or a superuser silently bypasses RLS). Fixtures that create tenants and rows use the system connection (`TEST_DATABASE_URL_SYSTEM`, the worker login), never the owner. Generated tests:
-  1. Walk `information_schema`: every table in `public` with a `trip_id` or `user_id` column has `relrowsecurity` and `relforcerowsecurity` both true (a tenant table needs `FORCE`), unless it is on a short allowlist (`run_events` partitions inherit from the parent; `admin_users`, `deletion_requests` and `affiliate_conversions` are closed to the app role by grants; `provider_calls` is insert-only; partitions of `link_clicks` have no grant for the app role).
+  1. Walk `information_schema`: every table in `public` with a `trip_id` or `user_id` column has `relrowsecurity` and `relforcerowsecurity` both true (a tenant table needs `FORCE`), unless it is on a short allowlist (`run_events` partitions inherit from the parent; `admin_users`, `admin_credentials`, `admin_recovery_codes`, `admin_sessions`, `admin_auth_challenges`, `deletion_requests` and `affiliate_conversions` are closed to the app role by grants, and the four 0028 tables to the worker role too; `provider_calls` is insert-only; partitions of `link_clicks` have no grant for the app role).
   2. The table's `GRANT`, `ENABLE`, `FORCE` and policies are in the same migration (the test reads each revision's SQL after `0014`).
   3. Create tenants A and B and assert, for every tenant table, that B sees zero of A's rows and cannot insert, update or delete them.
   4. Every writing route in 6.1.1 runs once as `hermi_api_login` with its own user and once as another user (the route under test is the row in that table).
@@ -3944,6 +4006,8 @@ Practical rules for the revisions: functions, triggers, partitions, policies and
 | `0023_legacy_claims` | `legacy_claims`, `redeem_legacy_claim()`, `legacy_claim_pending()` (WF-040.1) | 0022 |
 | `0025_notification_prefs` | `notification_preferences`, `trip_notification_mutes`, four more `notifications.kind` values (WF-047) | 0024 |
 | `0026_taster_deep_only` | `reserve_credits()` draws the taster only for a `deep_research` run of an account with no paid entitlement (WF-053.1) | 0025 |
+| `0027_credit_balance_definer` | `my_credit_balance()` definer function (WF-132.1) | 0026 |
+| `0028_admin_2fa` | `admin_credentials`, `admin_recovery_codes`, `admin_sessions`, `admin_auth_challenges` (WF-058.2) | 0027 |
 
 Airports and FX are loaded by jobs, not by a migration: `hermi seed-airports` reads the OurAirports CSV and `hermi refresh-fx` pulls Frankfurter. CI runs `npm run db:init`, then the full chain on an empty database as `hermi_migrate_login`, runs the tenant-isolation tests and the role checks as `hermi_api_login` (never as the owner), then runs `alembic downgrade base` and `upgrade head` once to prove the chain is reversible in a scratch database (production never downgrades).
 

@@ -12,10 +12,10 @@ defines `.github/workflows/ios.yml`. It runs on a tag `ios-*` or by hand, and no
 
 | Workflow | Trigger | What it does | Needs |
 |---|---|---|---|
-| `ios.yml` | Tag `ios-*`, or manual dispatch (`workflow_dispatch`, a button in the Actions tab) | `npm run build`, `cap sync ios`, archive, sign through Apple's cloud signing, upload to TestFlight, upload dSYMs and source maps to Sentry | An App Store Connect API key in GitHub Actions secrets |
+| `ios.yml` | Tag `ios-*`, or manual dispatch (`workflow_dispatch`, a button in the Actions tab) | `npm run build:ios --workspace apps/web` (sets `VITE_BUILD_TARGET=ios`, which leaves the admin console out of the bundle), `cap sync ios`, archive, sign through Apple's cloud signing, upload to TestFlight, upload dSYMs and source maps to Sentry | An App Store Connect API key in GitHub Actions secrets |
 
 **A proposal for WF-080 to decide, not in 02.** An unsigned simulator build on pull requests that touch `apps/ios`,
-`apps/web` or the Capacitor config: `npm run build`, `cap sync ios`, then `xcodebuild` for the simulator SDK with
+`apps/web` or the Capacitor config: `npm run build:ios --workspace apps/web`, `cap sync ios`, then `xcodebuild` for the simulator SDK with
 code signing off. It would prove the shell still compiles and needs no secret. It would not be a required check, so
 `main` stays green when it is slow or a runner is busy. If WF-080 adds it, the same pull request updates 02 section
 10 and adds a `DECISIONS.md` row.

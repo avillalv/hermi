@@ -140,6 +140,20 @@ POLICY: dict[str, str] = {
     # Mounted only when AUTH_MODE=dev in local and ci (main.create_app).
     "GET /v1/dev/personas": "public",
     "POST /v1/dev/session": "public",
+    "POST /v1/dev/admin-session": "public",  # the fake-Access signer, local and ci only
+    "GET /v1/admin/auth/session": "admin",
+    "POST /v1/admin/auth/signin": "admin",
+    "POST /v1/admin/auth/signout": "admin",
+    "POST /v1/admin/auth/stepup": "admin",
+    "POST /v1/admin/auth/webauthn/options": "admin",
+    "POST /v1/admin/auth/webauthn/register/options": "admin",
+    "POST /v1/admin/auth/webauthn/register/verify": "admin",
+    "POST /v1/admin/auth/totp/enrol": "admin",
+    "POST /v1/admin/auth/totp/confirm": "admin",
+    "POST /v1/admin/auth/recovery-codes": "admin",
+    "GET /v1/admin/admin-users": "admin",
+    "POST /v1/admin/admin-users": "admin",
+    "PATCH /v1/admin/admin-users/{user_id}": "admin",
     # FastAPI's own documentation routes.
     "GET /openapi.json": "public",
     "GET /docs": "public",

@@ -5,9 +5,11 @@ import { BrowserRouter } from "react-router";
 import { App } from "./App";
 import { queryClient } from "./lib/queryClient";
 import { initSentry } from "./lib/sentry";
+import { isAdminHost } from "./routes/admin/adminHost";
 import "./index.css";
 
-initSentry();
+// No third-party calls from the admin host: its CSP allows none (08 section 9 rule 7).
+if (!isAdminHost()) initSentry();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

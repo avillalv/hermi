@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,10 +9,13 @@ from fastapi.responses import JSONResponse
 from hermi import analytics, api_v1, db, errors, health
 from hermi.config import LOCAL_ENVIRONMENTS, Settings, load_settings
 from hermi.logging_setup import setup_logging
+from hermi.modules.admin.headers import AdminHeadersMiddleware
+from hermi.modules.admin.identity import AdminDirectory
+from hermi.modules.admin.router import dev_router as admin_dev_router
 from hermi.modules.auth.router import dev_router
 from hermi.modules.notifications import waitlist
 from hermi.security.idempotency import IdempotencyMiddleware
-from hermi.security.jwt import TokenVerifier
+from hermi.security.jwt import AccessVerifier, TokenVerifier
 from hermi.sentry_setup import init_sentry
 
 CAPACITOR_ORIGINS = ["capacitor://localhost", "https://localhost"]
@@ -22,11 +26,15 @@ async def _lifespan(app: FastAPI):
     # The app engine refuses an unsafe login here, so a misconfigured API never serves a request.
     s: Settings = app.state.settings
     app.state.engine = db.open_app_engine(s) if s.database_url else None
+    # The admin login (BYPASSRLS) serves only /v1/admin; hermi_app cannot read admin_users.
+    app.state.admin_engine = None
     try:
+        app.state.admin_engine = db.open_admin_engine(s) if s.database_url_admin else None
         yield
     finally:
-        if app.state.engine is not None:
-            app.state.engine.dispose()
+        for engine in (app.state.engine, app.state.admin_engine):
+            if engine is not None:
+                engine.dispose()
         db.dispose_system_engines()
 
 
@@ -45,6 +53,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     analytics.configure(settings)
     app.state.verifier = TokenVerifier(settings)
+    app.state.access_verifier = AccessVerifier(settings)
+    app.state.admin_engine = None  # set by the lifespan
+    app.state.admin_directory = AdminDirectory(lambda: app.state.admin_engine)
+    app.state.admin_clock = lambda: datetime.now(UTC)  # admin sessions and TOTP; tests swap it
     errors.register(app)
 
     @app.get("/health/live")
@@ -90,11 +102,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ],
         expose_headers=["ETag", "Retry-After", "Idempotent-Replay", "X-Request-Id", "Location"],
     )
+    app.add_middleware(AdminHeadersMiddleware)  # noindex, no-store on /v1/admin, errors too
     app.add_middleware(errors.RequestIdMiddleware)  # last added = outermost, wraps CORS
     waitlist.register(app)
     app.include_router(api_v1.router)
     if settings.auth_mode == "dev" and settings.environment in LOCAL_ENVIRONMENTS:
         app.include_router(dev_router, prefix="/v1")  # absent from every other OpenAPI
+    if settings.admin_auth_mode == "dev" and settings.environment in LOCAL_ENVIRONMENTS:
+        app.include_router(admin_dev_router, prefix="/v1")  # the fake-Access signer
     return app
 
 

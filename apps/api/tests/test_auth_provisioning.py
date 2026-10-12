@@ -278,7 +278,8 @@ def test_bootstrap_is_the_only_route_that_takes_a_token_without_a_users_row(clie
             continue
         for method in ops:
             url = path.replace("{", "").replace("}", "")  # path params take any text here
-            r = client.request(method.upper(), url, headers=h)
+            # /v1/admin writes want an Idempotency-Key first (the CSRF guard); give it one so the customer token is what is tested.
+            r = client.request(method.upper(), url, headers={**h, "Idempotency-Key": "bootstrap-sweep-0001"})
             assert r.status_code == 401 and r.json()["code"] == "unauthenticated", (method, path)
             checked += 1
     assert checked >= 1

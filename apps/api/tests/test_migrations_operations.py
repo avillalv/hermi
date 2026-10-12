@@ -20,7 +20,10 @@ from hermi import db
 
 ADMIN = "admin_users feature_flags kill_switches audit_log support_tickets content_reports consents data_exports deletion_requests rate_limit_counters idempotency_keys".split()
 LATER = "notifications sample_trips plan_verifications plan_verification_items".split()
-AFTER_RLS = ["notification_preferences", "trip_notification_mutes"]  # 0025 (WF-047): in 03 section 5.18, not in the PRE_RLS schema this file builds
+AFTER_RLS = [  # created after the PRE_RLS schema this file builds
+    "notification_preferences", "trip_notification_mutes",  # 0025 (WF-047): 03 section 5.18
+    "admin_credentials", "admin_recovery_codes", "admin_sessions", "admin_auth_challenges",  # 0028 (WF-058.2): 03 section 5.16
+]
 
 
 @pytest.fixture
