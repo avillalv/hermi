@@ -22,7 +22,8 @@ from sqlalchemy.orm import Session
 
 from hermi.errors import ApiError
 from hermi.logging_setup import bind
-from hermi.modules.admin import permissions
+from hermi.modules.admin import permissions, sessions
+from hermi.modules.notifications.waitlist import client_ip
 from hermi.security import rate_limit
 from hermi.security.jwt import TokenError
 
@@ -102,6 +103,23 @@ def _audit_denied(request: Request, subject: str | None) -> None:
         log.exception("admin denied audit write failed")
 
 
+def _count_failure(request: Request) -> None:
+    """One failed-login count for this client IP (a bad assertion or an identity with no admin row). Over the limit the
+    401 or 403 becomes a 429 with Retry-After and an alert log line (08 section 9 rule 5). A counter fault never hides the
+    real answer."""
+    engine = request.app.state.admin_engine
+    if engine is None:
+        return
+    try:
+        rate_limit.hit(engine, "admin_auth_fail_ip", client_ip(request))
+    except ApiError as e:
+        if e.status == 429:
+            log.warning("admin_login_lockout", extra={"rate_class": "admin_auth_fail_ip"})
+            raise
+    except Exception:
+        log.exception("admin failed-login counter failed")
+
+
 def admin_principal(request: Request) -> AdminPrincipal:
     """The enabled admin behind a valid Access assertion. 401 for a missing or bad assertion, 403 for an identity that
     passed Access but has no enabled admin row (and an alert log line, 08 section 2.2)."""
@@ -111,8 +129,9 @@ def admin_principal(request: Request) -> AdminPrincipal:
             raise TokenError()
         who = request.app.state.access_verifier.verify(token)
     except TokenError as e:
-        # No token content in the log. The per-IP failed-login limit arrives with WF-058.2.
+        # No token content in the log.
         log.warning("admin_assertion_rejected", extra={"reason": e.code, "had_token": bool(token)})
+        _count_failure(request)
         raise ApiError(
             401, e.code, "Your session ended. Sign in again." if e.code == "token_expired" else "Sign in to continue."
         ) from None
@@ -121,6 +140,7 @@ def admin_principal(request: Request) -> AdminPrincipal:
         # The alert rule watches this logger and message (08 section 10). No email in the log line.
         log.warning("admin_identity_denied", extra={"access_subject": who.subject, "reason": "no_enabled_admin_row"})
         _audit_denied(request, who.subject)
+        _count_failure(request)
         raise ApiError(403, "admin_not_enabled", "This account does not have admin access.")
     bind(admin_id=str(admin.user_id), admin_role=admin.role)
     return admin
@@ -129,25 +149,59 @@ def admin_principal(request: Request) -> AdminPrincipal:
 CurrentAdmin = Annotated[AdminPrincipal, Depends(admin_principal)]
 
 
-def require(name: str, *, write: bool = False, rate: str | None = None):
-    """Depends() for an admin route: the caller must hold permission `name` at read (default) or write level, then the
-    per-admin rate limit for `rate` (admin_read or admin_write by default) is counted. Every /v1/admin route uses exactly
-    one; tests/test_admin_permissions.py walks the routes for the marker."""
+def require_session(
+    request: Request, admin: AdminPrincipal, *, fresh: bool = False, touch: bool = True, break_glass: bool = False
+) -> sessions.AdminSession:
+    """The completed 2FA session behind this request (08 section 2.3: "check session 2FA freshness for the action class").
+    403 `mfa_enrollment_required` until the admin is enrolled, 401 `two_factor_required` with no live session, 428
+    `stepup_required` when `fresh` and the last WebAuthn or TOTP check is older than 5 minutes. `break_glass` (the enrolment
+    routes only) also accepts a recovery code session in its first 5 minutes, so a lost passkey can be replaced."""
+    if not admin.mfa_enrolled:
+        raise ApiError(403, "mfa_enrollment_required", "Set up two-factor sign-in to continue.")
+    session = sessions.current(request, admin.user_id, touch=touch)
+    if session is None:
+        raise ApiError(401, "two_factor_required", "Confirm it is you to continue.")
+    ok = session.is_fresh(sessions.now(request)) or (break_glass and session.break_glass_open(sessions.now(request)))
+    if fresh and not ok:
+        raise ApiError(
+            428, "stepup_required", "Confirm it is you again to do that.", extra={"fresh_seconds": int(sessions.FRESH.total_seconds())}
+        )
+    return session
+
+
+def require(name: str, *, write: bool = False, rate: str | None = None, two_factor: bool = True, stepup: bool | None = None):
+    """Depends() for an admin route: the caller must hold permission `name` at read (default) or write level, then (unless
+    `two_factor=False`, the sign-in and enrolment routes) hold a live 2FA session, then the per-admin rate limit for `rate`
+    is counted. Every /v1/admin route uses exactly one; tests/test_admin_permissions.py walks the routes for the marker.
+
+    Step-up (a 2FA check inside 5 minutes, 428 otherwise) applies to a write whose matrix level is `X`, or when the route
+    passes `stepup=True` (08 section 2.2 also lists PII reveals and impersonation, which the matrix marks `W`). `X` writes
+    count against the 5 a minute `admin_x` class (when the route has no class of its own)."""
     if name not in permissions.KNOWN:
         raise ValueError(f"{name!r} is not in the 08 section 3 matrix")
     need = "write" if write else "read"
-    rate = rate or ("admin_write" if write else "admin_read")
-    rate_limit.ROUTE_CLASSES[rate]  # a misspelled class fails at import
+    default_rate = rate or ("admin_write" if write else "admin_read")
+    rate_limit.ROUTE_CLASSES[default_rate]  # a misspelled class fails at import
 
     def dependency(request: Request, admin: CurrentAdmin) -> AdminPrincipal:
         if not permissions.permits(admin.role, name, need):
             log.warning("admin_permission_denied", extra={"permission": name, "admin_role": admin.role})
             # 403 names the missing permission (08 section 8).
             raise ApiError(403, "permission_denied", "Your role cannot do that.", extra={"permission": name})
-        rate_limit.hit(request.app.state.admin_engine, rate, str(admin.user_id))
+        is_x = write and permissions.level(admin.role, name) == "X"
+        if two_factor:
+            require_session(request, admin, fresh=stepup if stepup is not None else is_x)
+        rate = "admin_x" if is_x and default_rate == "admin_write" else default_rate
+        try:
+            rate_limit.hit(request.app.state.admin_engine, rate, str(admin.user_id))
+        except ApiError as e:
+            if e.status == 429 and rate in ("admin_stepup", "admin_signin"):
+                # The lockout alert rule watches this logger and message (08 section 9 rule 5).
+                log.warning("admin_2fa_lockout", extra={"rate_class": rate, "admin_id": str(admin.user_id)})
+            raise
         return admin
 
-    dependency.__admin_permission__ = (name, need, rate)
+    dependency.__admin_permission__ = (name, need, default_rate)
     return Depends(dependency)
 
 

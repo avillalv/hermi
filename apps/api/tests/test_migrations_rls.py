@@ -114,7 +114,7 @@ def _member(c, trip, user, role):
 def test_chain_is_linear_and_0014_follows_0013():
     s = ScriptDirectory.from_config(_alembic_cfg())
     assert s.get_revision("0014_rls").down_revision == "0013_notifications_samples"
-    assert s.get_heads() == ["0027_credit_balance_definer"]  # 0027 (WF-132.1) is the head now
+    assert s.get_heads() == ["0028_admin_2fa"]  # 0028 (WF-058.2) is the head now
 
 
 # --- RLS on every tenant table ---------------------------------------------------------------------
@@ -172,7 +172,7 @@ def test_app_grants(app):
         assert not _can(app, "hermi_api_login", t, "INSERT"), t
     for t in ("runs", "trip_imports"):  # the API inserts these but never updates or deletes them whole
         assert _can(app, "hermi_api_login", t, "INSERT") and not _can(app, "hermi_api_login", t, "DELETE"), t
-    for t in ("identity_hashes", "device_attestations", "guest_allowances", "admin_users", "webhook_events", "affiliate_conversions", "affiliate_payouts",
+    for t in ("identity_hashes", "device_attestations", "guest_allowances", "admin_users", "admin_credentials", "admin_recovery_codes", "admin_sessions", "admin_auth_challenges", "webhook_events", "affiliate_conversions", "affiliate_payouts",
               "deletion_requests", "provider_call_rollups", "provider_calls", "revenue_by_month", "booked_fare_drops"):
         assert not _can(app, "hermi_api_login", t, "SELECT"), t
     assert _can(app, "hermi_api_login", "provider_calls", "INSERT")

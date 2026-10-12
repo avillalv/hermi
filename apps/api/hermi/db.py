@@ -111,7 +111,18 @@ def assert_app_login_is_safe(connection) -> None:
 
 
 # Tables 03 section 6.5 closes by grants instead of RLS.
-RLS_EXEMPT_TABLES = frozenset({"admin_users", "deletion_requests", "affiliate_conversions", "provider_calls"})
+RLS_EXEMPT_TABLES = frozenset(
+    {
+        "admin_users",
+        "admin_credentials",
+        "admin_recovery_codes",
+        "admin_sessions",
+        "admin_auth_challenges",
+        "deletion_requests",
+        "affiliate_conversions",
+        "provider_calls",
+    }
+)
 # Deny-all tables: RLS on with no policy, and no trip_id or user_id column to find them by.
 RLS_DENY_ALL_TABLES = frozenset({"identity_hashes", "device_attestations", "guest_allowances", "legacy_claims"})
 

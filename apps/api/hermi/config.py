@@ -169,6 +169,7 @@ class Settings(BaseSettings):
     cf_access_team_domain: str | None = None
     cf_access_aud: str | None = None
     admin_session_secret: SecretStr | None = None
+    admin_web_origin: str = "http://localhost:5173"  # WebAuthn origin; host = rpId
     status_page_url: str | None = None
 
     @property
@@ -221,6 +222,9 @@ def _check(s: Settings, bind_host: str) -> None:
         ):
             if value != ok:
                 bad.append(f"{name} must be {ok} in {s.environment}")
+        # The WebAuthn origin: the localhost default is no hosted value.
+        if not s.admin_web_origin.startswith("https://"):
+            bad.append(f"ADMIN_WEB_ORIGIN must be an https origin in {s.environment}")
         missing = [n for n in HOSTED_REQUIRED if not getattr(s, n.lower())]
         if s.environment in ("staging", "production"):
             if s.ai_provider != "anthropic_api":

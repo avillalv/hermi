@@ -1,7 +1,7 @@
 # ruff: noqa: E501  (long SQL)
 """Admin users and roles (08 section 8: GET and POST /admin-users, PATCH /admin-users/{id}). Owner only.
 
-Step-up 2FA on role changes (08 section 2.2) arrives with WF-058.2; the routes are the audited writes it will guard.
+Both writes are `X` in the matrix, so `require` asks for a fresh step-up (428) before they run (08 section 2.2).
 """
 
 import json
@@ -197,6 +197,8 @@ def patch_admin_user(
                 text("UPDATE admin_users SET disabled_at = CASE WHEN :d THEN coalesce(disabled_at, now()) END WHERE user_id = :u"),
                 {"d": body.disabled, "u": user_id},
             )
+            if body.disabled:  # the session rows go with it; the 30 second lookup cache is the only lag left
+                s.execute(text("DELETE FROM admin_sessions WHERE user_id = :u"), {"u": user_id})
         after = _load(s, user_id)
         audit_id = _audit(
             s, request, admin, action=action, target=user_id, before=_snapshot(before), after=_snapshot(after), reason=body.reason

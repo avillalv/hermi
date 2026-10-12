@@ -16,7 +16,7 @@ ROLES = ("owner", "engineer", "support", "finance", "content")
 LEVEL_RANK = {"-": 0, "r": 1, "R": 2, "W": 3, "X": 4}
 NEEDS = {"read": 1, "write": 3}
 # Routes any enabled admin may call: they carry no data beyond the caller's own identity (08 section 8, "any").
-ANY_ADMIN = frozenset({"auth.session", "auth.stepup"})
+ANY_ADMIN = frozenset({"auth.session", "auth.stepup", "auth.signin", "auth.signout", "auth.enrol"})
 
 
 @dataclass(frozen=True)

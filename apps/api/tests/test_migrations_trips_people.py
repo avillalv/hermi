@@ -433,6 +433,10 @@ def test_live_schema_matches_ddl_in_03(conn):
     for t in ("notification_preferences", "trip_notification_mutes"):  # 0025 (WF-047) creates them, after the PRE_RLS revision this test builds
         ddl_tables.pop(t)
     ddl_idx = {k: v for k, v in ddl_idx.items() if v[0] != "trip_notification_mutes"}
+    admin_2fa = ("admin_credentials", "admin_recovery_codes", "admin_sessions", "admin_auth_challenges")
+    for t in admin_2fa:  # 0028 (WF-058.2) creates them, after the PRE_RLS revision this test builds
+        ddl_tables.pop(t)
+    ddl_idx = {k: v for k, v in ddl_idx.items() if v[0] not in admin_2fa}
 
     live_tables = {
         r[0]

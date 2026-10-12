@@ -52,7 +52,10 @@ ROUTE_CLASSES: dict[str, tuple[int, int]] = {
     "admin_x": (5, MINUTE),  # `X` actions: step-up and typed confirmation (WF-058.2 picks this class for them)
     "admin_reveal": (30, HOUR),
     "admin_export": (5, HOUR),
-    "admin_stepup": (10, HOUR),
+    "admin_stepup": (10, HOUR),  # counted per attempt; the 11th inside the hour is the lockout (429 and an alert log)
+    "admin_signin": (10, HOUR),  # 2FA sign-in attempts per admin; the 11th is the lockout (429 and an alert log)
+    "admin_signin_ip": (60, HOUR),  # the same per client IP (a shared office address needs room)
+    "admin_auth_fail_ip": (10, HOUR),  # failed Access assertions, unknown identities and failed 2FA proofs per client IP; the 11th is a 429 (10 section 2.3)
 }
 SETTING_KEY = "setting_rate_limits"
 CACHE_TTL = 30.0  # seconds a limits read is reused, so an admin edit lands within half a minute

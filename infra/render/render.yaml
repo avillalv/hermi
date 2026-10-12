@@ -40,6 +40,7 @@ services:
       - {key: API_DOCS_ENABLED, value: "true"}
       - {key: SCHEDULER_ENABLED, value: "false"}
       - {key: ADMIN_AUTH_MODE, value: cf_access}
+      - {key: ADMIN_WEB_ORIGIN, value: "https://admin.staging.hermi.world"}
       - {key: STORAGE_BACKEND, value: r2}
       - {key: EMAIL_BACKEND, value: resend}
       - {key: PROVIDERS_MODE, value: live}
@@ -73,6 +74,7 @@ services:
       - {key: SCHEDULER_ENABLED, value: "true"}
       - {key: AUTH_MODE, value: supabase}
       - {key: ADMIN_AUTH_MODE, value: cf_access}
+      - {key: ADMIN_WEB_ORIGIN, value: "https://admin.staging.hermi.world"}
       - {key: STORAGE_BACKEND, value: r2}
       - {key: EMAIL_BACKEND, value: resend}
       - {key: PROVIDERS_MODE, value: live}
@@ -109,6 +111,7 @@ services:
       - {key: API_DOCS_ENABLED, value: "false"}
       - {key: SCHEDULER_ENABLED, value: "false"}
       - {key: ADMIN_AUTH_MODE, value: cf_access}
+      - {key: ADMIN_WEB_ORIGIN, value: "https://admin.hermi.world"}
       - {key: STORAGE_BACKEND, value: r2}
       - {key: EMAIL_BACKEND, value: resend}
       - {key: PROVIDERS_MODE, value: live}
@@ -143,6 +146,7 @@ services:
       - {key: SCHEDULER_ENABLED, value: "true"}
       - {key: AUTH_MODE, value: supabase}
       - {key: ADMIN_AUTH_MODE, value: cf_access}
+      - {key: ADMIN_WEB_ORIGIN, value: "https://admin.hermi.world"}
       - {key: STORAGE_BACKEND, value: r2}
       - {key: EMAIL_BACKEND, value: resend}
       - {key: PROVIDERS_MODE, value: live}

@@ -40,6 +40,7 @@ SECRETS = {
 HOSTED_MODES = {
     "AUTH_MODE": "supabase",
     "ADMIN_AUTH_MODE": "cf_access",
+    "ADMIN_WEB_ORIGIN": "https://admin.hermi.world",
     "STORAGE_BACKEND": "r2",
     "EMAIL_BACKEND": "resend",
     "PROVIDERS_MODE": "live",
@@ -208,6 +209,14 @@ def test_refuses_auth_mode_dev(load, environment):
 @pytest.mark.parametrize("environment", HOSTED)
 def test_refuses_admin_auth_mode_dev(load, environment):
     refused(load, hosted(environment, ADMIN_AUTH_MODE="dev"), "ADMIN_AUTH_MODE")
+
+
+@pytest.mark.parametrize("environment", HOSTED)
+def test_refuses_a_non_https_admin_web_origin(load, environment):
+    refused(load, hosted(environment, ADMIN_WEB_ORIGIN="http://localhost:5173"), "ADMIN_WEB_ORIGIN")
+    env = hosted(environment)
+    del env["ADMIN_WEB_ORIGIN"]  # unset falls back to the localhost default, which is refused too
+    refused(load, env, "ADMIN_WEB_ORIGIN")
 
 
 @pytest.mark.parametrize("environment", HOSTED)

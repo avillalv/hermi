@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -55,6 +56,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.access_verifier = AccessVerifier(settings)
     app.state.admin_engine = None  # set by the lifespan
     app.state.admin_directory = AdminDirectory(lambda: app.state.admin_engine)
+    app.state.admin_clock = lambda: datetime.now(UTC)  # admin sessions and TOTP; tests swap it
     errors.register(app)
 
     @app.get("/health/live")

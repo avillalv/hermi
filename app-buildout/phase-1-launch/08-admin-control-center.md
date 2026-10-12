@@ -495,6 +495,12 @@ Base path `/v1/admin`. All routes require an admin session (section 2). Conventi
 |---|---|---|
 | `GET /auth/session` | Current admin, role, permissions, 2FA freshness | any |
 | `POST /auth/stepup` | Verify a fresh WebAuthn or TOTP challenge | any |
+| `POST /auth/webauthn/options` | Issue a single-use passkey challenge (`purpose` `signin` or `stepup`) | any |
+| `POST /auth/signin` | Second step of sign-in: passkey assertion, TOTP code or recovery code; sets the session cookie (10 attempts an hour) | any |
+| `POST /auth/signout` | End the 2FA session | any |
+| `POST /auth/webauthn/register/options`, `POST /auth/webauthn/register/verify` | Register a passkey (Access identity only until enrolled, then a fresh step-up; a recovery-code session may do it in its first 5 minutes) | any |
+| `POST /auth/totp/enrol`, `POST /auth/totp/confirm` | Enrol the TOTP fallback | any |
+| `POST /auth/recovery-codes` | Generate a new set of 10 single-use codes, shown once | any |
 | `GET /admin-users` | List admins | owner |
 | `POST /admin-users` | Invite an admin with a role | owner |
 | `PATCH /admin-users/{id}` | Change role or status (disable) | owner |

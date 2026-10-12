@@ -110,6 +110,6 @@ def _rate_limit_test_hook():
     from hermi.security import rate_limit
 
     rate_limit.reset_cache()
-    rate_limit.TEST_LIMITS = {"signup_ip": 100000}
+    rate_limit.TEST_LIMITS = {"signup_ip": 100000, "admin_signin_ip": 100000, "admin_auth_fail_ip": 100000}  # one test-client IP for every admin
     yield
     rate_limit.TEST_LIMITS = {}
