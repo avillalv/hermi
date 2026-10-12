@@ -5,7 +5,7 @@ The web app ships from Cloudflare Pages, not Render (02 sections 9 and 11). Rend
 | Setting | Production | Staging |
 |---|---|---|
 | Pages project | `hermi-web` | `hermi-web` (preview branch `staging`) |
-| Custom domains | `app.hermi.world`, `admin.hermi.world` | `app.staging.hermi.world` |
+| Custom domains | `app.hermi.world`, `admin.hermi.world` | `app.staging.hermi.world`, `admin.staging.hermi.world` |
 | Build command | `npm ci && npm run build --workspace apps/web` | same |
 | Output directory | `apps/web/dist` | same |
 | Production branch | `main` (deployed by the release workflow, not by git push) | `main` preview |

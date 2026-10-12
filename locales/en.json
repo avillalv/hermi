@@ -1276,5 +1276,88 @@
       "notFound": "This page is not available. It may have moved or the address may be wrong.",
       "stale": "Hermi was updated. Reload to continue."
     }
+  },
+  "admin": {
+    "brand": "Hermi admin",
+    "nav": "Admin",
+    "env": {
+      "label": "Environment",
+      "production": "Production",
+      "staging": "Staging",
+      "local": "Local"
+    },
+    "signOut": "Sign out",
+    "loading": "Loading the console",
+    "overview": {
+      "title": "Overview",
+      "intro": "Your tiles and alerts land here as each screen is built."
+    },
+    "soon": {
+      "title": "Not built yet",
+      "body": "This screen is not built yet."
+    },
+    "forbidden": {
+      "title": "You cannot open this page",
+      "body": "Your role does not include this screen. Ask the owner if you need it.",
+      "action": "Back to overview"
+    },
+    "denied": {
+      "title": "No admin access",
+      "body": "This account does not have admin access. Ask the owner to add you, then reload this page.",
+      "action": "Reload"
+    },
+    "access": {
+      "title": "Sign in to continue",
+      "body": "Your Cloudflare Access session ended. Reload the page to sign in again.",
+      "action": "Reload"
+    },
+    "dev": {
+      "title": "Local admin",
+      "body": "This build runs with the fake Access signer. Pick the admin to act as.",
+      "email": "Admin email",
+      "action": "Continue as this admin",
+      "failed": "That admin could not be signed in. Check the email and that the API is running with ADMIN_AUTH_MODE=dev."
+    },
+    "signIn": {
+      "title": "Confirm it is you",
+      "intro": "Use your second factor to open the console.",
+      "totp": "Authenticator code",
+      "totpHelper": "The six digit code from your authenticator app.",
+      "passkey": "Use a passkey",
+      "recoveryLink": "Use a recovery code",
+      "recovery": "Recovery code",
+      "recoveryHelper": "A single use code from the set you saved. Using one tells the owner.",
+      "backToCode": "Use an authenticator code",
+      "submit": "Sign in",
+      "ended": "Your session ended. Sign in again.",
+      "noPasskeys": "This browser cannot use passkeys. Use your authenticator code."
+    },
+    "stepUp": {
+      "title": "Confirm it is you",
+      "body": "That action needs a fresh check. It stays valid for 5 minutes.",
+      "totp": "Authenticator code",
+      "passkey": "Use a passkey",
+      "confirm": "Confirm",
+      "cancel": "Cancel"
+    },
+    "enrol": {
+      "title": "Set up two-factor sign-in",
+      "intro": "Register one factor, then save your recovery codes. You need both before you can open the console.",
+      "passkey": "Register a passkey",
+      "passkeyHelper": "A hardware key or this device's passkey. Preferred.",
+      "totp": "Use an authenticator app",
+      "totpHelper": "A fallback if you cannot use a passkey. No SMS.",
+      "totpSecret": "Add this key to your authenticator app, then enter the first code.",
+      "totpLink": "Open in an authenticator app",
+      "totpCode": "Code from the app",
+      "totpConfirm": "Confirm code",
+      "factorDone": "Your sign in factor is ready.",
+      "codesTitle": "Save your recovery codes",
+      "codesBody": "Each code works once and replaces a lost passkey. They are shown only now. Print them and keep them offline.",
+      "codesCreate": "Create recovery codes",
+      "codesSaved": "I saved my codes",
+      "failed": "That did not work. Try again.",
+      "passkeyUnsupported": "This browser cannot make a passkey. Use an authenticator app."
+    }
   }
 }

@@ -1,0 +1,37 @@
+/* Admin console shell (WF-058.3, 08 sections 5 and 6.1). Tokens only; controls come from the kit (h-btn, h-input).
+ * No inline styles anywhere in the admin tree: the admin CSP is style-src 'self'. */
+.admin { min-height: 100dvh; display: flex; flex-direction: column; background: var(--tp-paper); color: var(--tp-ink); }
+.admin-center { min-height: 100dvh; display: flex; justify-content: center; align-items: flex-start; padding: var(--tp-space-8) var(--tp-space-4); background: var(--tp-paper); color: var(--tp-ink); }
+.admin-panel { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: var(--tp-space-4); }
+
+/* The environment bar. Production is the loudest thing on the page so it cannot be mistaken for staging (08 section 5). */
+.admin-env { min-height: 28px; display: flex; align-items: center; justify-content: center; padding: 0 var(--tp-space-4); font: var(--tp-type-body-strong); letter-spacing: 0.04em; text-transform: uppercase; }
+.admin-env--production { background: var(--tp-route-a-ink); color: var(--tp-paper); }
+.admin-env--staging { background: var(--tp-sky); color: var(--tp-sky-ink); }
+.admin-env--local { background: var(--tp-sunken); color: var(--tp-ink-soft); }
+
+.admin-header { display: flex; align-items: center; gap: var(--tp-space-3); padding: var(--tp-space-2) var(--tp-space-4); border-bottom: 1px solid var(--tp-rule); }
+.admin-header__brand { flex: 1; }
+.admin-header__who { display: flex; flex-direction: column; align-items: flex-end; font: var(--tp-type-body); }
+.admin-role { color: var(--tp-ink-soft); }
+
+.admin-body { flex: 1; display: flex; flex-direction: column; }
+.admin-nav { display: flex; flex-wrap: wrap; gap: var(--tp-space-3) var(--tp-space-6); padding: var(--tp-space-3) var(--tp-space-4); border-bottom: 1px solid var(--tp-rule); }
+.admin-nav ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: var(--tp-space-1); }
+.admin-nav__link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--tp-space-3); border-radius: var(--radius-lg); color: var(--tp-ink); font: var(--tp-type-body); text-decoration: none; }
+.admin-nav__link:focus-visible { outline: 3px solid var(--tp-brand); outline-offset: 2px; }
+.admin-nav__link.active { background: var(--tp-sky-raised); color: var(--tp-sky-ink); font: var(--tp-type-body-strong); }
+.admin-main { flex: 1; padding: var(--tp-space-4); display: flex; flex-direction: column; gap: var(--tp-space-4); min-width: 0; }
+
+@media (min-width: 1200px) {
+  .admin-body { flex-direction: row; }
+  .admin-nav { flex-direction: column; flex-wrap: nowrap; width: 248px; flex: none; border-bottom: 0; border-right: 1px solid var(--tp-rule); }
+  .admin-nav ul { flex-direction: column; }
+  .admin-main { padding: var(--tp-space-6); }
+}
+
+.admin-modal { position: fixed; inset: 0; display: grid; place-items: center; padding: var(--tp-space-4); background: color-mix(in srgb, var(--tp-ink) 45%, transparent); z-index: 10; }
+.admin-modal__box { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: var(--tp-space-3); padding: var(--tp-space-5); border-radius: var(--radius-lg); background: var(--tp-ticket); border: 1px solid var(--tp-rule); }
+
+.admin-codes { margin: 0; padding: var(--tp-space-3); list-style: none; display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--tp-space-2); border: 2px dashed var(--tp-edge); border-radius: var(--radius-lg); user-select: all; }
+.admin-secret { margin: 0; padding: var(--tp-space-3); overflow-wrap: anywhere; border-radius: var(--radius-lg); background: var(--tp-sunken); user-select: all; }

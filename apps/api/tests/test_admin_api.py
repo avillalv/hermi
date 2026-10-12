@@ -19,6 +19,8 @@ from hermi.security import rate_limit
 from hermi.security.jwt import mint_access_token, mint_dev_token
 
 ASSERTION = "Cf-Access-Jwt-Assertion"
+# Every /v1/admin write must carry an Idempotency-Key (the router-wide CSRF guard), so the test clients send one by default.
+DEFAULT_KEY = {"Idempotency-Key": "test-default-key-0001"}
 ROLES = ("owner", "engineer", "support", "finance", "content")
 
 
@@ -58,7 +60,7 @@ def clock():
 @pytest.fixture
 def client(settings, clock):
     app = create_app(settings)
-    with TestClient(app, raise_server_exceptions=False) as c:
+    with TestClient(app, raise_server_exceptions=False, headers=DEFAULT_KEY) as c:
         c.settings = settings
         app.state.admin_directory = AdminDirectory(lambda: app.state.admin_engine, clock=clock)
         yield c
@@ -312,6 +314,7 @@ def test_invite_needs_an_idempotency_key_and_refuses_an_existing_admin(client, m
     _, owner = make_admin("owner")
     _, other = make_admin("support")
     body = {"email": other, "role": "finance", "reason": "bookkeeper starts Monday"}
+    client.headers.pop("Idempotency-Key")
     r = client.post("/v1/admin/admin-users", headers=auth(owner), json=body)
     assert r.status_code == 400 and r.json()["code"] == "idempotency_key_required"
     r = client.post("/v1/admin/admin-users", headers=auth(owner, **key()), json=body)
@@ -401,5 +404,30 @@ def test_dev_signer_route_is_absent_in_cf_access_mode(db_urls):
         cf_access_team_domain="hermi.cloudflareaccess.com", cf_access_aud="a" * 64,
         database_url=db_urls["app"], database_url_system=db_urls["system"],
     )
-    with TestClient(create_app(s), raise_server_exceptions=False) as c:
+    with TestClient(create_app(s), raise_server_exceptions=False, headers=DEFAULT_KEY) as c:
         assert c.post("/v1/dev/admin-session", json={"email": "a@example.com"}).status_code == 404
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/v1/admin/auth/signout",
+        "/v1/admin/auth/signin",
+        "/v1/admin/auth/stepup",
+        "/v1/admin/auth/totp/enrol",
+        "/v1/admin/auth/recovery-codes",
+        "/v1/admin/auth/webauthn/register/options",
+        "/v1/admin/admin-users",
+    ],
+)
+def test_every_admin_write_needs_the_custom_header_even_before_sign_in(client, make_admin, auth, path):
+    """CSRF (08 section 9 rule 7): a form or no-cors fetch cannot set Idempotency-Key, so a write without it is 400."""
+    _, email = make_admin("owner")
+    client.headers.pop("Idempotency-Key")  # the default key the other tests send
+    r = client.post(path, headers=auth(email), json={})
+    assert r.status_code == 400 and r.json()["code"] == "idempotency_key_required", r.text
+    # Not even the Access assertion is needed to be told: the guard is the first thing on the router.
+    assert client.post(path, json={}).status_code == 400
+    # With the header the same call reaches the real checks (anything but the guard's 400).
+    r = client.post(path, headers=auth(email, **key()), json={})
+    assert r.status_code != 400 and "idempotency_key_required" not in r.text, r.text  # signout answers 204, so no JSON to read

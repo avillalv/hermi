@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 from tests.test_admin_api import (  # noqa: F401
     ASSERTION,
+    DEFAULT_KEY,
     admin_conn,
     auth,
     client,
@@ -647,7 +648,7 @@ def test_field_encryption_round_trip_binding_and_missing_key(settings):
 def test_totp_enrolment_degrades_to_503_without_the_encryption_key(settings, db_urls, make_admin):
     s = settings.model_copy(update={"field_encryption_key": None})
     app = create_app(s)
-    with TestClient(app, raise_server_exceptions=False) as c:
+    with TestClient(app, raise_server_exceptions=False, headers=DEFAULT_KEY) as c:
         app.state.admin_directory = AdminDirectory(lambda: app.state.admin_engine)
         _, email = make_admin("support", enrolled=False)
         r = c.post(f"{B}/totp/enrol", headers=hdr(s, email))

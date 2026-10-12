@@ -35,6 +35,7 @@ never prints its value. `npm run doctor` lists what is set and what is missing.
 | `IMPORT_SANDBOX` | `strict` or `timeout_only`. On Windows `timeout_only` is a time limit plus a psutil memory kill | Required | Startup fails | `timeout_only` locally on Windows, `strict` in CI and production |
 | `VITE_API_BASE_URL` | API origin for the web and iOS bundles | Required | Startup fails | `http://localhost:8100` |
 | `VITE_APP_ENV` | Shown in the settings footer and Sentry | Required | Startup fails | `local` |
+| `VITE_BUILD_TARGET` | Empty for the web build, `ios` for the Capacitor bundle. `ios` removes the admin route group from the bundle (08 section 2.1). Set by `npm run build:ios`, not by hand | Optional | Web build, admin included | empty |
 
 ## Processes
 

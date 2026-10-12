@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:ios": "node scripts/build-ios.mjs",
     "test": "vitest run",
     "test:kit": "playwright test --project kit --project kit-metrics --project kit-shell --project kit-layout --project mobile --project kit-parity",
     "test:smoke": "playwright test --project smoke"

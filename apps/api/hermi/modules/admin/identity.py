@@ -237,3 +237,11 @@ def admin_transaction(request: Request) -> Iterator[Session]:
         except BaseException:
             s.rollback()
             raise
+
+
+def write_guard(request: Request, key: Annotated[str | None, Header(alias="Idempotency-Key")] = None) -> None:
+    """CSRF defence for the whole /v1/admin router (08 section 9 rule 7): every write must carry an Idempotency-Key,
+    a custom header a cross-site form or a no-cors fetch cannot send. Runs before the Access and 2FA checks, so it
+    covers sign-in, sign-out and enrolment too. Reads are exempt."""
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        idempotency_key(key)

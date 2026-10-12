@@ -1,4 +1,5 @@
-import { Link, Route, Routes } from "react-router";
+import { Suspense } from "react";
+import { Link, Navigate, Route, Routes } from "react-router";
 import { t } from "../lib/i18n";
 import { Activity } from "../routes/activity/Activity";
 import { SessionControl } from "../routes/auth/SessionControl";
@@ -24,6 +25,8 @@ import { TripOverview } from "../routes/trips/TripOverview";
 import { TripsHome } from "../routes/trips/TripsHome";
 import { Welcome } from "../routes/onboarding/Welcome";
 import { NotFound } from "../routes/errors";
+import { adminAvailable, isAdminHost } from "../routes/admin/adminHost";
+import { AdminRoutes } from "../routes/admin/lazy";
 import { AppShell, TABS } from "./AppShell";
 
 /** Placeholder until each tab's ticket lands. Trips is the home route `/` (05 5.4). */
@@ -39,9 +42,23 @@ function Placeholder({ tab }: { tab: (typeof TABS)[number] }) {
   );
 }
 
+const adminRoute = AdminRoutes && adminAvailable() && (
+  <Route path="/admin/*" element={<Suspense fallback={<p role="status" className="h-soft">{t("admin.loading")}</p>}><AdminRoutes /></Suspense>} />
+);
+
 export function AppRoutes() {
+  // The admin host serves the console only (08 2.1); every other path goes to it. Customer routes are never mounted there.
+  if (adminRoute && isAdminHost()) {
+    return (
+      <Routes>
+        {adminRoute}
+        <Route path="*" element={<Navigate to="/admin" replace />} />
+      </Routes>
+    );
+  }
   return (
     <Routes>
+      {adminRoute}
       <Route path="/welcome" element={<Welcome />} />
       <Route path="/sign-in" element={<SignIn />} />
       <Route path="/onboarding" element={<Onboarding />} />
